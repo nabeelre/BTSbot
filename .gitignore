@@ -134,4 +134,4 @@ misc/
 data/
 credentials.json
 mat-smith/
-models/*/model/
+models/
