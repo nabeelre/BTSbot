@@ -135,3 +135,6 @@ data/
 credentials.json
 mat-smith/
 models/
+slurm*
+test.py
+bts_train.sh

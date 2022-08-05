@@ -9,211 +9,37 @@ from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
 from pandas.plotting import register_matplotlib_converters, scatter_matrix
 
+from CNN_models import vgg6, vgg16, vgg_thin_reduce
+from create_pd_gr import create_train_data, only_pd_gr
+
 plt.rcParams.update({
     "font.family": "Times New Roman",
     "font.size": 14,
 })
 plt.rcParams['axes.linewidth'] = 1.5
 
-
-def only_pd_gr(trips, cand):
-    cand['isdiffpos'] = [True if isdiffpos == 't' else False for isdiffpos in cand['isdiffpos']]
-    
-    # Diagnostics
-    # iband = cand[cand['fid']==3]
-    # neg_iband = iband[~iband['isdiffpos']]
-
-    # iband_objids = iband['objectId'].value_counts().index.to_numpy()
-    # iband_counts = iband['objectId'].value_counts().to_numpy()
-
-    # cand_objids = cand['objectId'].value_counts().index.to_numpy()
-    # cand_counts = cand['objectId'].value_counts().to_numpy()
-
-    # print(f"Percent of alerts that are in the i-band {100*len(iband)/len(cand):.2f}%")
-    # print(f"Percent of objects that have at least one i band alert {100*len(iband_objids)/len(cand_objids):.2f}%")
-
-    # neg_iband_objids = neg_iband['objectId'].value_counts().index.to_numpy()
-    # neg_iband_counts = neg_iband['objectId'].value_counts().to_numpy()
-
-    # print(f"Percent of i-band alerts that have negative differences {100*len(neg_iband)/len(iband):.2f}%")
-
-    cand_pd_gr = cand[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2))]
-    triplets_pd_gr = trips[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2))]
-
-    # print("Positive difference alerts in g- or r-band", len(cand_pd_gr))
-    return triplets_pd_gr, cand_pd_gr
-
-
-def create_train_data(set_names, cuts, name, N_max=None, seed=2):
-    np.random.seed(seed)
-    # concat
-    # optionally save to disk? with provided name
-    triplets = np.empty((0,63,63,3))
-    cand = pd.DataFrame()
-
-    for set_name in set_names:
-        print(f"Working on {set_name} data")
-        # load set
-        set_trips = np.load(f"data/base_data/{set_name}_triplets.npy", mmap_mode='r')
-        set_cand = pd.read_csv(f"data/base_data/{set_name}_candidates.csv", index_col=False)
-        print("  Read")
-        
-        # run other optional cuts (ex: take only positive differences in g or r band)
-        set_trips, set_cand = cuts(set_trips, set_cand)
-        print("  Ran cuts")
-        set_cand.reset_index(inplace=True, drop=True)
-
-        # thin to N_max
-        # plt.figure()
-        # _ = plt.hist(set_cand['objectId'].value_counts(), histtype='step', bins=50)
-        # plt.tight_layout()
-        # plt.show()
-        print(f"  Initial median of {np.median(set_cand['objectId'].value_counts())} detections per object")
-        
-        if N_max is not None:
-            drops = np.empty((0,), dtype=int)
-            for ID in set(set_cand['objectId']):
-                reps = np.argwhere(np.asarray(set_cand['objectId']) == ID).flatten()
-                if len(reps) >= N_max:
-                    drops = np.concatenate((drops, np.random.choice(reps, len(reps)-N_max, replace=False)))
-            
-            set_trips = np.delete(set_trips, drops, axis=0)
-            set_cand = set_cand.drop(index=drops)
-            set_cand.reset_index(inplace=True)
-            print(f"  Dropped {len(drops)} {set_name} alerts down to {N_max} max per obj")
-        
-        # concat
-        triplets = np.concatenate((triplets, set_trips))
-        cand = pd.concat((cand, set_cand))
-        print(f"  Merged {set_name}")
-
-    # or return?
-    np.save(f"data/triplets_{name}{ f'_{N_max}max' if N_max is not None else '' }.npy", triplets)
-    cand.to_csv(f"data/candidates_{name}{ f'_{N_max}max' if N_max is not None else '' }.csv", index=False)
-    print("Wrote merged triplets and candidate data")
-    del triplets, cand
-
-
-def vgg6(input_shape=(63, 63, 3), n_classes: int = 1):
-    """
-        VGG6
-    :param input_shape:
-    :param n_classes:
-    :return:
-    """
-
-    model = tf.keras.models.Sequential(name='VGG6')
-    # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
-    # this applies 16 convolution filters of size 3x3 each.
-    model.add(Conv2D(16, (3, 3), activation='relu', input_shape=input_shape, name='conv1'))
-    model.add(Conv2D(16, (3, 3), activation='relu', name='conv2'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.25, name='drop_0.25'))
-
-    model.add(Conv2D(32, (3, 3), activation='relu', name='conv3'))
-    model.add(Conv2D(32, (3, 3), activation='relu', name='conv4'))
-    model.add(MaxPooling2D(pool_size=(4, 4)))
-    model.add(Dropout(0.25, name='drop2_0.25'))
-
-    model.add(Flatten())
-
-    model.add(Dense(256, activation='relu', name='fc_1'))
-    model.add(Dropout(0.4, name='drop3_0.4'))
-    # output layer
-    activation = 'sigmoid' if n_classes == 1 else 'softmax'
-    model.add(Dense(n_classes, activation=activation, name='fc_out'))
-
-    return model
-
-
-def vgg16(input_shape=(63, 63, 3), n_classes: int = 1):
-    # https://towardsdatascience.com/step-by-step-vgg16-implementation-in-keras-for-beginners-a833c686ae6c
-    
-    model = tf.keras.models.Sequential(name='VGG16')
-    # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
-    # this applies 16 convolution filters of size 3x3 each.
-    model.add(Conv2D(input_shape=input_shape, filters=64, kernel_size=(3,3), padding="same", activation="relu", name='conv1'))
-    model.add(Conv2D(filters=64,kernel_size=(3,3),padding="same", activation="relu", name='conv2'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Conv2D(filters=128, kernel_size=(3,3), padding="same", activation="relu", name='conv3'))
-    model.add(Conv2D(filters=128, kernel_size=(3,3), padding="same", activation="relu", name='conv4'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Conv2D(filters=256, kernel_size=(3,3), padding="same", activation="relu", name='conv5'))
-    model.add(Conv2D(filters=256, kernel_size=(3,3), padding="same", activation="relu", name='conv6'))
-    model.add(Conv2D(filters=256, kernel_size=(3,3), padding="same", activation="relu", name='conv7'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv8'))
-    model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv9'))
-    model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv10'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv11'))
-    model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv12'))
-    model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv13'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Flatten())
-    
-    model.add(Dense(units=4096,activation="relu"))
-    model.add(Dense(units=4096,activation="relu"))
-    activation = 'sigmoid' if n_classes == 1 else 'softmax'
-    model.add(Dense(units=n_classes, activation=activation))
-    
-    return model
-
-
-def vgg_thin_reduce(input_shape=(63, 63, 3), n_classes: int = 1):    
-    model = tf.keras.models.Sequential(name='VGG16')
-    # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
-    # this applies 16 convolution filters of size 3x3 each.
-    model.add(Conv2D(input_shape=input_shape, filters=16, kernel_size=(3,3), padding="same", activation="relu", name='conv1'))
-    model.add(Conv2D(filters=16,kernel_size=(3,3),padding="same", activation="relu", name='conv2'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Conv2D(filters=32, kernel_size=(3,3), padding="same", activation="relu", name='conv3'))
-    model.add(Conv2D(filters=32, kernel_size=(3,3), padding="same", activation="relu", name='conv4'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Conv2D(filters=64, kernel_size=(3,3), padding="same", activation="relu", name='conv5'))
-    model.add(Conv2D(filters=64, kernel_size=(3,3), padding="same", activation="relu", name='conv6'))
-    model.add(Conv2D(filters=64, kernel_size=(3,3), padding="same", activation="relu", name='conv7'))
-    model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-#     model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv8'))
-#     model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv9'))
-#     model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv10'))
-#     model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-#     model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv11'))
-#     model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv12'))
-#     model.add(Conv2D(filters=512, kernel_size=(3,3), padding="same", activation="relu", name='conv13'))
-#     model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
-    
-    model.add(Flatten())
-    
-    model.add(Dense(units=512,activation="relu"))
-#     model.add(Dense(units=4096,activation="relu"))
-    activation = 'sigmoid' if n_classes == 1 else 'softmax'
-    model.add(Dense(units=n_classes, activation=activation))
-    
-    return model
-
-N_max = 10
+N_max = 20
 loss = 'binary_crossentropy'
 optimizer = 'adam'
 epochs = 100
-patience = 500
+patience = 50
 class_weight = True
 batch_size = 64
+model_type = vgg_thin_reduce
 
-# create_train_data(['bts_true', 'bts_false', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
+# print(tf.config.list_physical_devices(device_type=None))
+
+if not (os.path.exists(f'data/candidates_pd_gr_{N_max}max.csv') and 
+        os.path.exists(f'data/triplets_pd_gr_{N_max}max.npy')):
+    create_train_data(['bts_true', 'bts_false', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
+else:
+    print("Training data already present")
+
 df = pd.read_csv(f'data/candidates_pd_gr_{N_max}max.csv')
 # display(df)
 # df.info()
 # df.describe()
+
 print(f'num_notbts: {np.sum(df.label == 0)}')
 print(f'num_bts: {np.sum(df.label == 1)}')
 
@@ -333,7 +159,7 @@ image_shape = x_train.shape[1:]
 print('Input image shape:', image_shape)
 
 # /-----------------------
-model = vgg6(input_shape=image_shape, n_classes=n_classes)
+model = model_type(input_shape=image_shape, n_classes=n_classes)
 
 # set up optimizer:
 if optimizer == 'adam':
@@ -374,7 +200,6 @@ misclassifications_train = {int(c): [int(l), float(p)]
                             for c, l, p in zip(df.candid.values[masks['training']][misclassified_train_mask],
                                                df.label.values[masks['training']][misclassified_train_mask],
                                                labels_training_pred[misclassified_train_mask])}
-# print(misclassifications_train)
 
 print('Evaluating on validation set for loss and accuracy:')
 preds = model.evaluate(x_val, y_val, batch_size=batch_size, verbose=1)
@@ -461,7 +286,7 @@ for i, ztfid in enumerate(ztfids_val):
 print('Generating report...')
 r = {'Run time stamp': run_t_stamp,
      'Model name': model_name,
-     'Model trained': 'vgg6',
+     'Model trained': model_type.__name__,
      'Batch size': batch_size,
      'Optimizer': optimizer,
      'Requested number of train epochs': epochs,
@@ -487,8 +312,6 @@ r = {'Run time stamp': run_t_stamp,
 for k in r['Training history'].keys():
     r['Training history'][k] = np.array(r['Training history'][k]).tolist()
 
-# print(r)
-
 save_report(path=report_dir, stamp=run_t_stamp, report=r)
 model.save(model_dir)
 
@@ -496,7 +319,6 @@ with open(report_dir+'model_summary.txt', 'w') as f:
     model.summary(print_fn=lambda x: f.write(x + '\n'), expand_nested=True, show_trainable=True)
 
 # /-----------------------
-
 if 'accuracy' in h.history:
     train_acc = h.history['accuracy']
     val_acc = h.history['val_accuracy']
@@ -514,7 +336,7 @@ ax1.plot(val_acc, label='Validation', linewidth=2)
 ax1.set_xlabel('Epoch')
 ax1.set_ylabel('Accuracy')
 ax1.legend(loc='best')
-ax1.set_ylim([0.6,0.9])
+# ax1.set_ylim([0.6,0.9])
 ax1.grid(True, linewidth=.3)
 
 ax2.plot(train_loss, label='Training', linewidth=2)
@@ -522,7 +344,7 @@ ax2.plot(val_loss, label='Validation', linewidth=2)
 ax2.set_xlabel('Epoch')
 ax2.set_ylabel('Loss')
 ax2.legend(loc='best')
-ax2.set_ylim([0.2,0.7])
+# ax2.set_ylim([0.2,0.7])
 ax2.grid(True, linewidth=.3)
 
 bins = np.arange(12,22,0.5)
@@ -565,4 +387,4 @@ for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
 
 plt.tight_layout()
 plt.savefig(report_dir+"fig.pdf", bbox_inches='tight')
-plt.show()
+plt.close()
