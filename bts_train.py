@@ -2,14 +2,14 @@ import numpy as np, pandas as pd, tensorflow as tf, matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
-import json, datetime, os
+import json, datetime, os, sys
 from tensorflow.keras.layers import Dense, Conv2D, MaxPool2D, MaxPooling2D, Flatten, Dropout
 from astropy.stats import sigma_clipped_stats
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
 from pandas.plotting import register_matplotlib_converters, scatter_matrix
 
-from CNN_models import vgg6, vgg16, vgg_thin_reduce
+import CNN_models
 from create_pd_gr import create_train_data, only_pd_gr
 
 plt.rcParams.update({
@@ -18,14 +18,33 @@ plt.rcParams.update({
 })
 plt.rcParams['axes.linewidth'] = 1.5
 
-N_max = 20
 loss = 'binary_crossentropy'
 optimizer = 'adam'
 epochs = 100
 patience = 50
 class_weight = True
 batch_size = 64
-model_type = vgg_thin_reduce
+
+if len(sys.argv) > 1:
+    try: 
+        model_type = getattr(CNN_models, sys.argv[1].lower())
+    except:
+        print("Could not find model of name", sys.argv[1], "defaulting to VGG6")
+        model_type = CNN_models.vgg6
+else:
+    print("Defaulting to VGG6")
+    model_type = CNN_models.vgg6
+
+if len(sys.argv) > 2:
+    try:
+        N_max = int(sys.argv[2])
+    except:
+        print("Could not understand provided N_max=", sys.argv[2], "defaulting to N_max=10")
+        N_max = 10
+else:
+    print("Defaulting to N_max=10")
+    N_max = 10
+
 
 # print(tf.config.list_physical_devices(device_type=None))
 
@@ -179,6 +198,12 @@ model.compile(optimizer=optimzr, loss=loss, metrics=['accuracy'])
 run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 model_name = f'{model.name}_{run_t_stamp}'
 
+report_dir = "models/"+model_name+"/"
+model_dir = report_dir+"model/"
+
+if not os.path.exists(model_dir):
+    os.makedirs(model_dir)
+
 h = model.fit(training_generator,
               steps_per_epoch=0.8*len(x_train) // batch_size,
               validation_data=validation_generator,
@@ -225,12 +250,6 @@ misclassifications_val = {int(c): [int(l), float(p)]
 labels_pred = np.rint(preds)
 
 # /-----------------------
-report_dir = "models/"+model_name+"/"
-model_dir = report_dir+"model/"
-
-if not os.path.exists(model_dir):
-    os.makedirs(model_dir)
-
 fpr, tpr, thresholds = roc_curve(df['label'][masks['val']], preds)
 roc_auc = auc(fpr, tpr)
 
