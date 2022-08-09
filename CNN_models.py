@@ -2,10 +2,6 @@ import tensorflow as tf
 from tensorflow.keras.layers import Dense, Conv2D, MaxPool2D, MaxPooling2D, Flatten, Dropout
 
 
-def test():
-    print("test work")
-    return
-
 def vgg6(input_shape=(63, 63, 3), n_classes: int = 1):
     """
         VGG6

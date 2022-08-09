@@ -138,17 +138,18 @@ early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=p
 
 data_augmentation = {'horizontal_flip': True,
                      'vertical_flip': True,
-                     'rotation_range': 0,  # should rotate !!!
                      'fill_mode': 'constant',
-                     'cval': 1e-9}
+                     'cval': 1e-9,
+                     'rotation': lambda img: np.rot90(img, np.random.choice([-1, 0, 1, 2]))}  # rotates by 0, 90, 180, or 270 deg
+
 datagen = tf.keras.preprocessing.image.ImageDataGenerator(horizontal_flip=data_augmentation['horizontal_flip'],
                                                           vertical_flip  =data_augmentation['vertical_flip'],
-                                                          rotation_range =data_augmentation['rotation_range'],
                                                           fill_mode      =data_augmentation['fill_mode'],
-                                                          cval           =data_augmentation['cval'])
+                                                          cval           =data_augmentation['cval'],
+                                                          preprocessing_function=data_augmentation['rotation'])
 
-training_generator = datagen.flow(x_train, y_train, batch_size=batch_size)
-validation_generator = datagen.flow(x_val, y_val, batch_size=batch_size)
+training_generator = datagen.flow(x_train, y_train, batch_size=batch_size, seed=2)
+validation_generator = datagen.flow(x_val, y_val, batch_size=batch_size, seed=2)
 
 # /-----------------------
 binary_classification = True if loss == 'binary_crossentropy' else False
@@ -396,10 +397,12 @@ hist, xbins, ybins, im = ax6.hist2d(val_perobj_g_acc, val_perobj_r_acc, norm=Log
 ax6.set_xlabel('Per-object g-band accuracy')
 ax6.set_ylabel('Per-object r-band accuracy')
 ax6.set(aspect='equal')
+ax6.xaxis.set_major_locator(MultipleLocator(0.25))
+ax6.yaxis.set_major_locator(MultipleLocator(0.25))
 
 for i in range(len(ybins)-1):
     for j in range(len(xbins)-1):
-        ax6.text(xbins[j]+0.125,ybins[i]+0.125, int(hist.T[i,j]), color="w", ha="center", va="center", fontweight="bold")
+        ax6.text(xbins[j]+0.14,ybins[i]+0.115, f"{100*int(hist.T[i,j])/len(ztfids_val):.1f}%", color="w", ha="center", va="center", fontweight="bold")
 
 for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
     ax.tick_params(which='both', width=1.5)
