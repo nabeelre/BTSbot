@@ -140,13 +140,16 @@ data_augmentation = {'horizontal_flip': True,
                      'vertical_flip': True,
                      'fill_mode': 'constant',
                      'cval': 1e-9,
-                     'rotation': lambda img: np.rot90(img, np.random.choice([-1, 0, 1, 2]))}  # rotates by 0, 90, 180, or 270 deg
+                     'rotation': True
+                    }
+
+preprocess_func = lambda img: np.rot90(img, np.random.choice([-1, 0, 1, 2])) if data_augmentation['rotation'] else lambda img: img
 
 datagen = tf.keras.preprocessing.image.ImageDataGenerator(horizontal_flip=data_augmentation['horizontal_flip'],
                                                           vertical_flip  =data_augmentation['vertical_flip'],
                                                           fill_mode      =data_augmentation['fill_mode'],
                                                           cval           =data_augmentation['cval'],
-                                                          preprocessing_function=data_augmentation['rotation'])
+                                                          preprocessing_function=preprocess_func)
 
 training_generator = datagen.flow(x_train, y_train, batch_size=batch_size, seed=2)
 validation_generator = datagen.flow(x_val, y_val, batch_size=batch_size, seed=2)
