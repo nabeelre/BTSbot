@@ -123,8 +123,8 @@ print(f"{num_val_alr} val alerts")
 print(f"{100*(num_train_alr/num_alr):.2f}%/{100*(num_val_alr/num_alr):.2f}% train/val split by alert\n")
 
 # /-----------------------
-def save_report(path: str = './', stamp: str = None, report: dict = dict()):
-    f_name = os.path.join(path, f'report.{stamp}.json')
+def save_report(path: str = './', report: dict = dict()):
+    f_name = os.path.join(path, f'report.json')
     with open(f_name, 'w') as f:
         json.dump(report, f, indent=2)
 
@@ -335,7 +335,7 @@ r = {'Run time stamp': run_t_stamp,
 for k in r['Training history'].keys():
     r['Training history'][k] = np.array(r['Training history'][k]).tolist()
 
-save_report(path=report_dir, stamp=run_t_stamp, report=r)
+save_report(path=report_dir, report=r)
 model.save(model_dir)
 
 with open(report_dir+'model_summary.txt', 'w') as f:

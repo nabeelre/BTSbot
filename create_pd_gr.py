@@ -30,7 +30,7 @@ def only_pd_gr(trips, cand):
 
 
 def create_train_data(set_names, cuts, name, N_max=None, seed=2):
-    np.random.seed(seed)
+    
     # concat
     # optionally save to disk? with provided name
     triplets = np.empty((0,63,63,3))
@@ -60,6 +60,7 @@ def create_train_data(set_names, cuts, name, N_max=None, seed=2):
             for ID in set(set_cand['objectId']):
                 reps = np.argwhere(np.asarray(set_cand['objectId']) == ID).flatten()
                 if len(reps) >= N_max:
+                    np.random.seed(seed)
                     drops = np.concatenate((drops, np.random.choice(reps, len(reps)-N_max, replace=False)))
             
             set_trips = np.delete(set_trips, drops, axis=0)
