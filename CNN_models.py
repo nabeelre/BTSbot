@@ -9,8 +9,7 @@ def vgg6(input_shape=(63, 63, 3), n_classes: int = 1):
     :param n_classes:
     :return:
     """
-    print("found vgg6")
-    model = tf.keras.models.Sequential(name='VGG6')
+    model = tf.keras.models.Sequential(name='vgg6')
     # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
     # this applies 16 convolution filters of size 3x3 each.
     model.add(Conv2D(16, (3, 3), activation='relu', input_shape=input_shape, name='conv1'))
@@ -35,8 +34,7 @@ def vgg6(input_shape=(63, 63, 3), n_classes: int = 1):
 
 
 def vgg6_lowdrop(input_shape=(63, 63, 3), n_classes: int = 1):
-    print("found vgg6 lowdrop")
-    model = tf.keras.models.Sequential(name='VGG6')
+    model = tf.keras.models.Sequential(name='vgg6_lowdrop')
     # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
     # this applies 16 convolution filters of size 3x3 each.
     model.add(Conv2D(16, (3, 3), activation='relu', input_shape=input_shape, name='conv1'))
@@ -61,8 +59,7 @@ def vgg6_lowdrop(input_shape=(63, 63, 3), n_classes: int = 1):
 
 
 def vgg6_highdrop(input_shape=(63, 63, 3), n_classes: int = 1):
-    print("found vgg6 highdrop")
-    model = tf.keras.models.Sequential(name='VGG6')
+    model = tf.keras.models.Sequential(name='vgg6_highdrop')
     # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
     # this applies 16 convolution filters of size 3x3 each.
     model.add(Conv2D(16, (3, 3), activation='relu', input_shape=input_shape, name='conv1'))
@@ -89,7 +86,7 @@ def vgg6_highdrop(input_shape=(63, 63, 3), n_classes: int = 1):
 def vgg16(input_shape=(63, 63, 3), n_classes: int = 1):
     # https://towardsdatascience.com/step-by-step-vgg16-implementation-in-keras-for-beginners-a833c686ae6c
     
-    model = tf.keras.models.Sequential(name='VGG16')
+    model = tf.keras.models.Sequential(name='vgg16')
     # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
     # this applies 16 convolution filters of size 3x3 each.
     model.add(Conv2D(input_shape=input_shape, filters=64, kernel_size=(3,3), padding="same", activation="relu", name='conv1'))
@@ -125,8 +122,8 @@ def vgg16(input_shape=(63, 63, 3), n_classes: int = 1):
     return model
 
 
-def vgg_thin_reduce(input_shape=(63, 63, 3), n_classes: int = 1):    
-    model = tf.keras.models.Sequential(name='VGG_thin_reduced')
+def vgg9(input_shape=(63, 63, 3), n_classes: int = 1):    
+    model = tf.keras.models.Sequential(name='vgg9')
     # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
     # this applies 16 convolution filters of size 3x3 each.
     model.add(Conv2D(input_shape=input_shape, filters=16, kernel_size=(3,3), padding="same", activation="relu", name='conv1'))
