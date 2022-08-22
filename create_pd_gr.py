@@ -74,8 +74,8 @@ def create_train_data(set_names, cuts, name, N_max=None, seed=2):
         print(f"  Merged {set_name}")
 
     # or return?
-    np.save(f"data/triplets_{name}{ f'_{N_max}max' if N_max is not None else '' }.npy", triplets)
-    cand.to_csv(f"data/candidates_{name}{ f'_{N_max}max' if N_max is not None else '' }.csv", index=False)
+    np.save(f"data/triplets_v2{ f'_n{N_max}' if N_max is not None else '' }.npy", triplets)
+    cand.to_csv(f"data/candidates_v2{ f'_n{N_max}' if N_max is not None else '' }.csv", index=False)
     print("Wrote merged triplets and candidate data")
     del triplets, cand
 
