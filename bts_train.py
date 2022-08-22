@@ -48,13 +48,13 @@ else:
 
 # print(tf.config.list_physical_devices(device_type=None))
 
-if not (os.path.exists(f'data/candidates_pd_gr_{N_max}max.csv') and 
-        os.path.exists(f'data/triplets_pd_gr_{N_max}max.npy')):
-    create_train_data(['bts_true', 'bts_false', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
+if not (os.path.exists(f'data/candidates_v2_n{N_max}.csv') and 
+        os.path.exists(f'data/triplets_v2_n{N_max}.npy')):
+    create_train_data(['bts_true', 'bts_false_var', 'bts_false_dim', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
 else:
     print("Training data already present")
 
-df = pd.read_csv(f'data/candidates_pd_gr_{N_max}max.csv')
+df = pd.read_csv(f'data/candidates_v2_n{N_max}.csv')
 # display(df)
 # df.info()
 # df.describe()
@@ -63,7 +63,7 @@ print(f'num_notbts: {np.sum(df.label == 0)}')
 print(f'num_bts: {np.sum(df.label == 1)}')
 
 # We will use memory mapping as the file is relatively large (1 GB)
-triplets = np.load(f'data/triplets_pd_gr_{N_max}max.npy', mmap_mode='r')
+triplets = np.load(f'data/triplets_v2_n{N_max}.npy', mmap_mode='r')
 
 # /-----------------------
 test_split = 0.1  # fraction of all data
