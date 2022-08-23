@@ -80,4 +80,4 @@ def create_train_data(set_names, cuts, name, N_max=None, seed=2):
     del triplets, cand
 
 if __name__ == "__main__":
-    create_train_data(['bts_true', 'bts_false', 'MS'], only_pd_gr, name="pd_gr", N_max=int(sys.argv[1]))
+    create_train_data(['bts_true', 'bts_false_var', 'bts_false_dim', 'MS'], only_pd_gr, name="pd_gr", N_max=int(sys.argv[1]))
