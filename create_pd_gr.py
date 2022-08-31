@@ -30,9 +30,9 @@ def only_pd_gr(trips, cand):
 
 
 def create_train_data(set_names, cuts, name, N_max=None, seed=2):
-    
     # concat
     # optionally save to disk? with provided name
+    
     triplets = np.empty((0,63,63,3))
     cand = pd.DataFrame()
 
@@ -53,7 +53,7 @@ def create_train_data(set_names, cuts, name, N_max=None, seed=2):
         # _ = plt.hist(set_cand['objectId'].value_counts(), histtype='step', bins=50)
         # plt.tight_layout()
         # plt.show()
-        print(f"  Initial median of {np.median(set_cand['objectId'].value_counts())} detections per object")
+        print(f"  Initial median of {int(np.median(set_cand['objectId'].value_counts()))} detections per object")
         
         if N_max is not None:
             drops = np.empty((0,), dtype=int)
@@ -80,4 +80,4 @@ def create_train_data(set_names, cuts, name, N_max=None, seed=2):
     del triplets, cand
 
 if __name__ == "__main__":
-    create_train_data(['bts_true', 'bts_false_var', 'bts_false_dim', 'MS'], only_pd_gr, name="pd_gr", N_max=int(sys.argv[1]))
+    create_train_data(['rcf_true', 'rcf_var_false', 'rcf_dim_false', 'rcf_deep_false', 'MS'], only_pd_gr, name="pd_gr", N_max=int(sys.argv[1]))

@@ -50,7 +50,7 @@ else:
 
 if not (os.path.exists(f'data/candidates_v2_n{N_max}.csv') and 
         os.path.exists(f'data/triplets_v2_n{N_max}.npy')):
-    create_train_data(['bts_true', 'bts_var_false', 'bts_dim_false', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
+    create_train_data(['rcf_true', 'rcf_var_false', 'rcf_dim_false', 'rcf_deep_false', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
 else:
     print("Training data already present")
 
