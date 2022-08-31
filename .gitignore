@@ -138,3 +138,8 @@ models/
 slurm*
 test.py
 bts_train.sh
+train_vgg9.sh
+hd_vgg6.sh
+sync_all.sh
+sync_latest.sh
+fritz_group.py
