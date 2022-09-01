@@ -2,6 +2,32 @@ import tensorflow as tf
 from tensorflow.keras.layers import Dense, Conv2D, MaxPool2D, MaxPooling2D, Flatten, Dropout
 
 
+def vgg4(input_shape=(63, 63, 3), n_classes: int = 1):
+    """
+    VGG4
+    :param input_shape:
+    :param n_classes:
+    :return:
+    """
+    model = tf.keras.models.Sequential(name='vgg6')
+    # input: 63x63 images with 3 channel -> (63, 63, 3) tensors.
+    # this applies 16 convolution filters of size 3x3 each.
+    model.add(Conv2D(16, (3, 3), activation='relu', input_shape=input_shape, name='conv1'))
+    model.add(Conv2D(16, (3, 3), activation='relu', name='conv2'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.25, name='drop_0.25'))
+
+    model.add(Flatten())
+
+    model.add(Dense(256, activation='relu', name='fc_1'))
+    model.add(Dropout(0.4, name='drop3_0.4'))
+    # output layer
+    activation = 'sigmoid' if n_classes == 1 else 'softmax'
+    model.add(Dense(n_classes, activation=activation, name='fc_out'))
+
+    return model
+
+
 def vgg6(input_shape=(63, 63, 3), n_classes: int = 1):
     """
         VGG6

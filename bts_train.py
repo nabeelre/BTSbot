@@ -20,7 +20,7 @@ plt.rcParams['axes.linewidth'] = 1.5
 
 loss = 'binary_crossentropy'
 optimizer = 'adam'
-epochs = 100
+epochs = 500
 patience = 50
 class_weight = True
 batch_size = 64
