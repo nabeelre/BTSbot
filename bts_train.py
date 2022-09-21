@@ -1,13 +1,14 @@
 import numpy as np, pandas as pd, tensorflow as tf, matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc, confusion_matrix, ConfusionMatrixDisplay
+import json, datetime, os, sys
+
+from sklearn.metrics import roc_curve, auc, ConfusionMatrixDisplay
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
-import json, datetime, os, sys
-from tensorflow.keras.layers import Dense, Conv2D, MaxPool2D, MaxPooling2D, Flatten, Dropout
-from astropy.stats import sigma_clipped_stats
+
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
-from pandas.plotting import register_matplotlib_converters, scatter_matrix
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from pandas.plotting import scatter_matrix
 
 import CNN_models
 from create_pd_gr import create_train_data, only_pd_gr
@@ -18,12 +19,29 @@ plt.rcParams.update({
 })
 plt.rcParams['axes.linewidth'] = 1.5
 
+# /-----------------------------
+#  HYPERPARAMETERS
+# /-----------------------------
+
 loss = 'binary_crossentropy'
-optimizer = 'adam'
+optimizer = tf.keras.optimizers.Adam(
+    learning_rate=3e-4, 
+    beta_1=0.9, 
+    beta_2=0.999, 
+    epsilon=None, 
+    decay=0.0, 
+    amsgrad=False
+)
 epochs = 500
-patience = 50
-class_weight = True
+patience = 150
+weight_classes = True
 batch_size = 64
+
+# /-----------------------------
+#  BASIC COMMAND LINE INTERFACE
+# /-----------------------------
+
+metadata = True if "meta" in sys.argv[1].lower() else False
 
 if len(sys.argv) > 1:
     try: 
@@ -45,8 +63,12 @@ else:
     print("Defaulting to N_max=10")
     N_max = 10
 
+metadata_cols = ['magpsf', 'distpsnr1', 'sgscore1', 'distpsnr2', 'distpsnr3', 'ra', 'dec', 'magnr', 'ndethist', 'neargaia', 'maggaia']
+metadata_cols.append('label')
 
-# print(tf.config.list_physical_devices(device_type=None))
+# /-----------------------------
+#  LOAD TRAINING DATA
+# /-----------------------------
 
 if not (os.path.exists(f'data/candidates_v3_n{N_max}.csv') and 
         os.path.exists(f'data/triplets_v3_n{N_max}.npy')):
@@ -55,17 +77,17 @@ else:
     print("Training data already present")
 
 df = pd.read_csv(f'data/candidates_v3_n{N_max}.csv')
-# display(df)
-# df.info()
-# df.describe()
 
 print(f'num_notbts: {np.sum(df.label == 0)}')
 print(f'num_bts: {np.sum(df.label == 1)}')
 
-# We will use memory mapping as the file is relatively large (1 GB)
 triplets = np.load(f'data/triplets_v3_n{N_max}.npy', mmap_mode='r')
+assert not np.any(np.isnan(triplets))
 
-# /-----------------------
+# /-----------------------------
+#  TRAIN/VAL/TEST SPLIT
+# /-----------------------------
+
 test_split = 0.1  # fraction of all data
 random_state = 2
 
@@ -78,24 +100,16 @@ is_test = ~is_seen
 mask_seen = shuffle(df.index.values[is_seen], random_state=random_state)
 mask_test  = shuffle(df.index.values[is_test], random_state=random_state)
 
-x_seen, y_seen = triplets[mask_seen], df['label'][mask_seen]
-x_test,  y_test  = triplets[mask_test] , df['label'][mask_test]
+# x_seen, seen_df = triplets[mask_seen], df.loc[mask_seen][metadata_cols]
+# x_test, test_df = triplets[mask_test], df.loc[mask_test][metadata_cols]
 
-num_seen_obj = len(ztfids_seen)
-num_test_obj = len(ztfids_test)
-num_obj = len(pd.unique(df['objectId']))
-print(f"{num_seen_obj} seen/train+val objects")
-print(f"{num_test_obj} unseen/test objects")
-print(f"{100*(num_seen_obj/num_obj):.2f}%/{100*(num_test_obj/num_obj):.2f}% seen/unseen split by object\n")
+print(f"{len(ztfids_seen)} seen/train+val objects; {len(ztfids_test)} unseen/test objects")
+print(f"{100*(len(ztfids_seen)/len(pd.unique(df['objectId']))):.2f}%/{100*(len(ztfids_test)/len(pd.unique(df['objectId']))):.2f}% seen/unseen split by object\n")
 
-num_seen_alr = len(x_seen)
-num_test_alr = len(x_test)
-num_alr = len(df['objectId'])
-print(f"{num_seen_alr} seen/train+val alerts")
-print(f"{num_test_alr} unseen/test alerts")
-print(f"{100*(num_seen_alr/num_alr):.2f}%/{100*(num_test_alr/num_alr):.2f}% seen/unseen split by alert\n")
+print(f"{len(mask_seen)} seen/train+val alerts; {len(mask_test)} unseen/test alerts")
+print(f"{100*(len(mask_seen)/len(df['objectId'])):.2f}%/{100*(len(mask_test)/len(df['objectId'])):.2f}% seen/unseen split by alert\n")
 
-# /-----------------------
+
 validation_split = 0.1  # fraction of the seen data
 
 ztfids_train, ztfids_val = train_test_split(ztfids_seen, test_size=validation_split, random_state=random_state)
@@ -108,64 +122,125 @@ mask_val  = shuffle(df.index.values[is_val], random_state=random_state)
 x_train, y_train = triplets[mask_train], df['label'][mask_train]
 x_val, y_val = triplets[mask_val], df['label'][mask_val]
 
-num_train_obj = len(ztfids_train)
-num_val_obj = len(ztfids_val)
-num_obj = len(pd.unique(df['objectId']))
-print(f"{num_train_obj} train objects")
-print(f"{num_val_obj} val objects")
-print(f"{100*(num_train_obj/num_obj):.2f}%/{100*(num_val_obj/num_obj):.2f}% train/val split by object\n")
+val_alerts = df.loc[mask_val]
 
-num_train_alr = len(x_train)
-num_val_alr = len(x_val)
-num_alr = len(df['objectId'])
-print(f"{num_train_alr} train alerts")
-print(f"{num_val_alr} val alerts")
-print(f"{100*(num_train_alr/num_alr):.2f}%/{100*(num_val_alr/num_alr):.2f}% train/val split by alert\n")
+# train/val_df is a combination of the desired metadata and y_train/val (labels)
+# we provide the model a custom generator function to separate these as necessary
+train_df = df.loc[mask_train][metadata_cols]
+val_df   = val_alerts[metadata_cols]
 
-# /-----------------------
-def save_report(path: str = './', report: dict = dict()):
-    f_name = os.path.join(path, f'report.json')
-    with open(f_name, 'w') as f:
-        json.dump(report, f, indent=2)
+print(f"{len(ztfids_train)} train objects; {len(ztfids_val)} val objects")
+print(f"{100*(len(ztfids_train)/len(pd.unique(df['objectId']))):.2f}%/{100*(len(ztfids_val)/len(pd.unique(df['objectId']))):.2f}% train/val split by object\n")
 
-masks = {'training': mask_train, 'val': mask_val, 'test': mask_test}
+print(f"{len(x_train)} train alerts; {len(x_val)} val alerts")
+print(f"{100*(len(x_train)/len(df['objectId'])):.2f}%/{100*(len(x_val)/len(df['objectId'])):.2f}% train/val split by alert\n")
 
-# /-----------------------
+# /-----------------------------
+#  SET UP CALLBACKS
+# /-----------------------------
+
 tf.keras.backend.clear_session()
 
 # halt training if no gain in validation accuracy over patience epochs
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss',
+    verbose=1, 
+    patience=patience
+)
 
-data_augmentation = {'horizontal_flip': True,
-                     'vertical_flip': True,
-                     'fill_mode': 'constant',
-                     'cval': 1e-9,
-                     'rotation': True
-                    }
+tensorboard = tf.keras.callbacks.TensorBoard(
+    log_dir="tb_logs/", 
+#     histogram_freq=1,
+#     write_graph=True,
+#     write_images=True,
+    update_freq='epoch',
+#     profile_batch=1
+)
 
-preprocess_func = lambda img: np.rot90(img, np.random.choice([-1, 0, 1, 2])) if data_augmentation['rotation'] else lambda img: img
+# /-----------------------------
+#  SET UP DATA GENERATORS WITH AUGMENTATION
+# /-----------------------------
 
-datagen = tf.keras.preprocessing.image.ImageDataGenerator(horizontal_flip=data_augmentation['horizontal_flip'],
-                                                          vertical_flip  =data_augmentation['vertical_flip'],
-                                                          fill_mode      =data_augmentation['fill_mode'],
-                                                          cval           =data_augmentation['cval'],
-                                                          preprocessing_function=preprocess_func)
+def rotate_incs_90(img):
+    return np.rot90(img, np.random.choice([-1, 0, 1, 2]))
 
-training_generator = datagen.flow(x_train, y_train, batch_size=batch_size, seed=2)
-validation_generator = datagen.flow(x_val, y_val, batch_size=batch_size, seed=2)
+data_aug = {
+    'h_flip': False,
+    'v_flip': True,
+    'fill_mode': 'constant',
+    'cval': 0,
+    'rot': True
+}
 
-# /-----------------------
-binary_classification = True if loss == 'binary_crossentropy' else False
-n_classes = 1 if binary_classification else 2
+train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+    horizontal_flip=data_aug['h_flip'],
+    vertical_flip  =data_aug['v_flip'],
+    fill_mode      =data_aug['fill_mode'],
+    cval           =data_aug['cval'],
+    preprocessing_function = rotate_incs_90 if data_aug['rot'] else None
+)
 
-# training data weights
-if class_weight:
+val_datagen = tf.keras.preprocessing.image.ImageDataGenerator()
+
+if metadata:
+    t_generator = train_datagen.flow(x_train, train_df, batch_size=batch_size, seed=2, shuffle=False)
+    v_generator = val_datagen.flow(x_val, val_df, batch_size=batch_size, seed=2, shuffle=False)
+
+    def multiinput_train_generator():
+        # to keep track of complete epoch
+        count = 0 
+        while True:
+            if count == len(train_df.index):
+                # if the count is matching with the length of df, 
+                # the one pass is completed, so reset the generator
+                print("RESET HAPPENING")
+                t_generator.reset()
+                break
+            count += 1
+            # get the data from the generator
+            # data is [[img], [other_cols]],
+            data = t_generator.next()
+
+            imgs = data[0]
+            cols = data[1][:,:-1]
+            targets = data[1][:,-1:]
+
+            yield [imgs, cols], targets
+
+    def multiinput_val_generator():
+        # to keep track of complete epoch
+        count = 0 
+        while True:
+            if count == len(val_df.index):
+                # if the count is matching with the length of df, 
+                # the one pass is completed, so reset the generator
+                print("RESET HAPPENING")
+                v_generator.reset()
+                break
+            count += 1
+            # get the data from the generator
+            # data is [[img], [other_cols]],
+            data = v_generator.next()
+
+            imgs = data[0]
+            cols = data[1][:,:-1]
+            targets = data[1][:,-1:]
+
+            yield [imgs, cols], targets
+
+    training_generator = multiinput_train_generator()
+    validation_generator = multiinput_val_generator()
+else:
+    training_generator = train_datagen.flow(x_train, y_train, batch_size=batch_size, seed=2, shuffle=False)
+    validation_generator = val_datagen.flow(x_val, y_val, batch_size=batch_size, seed=2, shuffle=False)
+
+# /-----------------------------
+#  OTHER MODEL SET UP
+# /-----------------------------
+
+if weight_classes:
     # weight data class depending on number of examples?
-    if not binary_classification:
-        num_training_examples_per_class = np.sum(y_train, axis=0)
-    else:
-        num_training_examples_per_class = np.array([len(y_train) - np.sum(y_train), np.sum(y_train)])
-
+    num_training_examples_per_class = np.array([len(y_train) - np.sum(y_train), np.sum(y_train)])
     assert 0 not in num_training_examples_per_class, 'found class without any examples!'
 
     # fewer examples -- larger weight
@@ -173,7 +248,6 @@ if class_weight:
     normalized_weight = weights / np.max(weights)
 
     class_weight = {i: w for i, w in enumerate(normalized_weight)}
-
 else:
     class_weight = {i: 1 for i in range(2)}
     
@@ -181,137 +255,106 @@ else:
 image_shape = x_train.shape[1:]
 print('Input image shape:', image_shape)
 
-# /-----------------------
-model = model_type(input_shape=image_shape, n_classes=n_classes)
-
-# set up optimizer:
-if optimizer == 'adam':
-    optimzr = tf.keras.optimizers.Adam(learning_rate=3e-4, beta_1=0.9, beta_2=0.999,
-                                       epsilon=None, decay=0.0, amsgrad=False)
-elif optimizer == 'sgd':
-    optimzr = tf.keras.optimizers.SGD(learning_rate=0.01, momentum=0.9, decay=1e-6, nesterov=True)
+# metadata shape (if necessary):
+if metadata:
+    metadata_shape = np.shape(train_df.iloc[0][:-1])
+    print('Input metadata shape:', metadata_shape)
+    model = model_type(image_shape=image_shape, metadata_shape=metadata_shape)
 else:
-    print('Could not recognize optimizer, using Adam')
-    optimzr = tf.keras.optimizers.Adam(learning_rate=3e-4, beta_1=0.9, beta_2=0.999,
-                                       epsilon=None, decay=0.0, amsgrad=False)
+    model = model_type(image_shape=image_shape)
 
-assert not np.any(np.isnan(triplets))
-model.compile(optimizer=optimzr, loss=loss, metrics=['accuracy'])
 
-# /-----------------------
 run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f'{model.name}_{run_t_stamp}'
+model_name = f'{model.name}-v3-n{N_max}'
 
-report_dir = "models/"+model_name+"/"
-model_dir = report_dir+"model/"
+# /-----------------------------
+#  COMPILE AND TRAIN MODEL
+# /-----------------------------
 
-if not os.path.exists(model_dir):
-    os.makedirs(model_dir)
+model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
-h = model.fit(training_generator,
-              steps_per_epoch=0.8*len(x_train) // batch_size,
-              validation_data=validation_generator,
-              validation_steps=(0.8*len(x_test)) // batch_size,
-              class_weight=class_weight,
-              epochs=epochs,
-              verbose=1, callbacks=[early_stopping])
+h = model.fit(
+    training_generator,
+    steps_per_epoch=0.8*len(x_train) // batch_size,
+    validation_data=validation_generator,
+    validation_steps=(0.8*len(x_val)) // batch_size,
+    class_weight=class_weight,
+    epochs=epochs,
+    verbose=1, callbacks=[early_stopping, tensorboard]
+)
 
-# /-----------------------
+# /-----------------------------
+#  LOG MISCLASSIFICATIONS
+# /-----------------------------
+
 print('Evaluating on training set to check misclassified samples:')
-labels_training_pred = model.predict(x_train, batch_size=batch_size, verbose=1)
+if metadata:
+    labels_training_pred = model.predict([x_train, train_df.iloc[:,:-1]], batch_size=batch_size, verbose=1)
+else:
+    labels_training_pred = model.predict(x_train, batch_size=batch_size, verbose=1)
+
 # XOR will show misclassified samples
-misclassified_train_mask = np.array(list(map(int, df.label[masks['training']]))).flatten() ^ \
+misclassified_train_mask = np.array(list(map(int, df.label[mask_train]))).flatten() ^ \
                            np.array(list(map(int, np.rint(labels_training_pred)))).flatten()
 
 misclassified_train_mask = [ii for ii, mi in enumerate(misclassified_train_mask) if mi == 1]
 
 misclassifications_train = {int(c): [int(l), float(p)]
-                            for c, l, p in zip(df.candid.values[masks['training']][misclassified_train_mask],
-                                               df.label.values[masks['training']][misclassified_train_mask],
+                            for c, l, p in zip(df.candid.values[mask_train][misclassified_train_mask],
+                                               df.label.values[mask_train][misclassified_train_mask],
                                                labels_training_pred[misclassified_train_mask])}
 
 print('Evaluating on validation set for loss and accuracy:')
-preds = model.evaluate(x_val, y_val, batch_size=batch_size, verbose=1)
+if metadata:
+    preds = model.evaluate([x_val, val_df.iloc[:,:-1]], y_val, batch_size=batch_size, verbose=1)
+else:
+    preds = model.evaluate(x_val, y_val, batch_size=batch_size, verbose=1)
 val_loss = float(preds[0])
 val_accuracy = float(preds[1])
 print("Loss = " + str(val_loss))
 print("Val Accuracy = " + str(val_accuracy))
 
 print('Evaluating on validation set to check misclassified samples:')
-preds = model.predict(x=x_val, batch_size=batch_size, verbose=1)
-
+if metadata:
+    preds = model.predict(x=[x_val, val_df.iloc[:,:-1]], batch_size=batch_size, verbose=1)
+else:
+    preds = model.predict(x=x_val, batch_size=batch_size, verbose=1)
 # XOR will show misclassified samples
-misclassified_val_mask = np.array(list(map(int, df.label[masks['val']]))).flatten() ^ \
+misclassified_val_mask = np.array(list(map(int, df.label[mask_val]))).flatten() ^ \
                           np.array(list(map(int, np.rint(preds)))).flatten()
 misclassified_val_mask = [ii for ii, mi in enumerate(misclassified_val_mask) if mi == 1]
 
 misclassifications_val = {int(c): [int(l), float(p)]
-                           for c, l, p in zip(df.candid.values[masks['val']][misclassified_val_mask],
-                                              df.label.values[masks['val']][misclassified_val_mask],
+                           for c, l, p in zip(df.candid.values[mask_val][misclassified_val_mask],
+                                              df.label.values[mask_val][misclassified_val_mask],
                                               preds[misclassified_val_mask])}
 
 # round probs to nearest int (0 or 1)
 labels_pred = np.rint(preds)
 
-# /-----------------------
-fpr, tpr, thresholds = roc_curve(df['label'][masks['val']], preds)
+# /-----------------------------
+#  ROC CURVE AND CONFUSION MATRIX
+# /-----------------------------
+
+fpr, tpr, thresholds = roc_curve(df['label'][mask_val], preds)
 roc_auc = auc(fpr, tpr)
 
 fig, ax = plt.subplots()
-CFD = ConfusionMatrixDisplay.from_predictions(df.label.values[masks['val']], 
+CFD = ConfusionMatrixDisplay.from_predictions(df.label.values[mask_val], 
                                         labels_pred, normalize='true', ax=ax)
 plt.close()
 
-# /-----------------------
-val_labels = np.array(list(map(int, df.label[masks['val']]))).flatten()
-val_rpreds = np.array(list(map(int, np.rint(preds)))).flatten()
+# /-----------------------------
+#  SAVE REPORT AND MODEL TO DISK
+# /-----------------------------
 
-val_TP_mask = np.bitwise_and(val_labels, val_rpreds)
-val_TN_mask = 1-(np.bitwise_or(val_labels, val_rpreds))
-val_FP_mask = np.bitwise_and(1-val_labels, val_rpreds)
-val_FN_mask = np.bitwise_and(val_labels, 1-val_rpreds)
-
-val_TP_idxs = [ii for ii, mi in enumerate(val_TP_mask) if mi == 1]
-val_TN_idxs = [ii for ii, mi in enumerate(val_TN_mask) if mi == 1]
-val_FP_idxs = [ii for ii, mi in enumerate(val_FP_mask) if mi == 1]
-val_FN_idxs = [ii for ii, mi in enumerate(val_FN_mask) if mi == 1]
-
-# per object model accuracy for val objects in g, r bands
-val_perobj_g_acc = np.zeros(len(ztfids_val))
-val_perobj_r_acc = np.zeros(len(ztfids_val))
-
-for i, ztfid in enumerate(ztfids_val): 
-    cands = df[df['objectId']==ztfid]
-    label = cands['label'].to_numpy()[0]
-
-    g_cands = cands[cands['fid']==1]
-    g_trips = triplets[df['objectId']==ztfid][cands['fid']==1]
-
-    r_cands = cands[cands['fid']==2]
-    r_trips = triplets[df['objectId']==ztfid][cands['fid']==2]
-
-    if len(g_cands) > 0:
-        g_preds = np.array(np.rint(model.predict(g_trips).flatten()), dtype=int)
-        val_perobj_g_acc[i] = np.sum(g_preds==label)/len(g_trips)
-    else:
-        g_preds = []
-        val_perobj_g_acc[i] = -1
-     
-    if len(r_cands) > 0:
-        r_preds = np.array(np.rint(model.predict(r_trips).flatten()), dtype=int)
-        val_perobj_r_acc[i] = np.sum(r_preds==label)/len(r_trips)
-    else:
-        r_preds = []
-        val_perobj_r_acc[i] = -1
-
-# /-----------------------
 # generate training report in json format
 print('Generating report...')
-r = {'Run time stamp': run_t_stamp,
+report = {'Run time stamp': run_t_stamp,
      'Model name': model_name,
      'Model trained': model_type.__name__,
      'Batch size': batch_size,
-     'Optimizer': optimizer,
+     'Optimizer': str(type(optimizer)),
      'Requested number of train epochs': epochs,
      'Early stopping after epochs': patience,
      'Training+validation/test split': test_split,
@@ -324,7 +367,7 @@ r = {'Run time stamp': run_t_stamp,
      'Y_train shape': y_train.shape,
      'X_val shape': x_val.shape,
      'Y_val shape': y_val.shape,
-     'Data augmentation': data_augmentation,
+     'Data augmentation': data_aug,
      'Confusion matrix': CFD.confusion_matrix.tolist(),
      'Misclassified val candids': list(misclassifications_val.keys()),
      'Misclassified training candids': list(misclassifications_train.keys()),
@@ -332,28 +375,69 @@ r = {'Run time stamp': run_t_stamp,
      'Training misclassifications': misclassifications_train,
      'Training history': h.history
      }
-for k in r['Training history'].keys():
-    r['Training history'][k] = np.array(r['Training history'][k]).tolist()
+for k in report['Training history'].keys():
+    report['Training history'][k] = np.array(report['Training history'][k]).tolist()
 
-save_report(path=report_dir, report=r)
+report_dir = "models/"+model_name+"/"
+model_dir = report_dir+"model/"
+
+if not os.path.exists(model_dir):
+    os.makedirs(model_dir)
+
+f_name = os.path.join(report_dir, f'report.json')
+with open(f_name, 'w') as f:
+    json.dump(report, f, indent=2)
+
 model.save(model_dir)
+tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf", show_shapes=True, show_layer_names=False, show_layer_activations=True)
 
-with open(report_dir+'model_summary.txt', 'w') as f:
-    model.summary(print_fn=lambda x: f.write(x + '\n'), expand_nested=True, show_trainable=True)
+# with open(report_dir+'model_summary.txt', 'w') as f:
+#     model.summary(print_fn=lambda x: f.write(x + '\n'), expand_nested=True, show_trainable=True)
 
-# /-----------------------
-if 'accuracy' in h.history:
-    train_acc = h.history['accuracy']
-    val_acc = h.history['val_accuracy']
-else:
-    train_acc = h.history['acc']
-    val_acc = h.history['val_acc']
+# /-----------------------------
+#  OTHER FIGURE SET UP
+# /-----------------------------
 
-train_loss = h.history['loss']
-val_loss = h.history['val_loss']
+val_labels = np.array(list(map(int, df.label[mask_val]))).flatten()
+val_rpreds = np.array(list(map(int, np.rint(preds)))).flatten()
 
-fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3, figsize=(15, 8), dpi=250)
+val_TP_mask = np.bitwise_and(val_labels, val_rpreds)
+val_TN_mask = 1-(np.bitwise_or(val_labels, val_rpreds))
+val_FP_mask = np.bitwise_and(1-val_labels, val_rpreds)
+val_FN_mask = np.bitwise_and(val_labels, 1-val_rpreds)
 
+val_TP_idxs = [ii for ii, mi in enumerate(val_TP_mask) if mi == 1]
+val_TN_idxs = [ii for ii, mi in enumerate(val_TN_mask) if mi == 1]
+val_FP_idxs = [ii for ii, mi in enumerate(val_FP_mask) if mi == 1]
+val_FN_idxs = [ii for ii, mi in enumerate(val_FN_mask) if mi == 1]
+
+val_perobj_acc = np.zeros(len(ztfids_val))
+
+for i, ztfid in enumerate(ztfids_val):  
+    trips = x_val[val_alerts['objectId']==ztfid]
+    label = y_val[val_alerts['objectId']==ztfid].to_numpy()[0]
+    
+    if metadata:
+        obj_df = val_alerts[val_alerts['objectId']==ztfid][metadata_cols]
+        obj_preds = np.array(np.rint(model.predict([trips, obj_df.iloc[:,:-1]], batch_size=batch_size, verbose=0).flatten()), dtype=int)
+    else:
+        obj_preds = np.array(np.rint(model.predict(trips, batch_size=batch_size, verbose=0).flatten()), dtype=int)
+    
+    val_perobj_acc[i] = np.sum(obj_preds==label)/len(trips)
+
+train_loss = report['Training history']['loss']
+val_loss = report['Training history']['val_loss']
+
+train_acc = report['Training history']['accuracy']
+val_acc = report['Training history']['val_accuracy']
+
+# /-----------------------------
+#  MAKE FIGURE
+# /-----------------------------
+
+fig, ((ax1, ax2, ax3), (ax4, ax5, ax6), (ax7, ax8, ax9)) = plt.subplots(nrows=3, ncols=3, figsize=(15, 12), dpi=250)
+
+plt.suptitle(os.path.basename(os.path.normpath(report_dir)), size=28)
 ax1.plot(train_acc, label='Training', linewidth=2)
 ax1.plot(val_acc, label='Validation', linewidth=2)
 ax1.set_xlabel('Epoch')
@@ -361,6 +445,8 @@ ax1.set_ylabel('Accuracy')
 ax1.legend(loc='best')
 # ax1.set_ylim([0.6,0.9])
 ax1.grid(True, linewidth=.3)
+
+# /===================================================================/
 
 ax2.plot(train_loss, label='Training', linewidth=2)
 ax2.plot(val_loss, label='Validation', linewidth=2)
@@ -370,16 +456,38 @@ ax2.legend(loc='best')
 # ax2.set_ylim([0.2,0.7])
 ax2.grid(True, linewidth=.3)
 
-bins = np.arange(12,22,0.5)
-ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, zorder=2)
-ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, zorder=3)
-ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, zorder=4)
-ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, zorder=5)
+# /===================================================================/
+
+bins = np.arange(15,22,0.5)
+ax3.hist(df['magpsf'][mask_val].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
+# ax3.hist(df['magpsf'][mask_val].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
+ax3.hist(df['magpsf'][mask_val].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
+# ax3.hist(df['magpsf'][mask_val].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
 ax3.axvline(18.5, c='k', linewidth=2, linestyle='dashed', label='18.5', alpha=0.5, zorder=10)
 ax3.legend(loc='upper left')
 ax3.set_xlabel('Magnitude')
-ax3.set_ylim([0,int(len(x_val)/5)])
-ax3.xaxis.set_minor_locator(MultipleLocator(1))
+ax3.set_ylim([0,1])
+ax3.set_xlim([15,22])
+ax3.grid(True, linewidth=.3)
+ax3.xaxis.set_major_locator(MultipleLocator(1))
+ax3.yaxis.set_major_locator(MultipleLocator(0.2))
+
+# /===================================================================/
+
+# ax6.hist(df['magpsf'][mask_val].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
+ax6.hist(df['magpsf'][mask_val].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
+# ax6.hist(df['magpsf'][mask_val].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
+ax6.hist(df['magpsf'][mask_val].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
+ax6.axvline(18.5, c='k', linewidth=2, linestyle='dashed', label='18.5', alpha=0.5, zorder=10)
+ax6.legend(loc='upper left')
+ax6.set_xlabel('Magnitude')
+ax6.set_ylim([0,1])
+ax6.set_xlim([15,22])
+ax6.grid(True, linewidth=.3)
+ax6.xaxis.set_major_locator(MultipleLocator(1))
+ax6.yaxis.set_major_locator(MultipleLocator(0.2))
+
+# /===================================================================/
 
 ax4.plot([0, 1], [0, 1], color='k', lw=2, linestyle='--')
 ax4.set_xlim([0.0, 1.0])
@@ -391,25 +499,60 @@ ax4.legend(loc="lower right")
 ax4.grid(True, linewidth=.3)
 ax4.set(aspect='equal')
 
-ConfusionMatrixDisplay.from_predictions(df.label.values[masks['val']], 
+# /===================================================================/
+
+ConfusionMatrixDisplay.from_predictions(df.label.values[mask_val], 
                                         labels_pred, normalize='true', 
                                         display_labels=["notBTS", "BTS"], 
                                         cmap=plt.cm.Blues, colorbar=False, ax=ax5)
 
-hist, xbins, ybins, im = ax6.hist2d(val_perobj_g_acc, val_perobj_r_acc, norm=LogNorm(), bins=4, range=[[0,1],[0,1]])
-ax6.set_xlabel('Per-object g-band accuracy')
-ax6.set_ylabel('Per-object r-band accuracy')
-ax6.set(aspect='equal')
-ax6.xaxis.set_major_locator(MultipleLocator(0.25))
-ax6.yaxis.set_major_locator(MultipleLocator(0.25))
+# /===================================================================/
 
-for i in range(len(ybins)-1):
-    for j in range(len(xbins)-1):
-        ax6.text(xbins[j]+0.14,ybins[i]+0.115, f"{100*int(hist.T[i,j])/len(ztfids_val):.1f}%", color="w", ha="center", va="center", fontweight="bold")
+# bins = np.arange(0,1.1,0.2)
+# ax7.hist(val_perobj_acc, histtype='step', color='k', linewidth=2, bins=bins, density=True)
+# ax7.set_xlabel('Accuracy')
+# ax7.xaxis.set_minor_locator(MultipleLocator(0.1))
+# ax7.grid(True, linewidth=.3)
 
-for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
+hist, xbins, ybins, im = ax7.hist2d(val_alerts['sgscore1'][val_alerts['sgscore1']>0], preds[:,0][val_alerts['sgscore1']>0], norm=LogNorm())
+ax7.set_xlabel('sgscore1')
+ax7.set_ylabel('Score')
+# ax7.xaxis.set_major_locator(MultipleLocator(1))
+ax7.yaxis.set_major_locator(MultipleLocator(0.2))
+
+divider7 = make_axes_locatable(ax7)
+cax7 = divider7.append_axes('right', size='5%', pad=0.05)
+fig.colorbar(im, cax=cax7, orientation='vertical')
+
+# /===================================================================/
+
+hist, xbins, ybins, im = ax8.hist2d(val_alerts['distnr'], preds[:,0], norm=LogNorm())
+ax8.set_xlabel('distnr')
+ax8.set_ylabel('Score')
+# ax8.xaxis.set_major_locator(MultipleLocator(1))
+ax8.yaxis.set_major_locator(MultipleLocator(0.2))
+
+divider8 = make_axes_locatable(ax8)
+cax8 = divider8.append_axes('right', size='5%', pad=0.05)
+fig.colorbar(im, cax=cax8, orientation='vertical')
+
+# /===================================================================/
+
+hist, xbins, ybins, im = ax9.hist2d(val_alerts['magpsf'], preds[:,0], norm=LogNorm(), bins=14, range=[[15, 22], [0, 1]])
+ax9.set_xlabel('magpsf')
+ax9.set_ylabel('Score')
+ax9.xaxis.set_major_locator(MultipleLocator(1))
+ax9.yaxis.set_major_locator(MultipleLocator(0.2))
+
+divider9 = make_axes_locatable(ax9)
+cax9 = divider9.append_axes('right', size='5%', pad=0.05)
+fig.colorbar(im, cax=cax9, orientation='vertical')
+
+# /===================================================================/
+
+for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, cax7, cax8, cax9]:
     ax.tick_params(which='both', width=1.5)
 
 plt.tight_layout()
-plt.savefig(report_dir+"fig.pdf", bbox_inches='tight')
+plt.savefig(report_dir+"/"+os.path.basename(os.path.normpath(report_dir))+".pdf", bbox_inches='tight')
 plt.close()
