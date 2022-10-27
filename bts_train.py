@@ -8,7 +8,6 @@ from sklearn.utils import shuffle
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from pandas.plotting import scatter_matrix
 
 import CNN_models
 from create_pd_gr import create_train_data, only_pd_gr
@@ -63,7 +62,7 @@ else:
     print("Defaulting to N_max=10")
     N_max = 10
 
-metadata_cols = ['magpsf', 'distpsnr1', 'sgscore1', 'distpsnr2', 'distpsnr3', 'ra', 'dec', 'magnr', 'ndethist', 'neargaia', 'maggaia']
+metadata_cols = ['magpsf', 'distpsnr1', 'sgscore1']
 metadata_cols.append('label')
 
 # /-----------------------------
@@ -165,7 +164,7 @@ def rotate_incs_90(img):
     return np.rot90(img, np.random.choice([-1, 0, 1, 2]))
 
 data_aug = {
-    'h_flip': False,
+    'h_flip': True,
     'v_flip': True,
     'fill_mode': 'constant',
     'cval': 0,
@@ -183,22 +182,14 @@ train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
 val_datagen = tf.keras.preprocessing.image.ImageDataGenerator()
 
 if metadata:
-    t_generator = train_datagen.flow(x_train, train_df, batch_size=batch_size, seed=2, shuffle=False)
-    v_generator = val_datagen.flow(x_val, val_df, batch_size=batch_size, seed=2, shuffle=False)
+    t_generator = train_datagen.flow(x_train, train_df, batch_size=batch_size, seed=random_state, shuffle=False)
+    v_generator = val_datagen.flow(x_val, val_df, batch_size=batch_size, seed=random_state, shuffle=False)
 
     def multiinput_train_generator():
-        # to keep track of complete epoch
-        count = 0 
         while True:
-            if count == len(train_df.index):
-                # if the count is matching with the length of df, 
-                # the one pass is completed, so reset the generator
-                print("RESET HAPPENING")
-                t_generator.reset()
-                break
-            count += 1
             # get the data from the generator
-            # data is [[img], [other_cols]],
+            # data is [[img], [metadata and labels]]
+            # yields batch_size number of entries
             data = t_generator.next()
 
             imgs = data[0]
@@ -208,18 +199,7 @@ if metadata:
             yield [imgs, cols], targets
 
     def multiinput_val_generator():
-        # to keep track of complete epoch
-        count = 0 
         while True:
-            if count == len(val_df.index):
-                # if the count is matching with the length of df, 
-                # the one pass is completed, so reset the generator
-                print("RESET HAPPENING")
-                v_generator.reset()
-                break
-            count += 1
-            # get the data from the generator
-            # data is [[img], [other_cols]],
             data = v_generator.next()
 
             imgs = data[0]
@@ -231,19 +211,19 @@ if metadata:
     training_generator = multiinput_train_generator()
     validation_generator = multiinput_val_generator()
 else:
-    training_generator = train_datagen.flow(x_train, y_train, batch_size=batch_size, seed=2, shuffle=False)
-    validation_generator = val_datagen.flow(x_val, y_val, batch_size=batch_size, seed=2, shuffle=False)
+    training_generator = train_datagen.flow(x_train, y_train, batch_size=batch_size, seed=random_state, shuffle=False)
+    validation_generator = val_datagen.flow(x_val, y_val, batch_size=batch_size, seed=random_state, shuffle=False)
 
 # /-----------------------------
 #  OTHER MODEL SET UP
 # /-----------------------------
 
 if weight_classes:
-    # weight data class depending on number of examples?
+    # weight data on number of examples per class?
     num_training_examples_per_class = np.array([len(y_train) - np.sum(y_train), np.sum(y_train)])
     assert 0 not in num_training_examples_per_class, 'found class without any examples!'
 
-    # fewer examples -- larger weight
+    # fewer examples -> larger weight
     weights = (1 / num_training_examples_per_class) / np.linalg.norm((1 / num_training_examples_per_class))
     normalized_weight = weights / np.max(weights)
 

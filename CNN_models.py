@@ -133,7 +133,7 @@ def hd_vgg6(image_shape=(63, 63, 3)):
 
     model.add(Dense(256, activation='relu', name='fc_1'))
     model.add(Dropout(0.4, name='drop3_0.4'))
-    model.add(Dense(units=1, activation='sigmoid'), name='fc_out')
+    model.add(Dense(units=1, activation='sigmoid', name='fc_out'))
 
     return model
 
@@ -171,7 +171,7 @@ def vgg16(image_shape=(63, 63, 3)):
     
     model.add(Dense(units=4096,activation="relu"))
     model.add(Dense(units=4096,activation="relu"))
-    model.add(Dense(units=1, activation='sigmoid'), name='fc_out')
+    model.add(Dense(units=1, activation='sigmoid', name='fc_out'))
     
     return model
 
@@ -200,6 +200,6 @@ def vgg9(image_shape=(63, 63, 3)):
     model.add(Dense(units=512,activation="relu"))
     model.add(Dropout(0.4, name='drop_0.4'))
 #     model.add(Dense(units=4096,activation="relu"))
-    model.add(Dense(units=1, activation='sigmoid'), name='fc_out')
+    model.add(Dense(units=1, activation='sigmoid', name='fc_out'))
     
     return model
