@@ -254,7 +254,7 @@ else:
     model = model_type(image_shape=image_shape)
 
 run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f"{model.name}-4-n{N_max}{'-CPU' if dont_use_GPU else ''}"
+model_name = f"{model.name}-v4-n{N_max}{'-CPU' if dont_use_GPU else ''}"
 
 # /-----------------------------
 #  COMPILE AND TRAIN MODEL
