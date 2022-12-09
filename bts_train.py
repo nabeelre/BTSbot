@@ -35,7 +35,7 @@ epochs = 500
 patience = 150
 weight_classes = True
 batch_size = 64
-dont_use_GPU = True
+dont_use_GPU = False
 
 # /-----------------------------
 #  BASIC COMMAND LINE INTERFACE
