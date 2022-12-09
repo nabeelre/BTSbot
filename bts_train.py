@@ -35,6 +35,7 @@ epochs = 500
 patience = 150
 weight_classes = True
 batch_size = 64
+dont_use_GPU = True
 
 # /-----------------------------
 #  BASIC COMMAND LINE INTERFACE
@@ -62,25 +63,28 @@ else:
     print("Defaulting to N_max=10")
     N_max = 10
 
-metadata_cols = ['magpsf', 'distpsnr1', 'sgscore1']
+# removing negative diffs makes finding AGN easier
+metadata_cols = ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
+                 "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
+                 "classtar", "ndethist", "ncovhist", "sharpnr"]
 metadata_cols.append('label')
 
 # /-----------------------------
 #  LOAD TRAINING DATA
 # /-----------------------------
 
-if not (os.path.exists(f'data/candidates_v3_n{N_max}.csv') and 
-        os.path.exists(f'data/triplets_v3_n{N_max}.npy')):
+if not (os.path.exists(f'data/candidates_v4_n{N_max}.csv') and 
+        os.path.exists(f'data/triplets_v4_n{N_max}.npy')):
     create_train_data(['trues', 'dims', 'vars', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
 else:
     print("Training data already present")
 
-df = pd.read_csv(f'data/candidates_v3_n{N_max}.csv')
+df = pd.read_csv(f'data/candidates_v4_n{N_max}.csv')
 
 print(f'num_notbts: {np.sum(df.label == 0)}')
 print(f'num_bts: {np.sum(df.label == 1)}')
 
-triplets = np.load(f'data/triplets_v3_n{N_max}.npy', mmap_mode='r')
+triplets = np.load(f'data/triplets_v4_n{N_max}.npy', mmap_mode='r')
 assert not np.any(np.isnan(triplets))
 
 # /-----------------------------
@@ -139,6 +143,12 @@ print(f"{100*(len(x_train)/len(df['objectId'])):.2f}%/{100*(len(x_val)/len(df['o
 # /-----------------------------
 
 tf.keras.backend.clear_session()
+
+print(tf.config.list_physical_devices())
+
+if dont_use_GPU:
+    # DISABLE ALL GPUs
+    tf.config.set_visible_devices([], 'GPU')
 
 # halt training if no gain in validation accuracy over patience epochs
 early_stopping = tf.keras.callbacks.EarlyStopping(
@@ -243,9 +253,8 @@ if metadata:
 else:
     model = model_type(image_shape=image_shape)
 
-
 run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f'{model.name}-v3-n{N_max}'
+model_name = f"{model.name}-4-n{N_max}{'-CPU' if dont_use_GPU else ''}"
 
 # /-----------------------------
 #  COMPILE AND TRAIN MODEL
@@ -358,6 +367,9 @@ report = {'Run time stamp': run_t_stamp,
 for k in report['Training history'].keys():
     report['Training history'][k] = np.array(report['Training history'][k]).tolist()
 
+if metadata:
+    report['metadata_cols'] = metadata_cols[:-1]
+
 report_dir = "models/"+model_name+"/"
 model_dir = report_dir+"model/"
 
@@ -411,6 +423,10 @@ val_loss = report['Training history']['val_loss']
 train_acc = report['Training history']['accuracy']
 val_acc = report['Training history']['val_accuracy']
 
+bts_acc = len(val_TP_idxs)/(len(val_TP_idxs)+len(val_FN_idxs))
+notbts_acc = len(val_TN_idxs)/(len(val_TN_idxs)+len(val_FP_idxs))
+bal_acc = (bts_acc + notbts_acc) / 2
+
 # /-----------------------------
 #  MAKE FIGURE
 # /-----------------------------
@@ -420,6 +436,9 @@ fig, ((ax1, ax2, ax3), (ax4, ax5, ax6), (ax7, ax8, ax9)) = plt.subplots(nrows=3,
 plt.suptitle(os.path.basename(os.path.normpath(report_dir)), size=28)
 ax1.plot(train_acc, label='Training', linewidth=2)
 ax1.plot(val_acc, label='Validation', linewidth=2)
+ax1.axhline(bts_acc, label="BTS", c='blue', linewidth=1.5, linestyle='dashed')
+ax1.axhline(notbts_acc, label="notBTS", c='green', linewidth=1.5, linestyle='dashed')
+ax1.axhline(bal_acc, label="Balanced", c='gray', linewidth=1.5, linestyle='dashed')
 ax1.set_xlabel('Epoch')
 ax1.set_ylabel('Accuracy')
 ax1.legend(loc='best')

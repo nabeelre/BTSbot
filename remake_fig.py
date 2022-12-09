@@ -16,19 +16,28 @@ plt.rcParams.update({
 })
 plt.rcParams['axes.linewidth'] = 1.5
 
-def remake_fig(model_dir = None):
+def remake_fig(model_dir = None, N_max = None):
     batch_size = 64
+    
+    metadata_cols = ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
+                     "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
+                     "classtar", "ndethist", "ncovhist", "sharpnr"]
+    metadata_cols.append('label')
+
     if not model_dir:
-        model_dir = sys.argv[1] #f"models/hd-vgg6-v3-n{N_max}/"
-    N_max = int(model_dir.rsplit("-n", 1)[1])
+        model_dir = sys.argv[1] #f"models/hd-vgg6-v4-n{N_max}/"
+        metadata = "metadata" in sys.argv[1]
+    else:
+        metadata = "metadata" in model_dir
+    # N_max = int(model_dir.rsplit("-n", 1)[1])
 
     print("Remaking figure for", model_dir)
 
     with open(model_dir+"/report.json", 'r') as f:
         report = json.load(f)
         
-    df = pd.read_csv(f'data/candidates_v3_n{N_max}.csv')
-    triplets = np.load(f'data/triplets_v3_n{N_max}.npy', mmap_mode='r')
+    df = pd.read_csv(f'data/candidates_v4_n{N_max}.csv')
+    triplets = np.load(f'data/triplets_v4_n{N_max}.npy', mmap_mode='r')
 
     test_split = 0.1  # fraction of all data
     random_state = 2
@@ -42,22 +51,15 @@ def remake_fig(model_dir = None):
     mask_seen = shuffle(df.index.values[is_seen], random_state=random_state)
     mask_test  = shuffle(df.index.values[is_test], random_state=random_state)
 
-    x_seen, y_seen = triplets[mask_seen], df['label'][mask_seen]
-    x_test,  y_test  = triplets[mask_test] , df['label'][mask_test]
+    # x_seen, seen_df = triplets[mask_seen], df.loc[mask_seen][metadata_cols]
+    # x_test, test_df = triplets[mask_test], df.loc[mask_test][metadata_cols]
 
-    num_seen_obj = len(ztfids_seen)
-    num_test_obj = len(ztfids_test)
-    num_obj = len(pd.unique(df['objectId']))
-    print(f"{num_seen_obj} seen/train+val objects")
-    print(f"{num_test_obj} unseen/test objects")
-    print(f"{100*(num_seen_obj/num_obj):.2f}%/{100*(num_test_obj/num_obj):.2f}% seen/unseen split by object\n")
+    print(f"{len(ztfids_seen)} seen/train+val objects; {len(ztfids_test)} unseen/test objects")
+    print(f"{100*(len(ztfids_seen)/len(pd.unique(df['objectId']))):.2f}%/{100*(len(ztfids_test)/len(pd.unique(df['objectId']))):.2f}% seen/unseen split by object\n")
 
-    num_seen_alr = len(x_seen)
-    num_test_alr = len(x_test)
-    num_alr = len(df['objectId'])
-    print(f"{num_seen_alr} seen/train+val alerts")
-    print(f"{num_test_alr} unseen/test alerts")
-    print(f"{100*(num_seen_alr/num_alr):.2f}%/{100*(num_test_alr/num_alr):.2f}% seen/unseen split by alert\n")
+    print(f"{len(mask_seen)} seen/train+val alerts; {len(mask_test)} unseen/test alerts")
+    print(f"{100*(len(mask_seen)/len(df['objectId'])):.2f}%/{100*(len(mask_test)/len(df['objectId'])):.2f}% seen/unseen split by alert\n")
+
 
     validation_split = 0.1  # fraction of the seen data
 
@@ -71,37 +73,36 @@ def remake_fig(model_dir = None):
     x_train, y_train = triplets[mask_train], df['label'][mask_train]
     x_val, y_val = triplets[mask_val], df['label'][mask_val]
 
-    num_train_obj = len(ztfids_train)
-    num_val_obj = len(ztfids_val)
-    num_obj = len(pd.unique(df['objectId']))
-    print(f"{num_train_obj} train objects")
-    print(f"{num_val_obj} val objects")
-    print(f"{100*(num_train_obj/num_obj):.2f}%/{100*(num_val_obj/num_obj):.2f}% train/val split by object\n")
+    val_alerts = df.loc[mask_val]
 
-    num_train_alr = len(x_train)
-    num_val_alr = len(x_val)
-    num_alr = len(df['objectId'])
-    print(f"{num_train_alr} train alerts")
-    print(f"{num_val_alr} val alerts")
-    print(f"{100*(num_train_alr/num_alr):.2f}%/{100*(num_val_alr/num_alr):.2f}% train/val split by alert\n")
+    # train/val_df is a combination of the desired metadata and y_train/val (labels)
+    # we provide the model a custom generator function to separate these as necessary
+    train_df = df.loc[mask_train][metadata_cols]
+    val_df   = val_alerts[metadata_cols]
 
-    masks = {'training': mask_train, 'val': mask_val, 'test': mask_test}
+    print(f"{len(ztfids_train)} train objects; {len(ztfids_val)} val objects")
+    print(f"{100*(len(ztfids_train)/len(pd.unique(df['objectId']))):.2f}%/{100*(len(ztfids_val)/len(pd.unique(df['objectId']))):.2f}% train/val split by object\n")
 
-    val_alerts = df.loc[masks['val']]
+    print(f"{len(x_train)} train alerts; {len(x_val)} val alerts")
+    print(f"{100*(len(x_train)/len(df['objectId'])):.2f}%/{100*(len(x_val)/len(df['objectId'])):.2f}% train/val split by alert\n")
 
     model = tf.keras.models.load_model(model_dir+"/model/")
     preds = model.predict(x=x_val, batch_size=batch_size, verbose=1)
     labels_pred = np.rint(preds)
 
-    fpr, tpr, thresholds = roc_curve(df['label'][masks['val']], preds)
+    fpr, tpr, thresholds = roc_curve(df['label'][mask_val], preds)
     roc_auc = auc(fpr, tpr)
 
     fig, ax = plt.subplots()
-    _ = ConfusionMatrixDisplay.from_predictions(df.label.values[masks['val']], 
+    _ = ConfusionMatrixDisplay.from_predictions(df.label.values[mask_val], 
                                             labels_pred, normalize='true', ax=ax)
     plt.close()
 
-    val_labels = np.array(list(map(int, df.label[masks['val']]))).flatten()
+    # /-----------------------------
+    #  OTHER FIGURE SET UP
+    # /-----------------------------
+
+    val_labels = np.array(list(map(int, df.label[mask_val]))).flatten()
     val_rpreds = np.array(list(map(int, np.rint(preds)))).flatten()
 
     val_TP_mask = np.bitwise_and(val_labels, val_rpreds)
@@ -116,13 +117,17 @@ def remake_fig(model_dir = None):
 
     val_perobj_acc = np.zeros(len(ztfids_val))
 
-    for i, ztfid in enumerate(ztfids_val): 
-        cands = val_alerts[val_alerts['objectId']==ztfid]
+    for i, ztfid in enumerate(ztfids_val):  
         trips = x_val[val_alerts['objectId']==ztfid]
-        label = cands['label'].to_numpy()[0]
+        label = y_val[val_alerts['objectId']==ztfid].to_numpy()[0]
         
-        obj_preds = np.array(np.rint(model.predict(trips).flatten()), dtype=int)
-        val_perobj_acc[i] = np.sum(obj_preds==label)/len(cands)
+        if metadata:
+            obj_df = val_alerts[val_alerts['objectId']==ztfid][metadata_cols]
+            obj_preds = np.array(np.rint(model.predict([trips, obj_df.iloc[:,:-1]], batch_size=batch_size, verbose=0).flatten()), dtype=int)
+        else:
+            obj_preds = np.array(np.rint(model.predict(trips, batch_size=batch_size, verbose=0).flatten()), dtype=int)
+        
+        val_perobj_acc[i] = np.sum(obj_preds==label)/len(trips)
 
     train_loss = report['Training history']['loss']
     val_loss = report['Training history']['val_loss']
@@ -130,11 +135,22 @@ def remake_fig(model_dir = None):
     train_acc = report['Training history']['accuracy']
     val_acc = report['Training history']['val_accuracy']
 
+    bts_acc = len(val_TP_idxs)/(len(val_TP_idxs)+len(val_FN_idxs))
+    notbts_acc = len(val_TN_idxs)/(len(val_TN_idxs)+len(val_FP_idxs))
+    bal_acc = (bts_acc + notbts_acc) / 2
+
+    # /-----------------------------
+    #  MAKE FIGURE
+    # /-----------------------------
+
     fig, ((ax1, ax2, ax3), (ax4, ax5, ax6), (ax7, ax8, ax9)) = plt.subplots(nrows=3, ncols=3, figsize=(15, 12), dpi=250)
 
     plt.suptitle(os.path.basename(os.path.normpath(model_dir)), size=28)
     ax1.plot(train_acc, label='Training', linewidth=2)
     ax1.plot(val_acc, label='Validation', linewidth=2)
+    ax1.axhline(bts_acc, label="BTS", c='blue', linewidth=1.5, linestyle='dashed')
+    ax1.axhline(notbts_acc, label="notBTS", c='green', linewidth=1.5, linestyle='dashed')
+    ax1.axhline(bal_acc, label="Balanced", c='gray', linewidth=1.5, linestyle='dashed')
     ax1.set_xlabel('Epoch')
     ax1.set_ylabel('Accuracy')
     ax1.legend(loc='best')
@@ -154,10 +170,10 @@ def remake_fig(model_dir = None):
     # /===================================================================/
 
     bins = np.arange(15,22,0.5)
-    ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
-    # ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
-    ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
-    # ax3.hist(df['magpsf'][masks['val']].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
+    ax3.hist(df['magpsf'][mask_val].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
+    # ax3.hist(df['magpsf'][mask_val].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
+    ax3.hist(df['magpsf'][mask_val].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
+    # ax3.hist(df['magpsf'][mask_val].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
     ax3.axvline(18.5, c='k', linewidth=2, linestyle='dashed', label='18.5', alpha=0.5, zorder=10)
     ax3.legend(loc='upper left')
     ax3.set_xlabel('Magnitude')
@@ -169,10 +185,10 @@ def remake_fig(model_dir = None):
 
     # /===================================================================/
 
-    # ax6.hist(df['magpsf'][masks['val']].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
-    ax6.hist(df['magpsf'][masks['val']].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
-    # ax6.hist(df['magpsf'][masks['val']].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
-    ax6.hist(df['magpsf'][masks['val']].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
+    # ax6.hist(df['magpsf'][mask_val].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
+    ax6.hist(df['magpsf'][mask_val].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
+    # ax6.hist(df['magpsf'][mask_val].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
+    ax6.hist(df['magpsf'][mask_val].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
     ax6.axvline(18.5, c='k', linewidth=2, linestyle='dashed', label='18.5', alpha=0.5, zorder=10)
     ax6.legend(loc='upper left')
     ax6.set_xlabel('Magnitude')
@@ -196,7 +212,7 @@ def remake_fig(model_dir = None):
 
     # /===================================================================/
 
-    ConfusionMatrixDisplay.from_predictions(df.label.values[masks['val']], 
+    ConfusionMatrixDisplay.from_predictions(df.label.values[mask_val], 
                                             labels_pred, normalize='true', 
                                             display_labels=["notBTS", "BTS"], 
                                             cmap=plt.cm.Blues, colorbar=False, ax=ax5)
@@ -249,14 +265,16 @@ def remake_fig(model_dir = None):
         ax.tick_params(which='both', width=1.5)
 
     plt.tight_layout()
-    plt.savefig(model_dir+"/"+os.path.basename(os.path.normpath(model_dir))+"_tmp.pdf", bbox_inches='tight')
+    plt.savefig(model_dir+"/"+os.path.basename(os.path.normpath(model_dir))+"_new.pdf", bbox_inches='tight')
     plt.close()
 
 if __name__ == "__main__":
-    import glob
-    n5s = glob.glob("models/*n5")
-    # print(n5s)
-    for n5 in n5s:
-        remake_fig(n5)
-
+    if len(sys.argv) == 1:
+        import glob
+        pres = glob.glob("models/*-n5-*")
+        print(pres)
+        for pre in pres:
+            remake_fig(pre, 1)
+    else:
+        remake_fig(N_max=5)
 
