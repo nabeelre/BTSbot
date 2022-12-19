@@ -31,8 +31,6 @@ optimizer = tf.keras.optimizers.Adam(
     decay=0.0, 
     amsgrad=False
 )
-epochs = 500
-patience = 150
 weight_classes = True
 batch_size = 64
 dont_use_GPU = False
@@ -47,7 +45,7 @@ if len(sys.argv) > 1:
     try: 
         model_type = getattr(CNN_models, sys.argv[1].lower())
     except:
-        print("Could not find model of name", sys.argv[1], "defaulting to VGG6")
+        print("Could not find model of name", sys.argv[1].lower(), "defaulting to VGG6")
         model_type = CNN_models.vgg6
 else:
     print("Defaulting to VGG6")
@@ -62,6 +60,18 @@ if len(sys.argv) > 2:
 else:
     print("Defaulting to N_max=10")
     N_max = 10
+
+if len(sys.argv) > 3:
+    try:
+        epochs = int(sys.argv[3])
+    except:
+        print("Could not understand provided epocs=", sys.argv[3], "defaulting to epochs=500")
+        epochs = 500
+else:
+    print("Defaulting to epochs=10")
+    epochs = 500
+
+patience = max(int(epochs*0.25), 50)
 
 # removing negative diffs makes finding AGN easier
 metadata_cols = ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
@@ -370,7 +380,7 @@ for k in report['Training history'].keys():
 if metadata:
     report['metadata_cols'] = metadata_cols[:-1]
 
-report_dir = "models/"+model_name+"/"
+report_dir = "models/"+model_name+"/"+str(run_t_stamp)+"/"
 model_dir = report_dir+"model/"
 
 if not os.path.exists(model_dir):
@@ -433,7 +443,7 @@ bal_acc = (bts_acc + notbts_acc) / 2
 
 fig, ((ax1, ax2, ax3), (ax4, ax5, ax6), (ax7, ax8, ax9)) = plt.subplots(nrows=3, ncols=3, figsize=(15, 12), dpi=250)
 
-plt.suptitle(os.path.basename(os.path.normpath(report_dir)), size=28)
+plt.suptitle(model_name+"/"+str(run_t_stamp), size=28)
 ax1.plot(train_acc, label='Training', linewidth=2)
 ax1.plot(val_acc, label='Validation', linewidth=2)
 ax1.axhline(bts_acc, label="BTS", c='blue', linewidth=1.5, linestyle='dashed')
