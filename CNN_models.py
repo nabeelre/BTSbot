@@ -4,7 +4,7 @@ from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Concaten
 
 # /----- ----- ----- -----/ IMAGES AND METADATA /----- ----- ----- -----/ 
 
-def vgg6_metadata_1_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_1_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -37,7 +37,7 @@ def vgg6_metadata_1_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_1_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_1_2(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # High dropout
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -71,7 +71,7 @@ def vgg6_metadata_1_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_1_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_1_3(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # extra conv layer
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -106,7 +106,7 @@ def vgg6_metadata_1_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_1_bn_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_1_bn_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # Use BN after full conv block and denses
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -141,7 +141,7 @@ def vgg6_metadata_1_bn_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_1_bn_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_1_bn_2(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # Use BN after RELU of each conv
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -178,7 +178,7 @@ def vgg6_metadata_1_bn_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_1_bn_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_1_bn_3(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # Use BN before RELU of each conv
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -219,7 +219,7 @@ def vgg6_metadata_1_bn_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_2_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_2_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -255,7 +255,7 @@ def vgg6_metadata_2_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_2_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_2_2(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # Big dense layers
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -292,7 +292,7 @@ def vgg6_metadata_2_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_2_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_2_3(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # Big dense layers, high drop out
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -329,7 +329,7 @@ def vgg6_metadata_2_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_2_bn_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_2_bn_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -365,7 +365,7 @@ def vgg6_metadata_2_bn_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg6_metadata_2_bn_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg6_metadata_2_bn_2(image_shape=(63, 63, 3), metadata_shape=(16,)):
     # Big dense layers
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
@@ -402,7 +402,7 @@ def vgg6_metadata_2_bn_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg9_metadata_1_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg9_metadata_1_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -442,7 +442,7 @@ def vgg9_metadata_1_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def vgg9_metadata_1_bn_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def vgg9_metadata_1_bn_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -488,7 +488,7 @@ def vgg9_metadata_1_bn_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
 
 # /----- ----- ----- -----/ METADATA ONLY /----- ----- ----- -----/  
 
-def metadata_only_1_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_1_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -511,7 +511,7 @@ def metadata_only_1_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_1_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_1_2(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -534,7 +534,7 @@ def metadata_only_1_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_1_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_1_3(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -557,7 +557,7 @@ def metadata_only_1_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_2_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_2_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -574,7 +574,7 @@ def metadata_only_2_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_2_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_2_2(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -591,7 +591,7 @@ def metadata_only_2_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_2_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_2_3(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -608,7 +608,7 @@ def metadata_only_2_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_3_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_3_1(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -637,7 +637,7 @@ def metadata_only_3_1(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_3_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_3_2(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -666,7 +666,7 @@ def metadata_only_3_2(image_shape=(63, 63, 3), metadata_shape=(2,)):
     return model
 
 
-def metadata_only_3_3(image_shape=(63, 63, 3), metadata_shape=(2,)):
+def metadata_only_3_3(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
