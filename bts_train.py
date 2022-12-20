@@ -68,7 +68,7 @@ if len(sys.argv) > 3:
         print("Could not understand provided epocs=", sys.argv[3], "defaulting to epochs=500")
         epochs = 500
 else:
-    print("Defaulting to epochs=10")
+    print("Defaulting to epochs=500")
     epochs = 500
 
 patience = max(int(epochs*0.25), 50)
@@ -370,6 +370,8 @@ report = {'Run time stamp': run_t_stamp,
      'Confusion matrix': CFD.confusion_matrix.tolist(),
      'Misclassified val candids': list(misclassifications_val.keys()),
      'Misclassified training candids': list(misclassifications_train.keys()),
+     'Training candids': list(df.candid[mask_train]),
+     'Validation candids': list(df.candid[mask_val]),
      'Val misclassifications': misclassifications_val,
      'Training misclassifications': misclassifications_train,
      'Training history': h.history
