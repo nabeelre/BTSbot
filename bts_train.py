@@ -10,6 +10,7 @@ from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import CNN_models
+import bts_val
 from create_pd_gr import create_train_data, only_pd_gr
 
 plt.rcParams.update({
@@ -22,18 +23,30 @@ plt.rcParams['axes.linewidth'] = 1.5
 #  HYPERPARAMETERS
 # /-----------------------------
 
-loss = 'binary_crossentropy'
-optimizer = tf.keras.optimizers.Adam(
-    learning_rate=3e-4, 
-    beta_1=0.9, 
-    beta_2=0.999, 
-    epsilon=None, 
-    decay=0.0, 
-    amsgrad=False
-)
-weight_classes = True
-batch_size = 64
-dont_use_GPU = False
+with open("train_config.json", 'r') as f:
+    hparams = json.load(f)
+
+loss = hparams['loss']
+if hparams['optimizer']['kind'] == "Adam":
+    opt_hparams = hparams['optimizer']
+    optimizer = tf.keras.optimizers.Adam(
+        learning_rate=opt_hparams['learning_rate'], 
+        beta_1=opt_hparams['beta_1'],
+        beta_2=opt_hparams['beta_2'], 
+        epsilon=None if opt_hparams['epsilon']=="None" else opt_hparams['epsilon'], 
+        decay=opt_hparams['decay'],
+        amsgrad=bool(opt_hparams['amsgrad'])
+    )
+weight_classes = bool(hparams['weight_classes'])
+batch_size = hparams['batch_size']
+
+if bool(hparams['dont_use_GPU']):
+    # DISABLE ALL GPUs
+    tf.config.set_visible_devices([], 'GPU')
+
+# removing negative diffs makes finding AGN easier
+metadata_cols = hparams['metadata_cols']
+metadata_cols.append('label')
 
 # /-----------------------------
 #  BASIC COMMAND LINE INTERFACE
@@ -41,43 +54,31 @@ dont_use_GPU = False
 
 metadata = True if "meta" in sys.argv[1].lower() else False
 
+N_max = hparams["N_max"]
+epochs = hparams["epochs"]
+
 if len(sys.argv) > 1:
     try: 
         model_type = getattr(CNN_models, sys.argv[1].lower())
     except:
-        print("Could not find model of name", sys.argv[1].lower(), "defaulting to VGG6")
-        model_type = CNN_models.vgg6
-else:
-    print("Defaulting to VGG6")
-    model_type = CNN_models.vgg6
-
+        print("Could not find model of name", sys.argv[1].lower())
+        exit(0)
+    
 if len(sys.argv) > 2:
     try:
         N_max = int(sys.argv[2])
+        print("N_max overridden in command line as N_max =", sys.argv[2])
     except:
-        print("Could not understand provided N_max=", sys.argv[2], "defaulting to N_max=10")
-        N_max = 10
-else:
-    print("Defaulting to N_max=10")
-    N_max = 10
+        print("Could not understand provided N_max override:", sys.argv[2])
 
 if len(sys.argv) > 3:
     try:
         epochs = int(sys.argv[3])
+        print("epochs overridden in command line as epochs =", sys.argv[3])
     except:
-        print("Could not understand provided epocs=", sys.argv[3], "defaulting to epochs=500")
-        epochs = 500
-else:
-    print("Defaulting to epochs=500")
-    epochs = 500
+        print("Could not understand provided epocs override:", sys.argv[3])
 
 patience = max(int(epochs*0.25), 50)
-
-# removing negative diffs makes finding AGN easier
-metadata_cols = ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
-                 "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
-                 "classtar", "ndethist", "ncovhist", "sharpnr"]
-metadata_cols.append('label')
 
 # /-----------------------------
 #  LOAD TRAINING DATA
@@ -85,7 +86,7 @@ metadata_cols.append('label')
 
 if not (os.path.exists(f'data/candidates_v4_n{N_max}.csv') and 
         os.path.exists(f'data/triplets_v4_n{N_max}.npy')):
-    create_train_data(['trues', 'dims', 'vars', 'MS'], only_pd_gr, name="pd_gr", N_max=N_max)
+    create_train_data(['trues', 'dims', 'vars', 'MS'], only_pd_gr, N_max=N_max)
 else:
     print("Training data already present")
 
@@ -106,7 +107,7 @@ random_state = 2
 
 ztfids_seen, ztfids_test = train_test_split(pd.unique(df['objectId']), test_size=test_split, random_state=random_state)
 
-# Want array of indices for training alerts and testing alerts
+# Want array of indices for seen alerts and unseen/testing alerts
 # Need to shuffle because validation is bottom 10% of train - shuffle test as well for consistency
 is_seen = df['objectId'].isin(ztfids_seen)
 is_test = ~is_seen
@@ -152,13 +153,7 @@ print(f"{100*(len(x_train)/len(df['objectId'])):.2f}%/{100*(len(x_val)/len(df['o
 #  SET UP CALLBACKS
 # /-----------------------------
 
-tf.keras.backend.clear_session()
-
 print(tf.config.list_physical_devices())
-
-if dont_use_GPU:
-    # DISABLE ALL GPUs
-    tf.config.set_visible_devices([], 'GPU')
 
 # halt training if no gain in validation accuracy over patience epochs
 early_stopping = tf.keras.callbacks.EarlyStopping(
@@ -183,20 +178,14 @@ tensorboard = tf.keras.callbacks.TensorBoard(
 def rotate_incs_90(img):
     return np.rot90(img, np.random.choice([-1, 0, 1, 2]))
 
-data_aug = {
-    'h_flip': True,
-    'v_flip': True,
-    'fill_mode': 'constant',
-    'cval': 0,
-    'rot': True
-}
+data_aug = hparams['data_aug']
 
 train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
-    horizontal_flip=data_aug['h_flip'],
-    vertical_flip  =data_aug['v_flip'],
-    fill_mode      =data_aug['fill_mode'],
-    cval           =data_aug['cval'],
-    preprocessing_function = rotate_incs_90 if data_aug['rot'] else None
+    horizontal_flip=bool(data_aug["h_flip"]),
+    vertical_flip  =bool(data_aug["v_flip"]),
+    fill_mode      =data_aug["fill_mode"],
+    cval           =data_aug["cval"],
+    preprocessing_function = rotate_incs_90 if bool(data_aug["rot"])  else None
 )
 
 val_datagen = tf.keras.preprocessing.image.ImageDataGenerator()
@@ -264,7 +253,7 @@ else:
     model = model_type(image_shape=image_shape)
 
 run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f"{model.name}-v4-n{N_max}{'-CPU' if dont_use_GPU else ''}"
+model_name = f"{model.name}-v4-n{N_max}{'-CPU' if bool(hparams['dont_use_GPU']) else ''}"
 
 # /-----------------------------
 #  COMPILE AND TRAIN MODEL
@@ -395,175 +384,4 @@ with open(f_name, 'w') as f:
 model.save(model_dir)
 tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf", show_shapes=True, show_layer_names=False, show_layer_activations=True)
 
-# with open(report_dir+'model_summary.txt', 'w') as f:
-#     model.summary(print_fn=lambda x: f.write(x + '\n'), expand_nested=True, show_trainable=True)
-
-# /-----------------------------
-#  OTHER FIGURE SET UP
-# /-----------------------------
-
-val_labels = np.array(list(map(int, df.label[mask_val]))).flatten()
-val_rpreds = np.array(list(map(int, np.rint(preds)))).flatten()
-
-val_TP_mask = np.bitwise_and(val_labels, val_rpreds)
-val_TN_mask = 1-(np.bitwise_or(val_labels, val_rpreds))
-val_FP_mask = np.bitwise_and(1-val_labels, val_rpreds)
-val_FN_mask = np.bitwise_and(val_labels, 1-val_rpreds)
-
-val_TP_idxs = [ii for ii, mi in enumerate(val_TP_mask) if mi == 1]
-val_TN_idxs = [ii for ii, mi in enumerate(val_TN_mask) if mi == 1]
-val_FP_idxs = [ii for ii, mi in enumerate(val_FP_mask) if mi == 1]
-val_FN_idxs = [ii for ii, mi in enumerate(val_FN_mask) if mi == 1]
-
-val_perobj_acc = np.zeros(len(ztfids_val))
-
-for i, ztfid in enumerate(ztfids_val):  
-    trips = x_val[val_alerts['objectId']==ztfid]
-    label = y_val[val_alerts['objectId']==ztfid].to_numpy()[0]
-    
-    if metadata:
-        obj_df = val_alerts[val_alerts['objectId']==ztfid][metadata_cols]
-        obj_preds = np.array(np.rint(model.predict([trips, obj_df.iloc[:,:-1]], batch_size=batch_size, verbose=0).flatten()), dtype=int)
-    else:
-        obj_preds = np.array(np.rint(model.predict(trips, batch_size=batch_size, verbose=0).flatten()), dtype=int)
-    
-    val_perobj_acc[i] = np.sum(obj_preds==label)/len(trips)
-
-train_loss = report['Training history']['loss']
-val_loss = report['Training history']['val_loss']
-
-train_acc = report['Training history']['accuracy']
-val_acc = report['Training history']['val_accuracy']
-
-bts_acc = len(val_TP_idxs)/(len(val_TP_idxs)+len(val_FN_idxs))
-notbts_acc = len(val_TN_idxs)/(len(val_TN_idxs)+len(val_FP_idxs))
-bal_acc = (bts_acc + notbts_acc) / 2
-
-# /-----------------------------
-#  MAKE FIGURE
-# /-----------------------------
-
-fig, ((ax1, ax2, ax3), (ax4, ax5, ax6), (ax7, ax8, ax9)) = plt.subplots(nrows=3, ncols=3, figsize=(15, 12), dpi=250)
-
-plt.suptitle(model_name+"/"+str(run_t_stamp), size=28)
-ax1.plot(train_acc, label='Training', linewidth=2)
-ax1.plot(val_acc, label='Validation', linewidth=2)
-ax1.axhline(bts_acc, label="BTS", c='blue', linewidth=1.5, linestyle='dashed')
-ax1.axhline(notbts_acc, label="notBTS", c='green', linewidth=1.5, linestyle='dashed')
-ax1.axhline(bal_acc, label="Balanced", c='gray', linewidth=1.5, linestyle='dashed')
-ax1.set_xlabel('Epoch')
-ax1.set_ylabel('Accuracy')
-ax1.legend(loc='best')
-# ax1.set_ylim([0.6,0.9])
-ax1.grid(True, linewidth=.3)
-
-# /===================================================================/
-
-ax2.plot(train_loss, label='Training', linewidth=2)
-ax2.plot(val_loss, label='Validation', linewidth=2)
-ax2.set_xlabel('Epoch')
-ax2.set_ylabel('Loss')
-ax2.legend(loc='best')
-# ax2.set_ylim([0.2,0.7])
-ax2.grid(True, linewidth=.3)
-
-# /===================================================================/
-
-bins = np.arange(15,22,0.5)
-ax3.hist(df['magpsf'][mask_val].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
-# ax3.hist(df['magpsf'][mask_val].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
-ax3.hist(df['magpsf'][mask_val].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
-# ax3.hist(df['magpsf'][mask_val].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
-ax3.axvline(18.5, c='k', linewidth=2, linestyle='dashed', label='18.5', alpha=0.5, zorder=10)
-ax3.legend(loc='upper left')
-ax3.set_xlabel('Magnitude')
-ax3.set_ylim([0,1])
-ax3.set_xlim([15,22])
-ax3.grid(True, linewidth=.3)
-ax3.xaxis.set_major_locator(MultipleLocator(1))
-ax3.yaxis.set_major_locator(MultipleLocator(0.2))
-
-# /===================================================================/
-
-# ax6.hist(df['magpsf'][mask_val].to_numpy()[val_TP_idxs], histtype='step', color='g', linewidth=2, label='TP', bins=bins, density=True, zorder=2)
-ax6.hist(df['magpsf'][mask_val].to_numpy()[val_TN_idxs], histtype='step', color='b', linewidth=2, label='TN', bins=bins, density=True, zorder=3)
-# ax6.hist(df['magpsf'][mask_val].to_numpy()[val_FP_idxs], histtype='step', color='r', linewidth=2, label='FP', bins=bins, density=True, zorder=4)
-ax6.hist(df['magpsf'][mask_val].to_numpy()[val_FN_idxs], histtype='step', color='orange', linewidth=2, label='FN', bins=bins, density=True, zorder=5)
-ax6.axvline(18.5, c='k', linewidth=2, linestyle='dashed', label='18.5', alpha=0.5, zorder=10)
-ax6.legend(loc='upper left')
-ax6.set_xlabel('Magnitude')
-ax6.set_ylim([0,1])
-ax6.set_xlim([15,22])
-ax6.grid(True, linewidth=.3)
-ax6.xaxis.set_major_locator(MultipleLocator(1))
-ax6.yaxis.set_major_locator(MultipleLocator(0.2))
-
-# /===================================================================/
-
-ax4.plot([0, 1], [0, 1], color='k', lw=2, linestyle='--')
-ax4.set_xlim([0.0, 1.0])
-ax4.set_ylim([0.0, 1.05])
-ax4.plot(fpr, tpr, lw=2, label=f'ROC (area = {roc_auc:.5f})')
-ax4.set_xlabel('False Positive Rate (Contamination)')
-ax4.set_ylabel('True Positive Rate (Sensitivity)')
-ax4.legend(loc="lower right")
-ax4.grid(True, linewidth=.3)
-ax4.set(aspect='equal')
-
-# /===================================================================/
-
-ConfusionMatrixDisplay.from_predictions(df.label.values[mask_val], 
-                                        labels_pred, normalize='true', 
-                                        display_labels=["notBTS", "BTS"], 
-                                        cmap=plt.cm.Blues, colorbar=False, ax=ax5)
-
-# /===================================================================/
-
-# bins = np.arange(0,1.1,0.2)
-# ax7.hist(val_perobj_acc, histtype='step', color='k', linewidth=2, bins=bins, density=True)
-# ax7.set_xlabel('Accuracy')
-# ax7.xaxis.set_minor_locator(MultipleLocator(0.1))
-# ax7.grid(True, linewidth=.3)
-
-hist, xbins, ybins, im = ax7.hist2d(val_alerts['sgscore1'][val_alerts['sgscore1']>0], preds[:,0][val_alerts['sgscore1']>0], norm=LogNorm())
-ax7.set_xlabel('sgscore1')
-ax7.set_ylabel('Score')
-# ax7.xaxis.set_major_locator(MultipleLocator(1))
-ax7.yaxis.set_major_locator(MultipleLocator(0.2))
-
-divider7 = make_axes_locatable(ax7)
-cax7 = divider7.append_axes('right', size='5%', pad=0.05)
-fig.colorbar(im, cax=cax7, orientation='vertical')
-
-# /===================================================================/
-
-hist, xbins, ybins, im = ax8.hist2d(val_alerts['distnr'], preds[:,0], norm=LogNorm())
-ax8.set_xlabel('distnr')
-ax8.set_ylabel('Score')
-# ax8.xaxis.set_major_locator(MultipleLocator(1))
-ax8.yaxis.set_major_locator(MultipleLocator(0.2))
-
-divider8 = make_axes_locatable(ax8)
-cax8 = divider8.append_axes('right', size='5%', pad=0.05)
-fig.colorbar(im, cax=cax8, orientation='vertical')
-
-# /===================================================================/
-
-hist, xbins, ybins, im = ax9.hist2d(val_alerts['magpsf'], preds[:,0], norm=LogNorm(), bins=14, range=[[15, 22], [0, 1]])
-ax9.set_xlabel('magpsf')
-ax9.set_ylabel('Score')
-ax9.xaxis.set_major_locator(MultipleLocator(1))
-ax9.yaxis.set_major_locator(MultipleLocator(0.2))
-
-divider9 = make_axes_locatable(ax9)
-cax9 = divider9.append_axes('right', size='5%', pad=0.05)
-fig.colorbar(im, cax=cax9, orientation='vertical')
-
-# /===================================================================/
-
-for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, cax7, cax8, cax9]:
-    ax.tick_params(which='both', width=1.5)
-
-plt.tight_layout()
-plt.savefig(report_dir+"/"+os.path.basename(os.path.normpath(report_dir))+".pdf", bbox_inches='tight')
-plt.close()
+bts_val.run_val(report_dir, "train_config.json")

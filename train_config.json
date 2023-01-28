@@ -1,0 +1,28 @@
+{
+    "N_max": 1,
+    "epochs": 500,
+    "loss": "binary_crossentropy",
+    "optimizer": {
+        "kind": "Adam",
+        "learning_rate": 3e-4,
+        "beta_1": 0.9,
+        "beta_2": 0.999,
+        "epsilon": "None",
+        "decay": 0.0,
+        "amsgrad": "False"
+    },
+    "weight_classes": "True",
+    "batch_size": 16,
+    "dont_use_GPU": "False",
+    "metadata_cols": ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
+                      "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
+                      "classtar", "ndethist", "ncovhist", "sharpnr"],
+    "data_aug": {
+        "h_flip": "True",
+        "v_flip": "True",
+        "fill_mode": "constant",
+        "cval": 0,
+        "rot": "True"
+    }
+  }
+  
