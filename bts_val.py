@@ -49,7 +49,7 @@ def run_val(output_dir, config_path):
     metadata_cols.append("label")
 
     tf.keras.backend.clear_session()
-    tf.config.set_visible_devices([], 'GPU')
+    # tf.config.set_visible_devices([], 'GPU')
     model = tf.keras.models.load_model(model_dir)
     
     raw_preds = model.predict([triplets, cand.loc[:,metadata_cols[:-1]]], batch_size=16, verbose=0)
@@ -305,4 +305,4 @@ def run_val(output_dir, config_path):
     plt.close()
 
 if __name__ == "__main__":
-    run_val("models/bs16/vgg6_metadata_1_1-v4-n1-bs16/20221224_135715/", "train_config.json")
+    run_val(sys.argv[1], "train_config.json")

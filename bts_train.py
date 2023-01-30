@@ -40,6 +40,8 @@ if hparams['optimizer']['kind'] == "Adam":
 weight_classes = bool(hparams['weight_classes'])
 batch_size = hparams['batch_size']
 
+tf.keras.backend.clear_session()
+
 if bool(hparams['dont_use_GPU']):
     # DISABLE ALL GPUs
     tf.config.set_visible_devices([], 'GPU')
@@ -91,6 +93,10 @@ else:
     print("Training data already present")
 
 df = pd.read_csv(f'data/candidates_v4_n{N_max}.csv')
+
+if df.isnull().values.any():
+    print("HAD TO REMOVE NANS")
+    df = df.fillna(-999.0)
 
 print(f'num_notbts: {np.sum(df.label == 0)}')
 print(f'num_bts: {np.sum(df.label == 1)}')
@@ -371,7 +377,7 @@ for k in report['Training history'].keys():
 if metadata:
     report['metadata_cols'] = metadata_cols[:-1]
 
-report_dir = "models/"+model_name+"/"+str(run_t_stamp)+"/"
+report_dir = "models/photoz/"+model_name+"/"+str(run_t_stamp)+"/"
 model_dir = report_dir+"model/"
 
 if not os.path.exists(model_dir):
