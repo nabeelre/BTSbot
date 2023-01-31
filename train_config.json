@@ -9,20 +9,20 @@
         "beta_2": 0.999,
         "epsilon": "None",
         "decay": 0.0,
-        "amsgrad": "False"
+        "amsgrad": 0
     },
-    "weight_classes": "True",
+    "weight_classes": 1,
     "batch_size": 16,
     "dont_use_GPU": 0,
     "metadata_cols": ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
                       "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
                       "classtar", "ndethist", "ncovhist", "sharpnr", "photozpsnr1"],
     "data_aug": {
-        "h_flip": "True",
-        "v_flip": "True",
+        "h_flip": 1,
+        "v_flip": 1,
         "fill_mode": "constant",
         "cval": 0,
-        "rot": "True"
+        "rot": 1
     }
   }
   
