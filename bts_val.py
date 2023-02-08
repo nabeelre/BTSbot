@@ -49,10 +49,14 @@ def run_val(output_dir, config_path):
     metadata_cols.append("label")
 
     tf.keras.backend.clear_session()
-    # tf.config.set_visible_devices([], 'GPU')
+
+    if bool(hparams['dont_use_GPU']):
+        # DISABLE ALL GPUs
+        tf.config.set_visible_devices([], 'GPU')
+
     model = tf.keras.models.load_model(model_dir)
     
-    raw_preds = model.predict([triplets, cand.loc[:,metadata_cols[:-1]]], batch_size=16, verbose=0)
+    raw_preds = model.predict([triplets, cand.loc[:,metadata_cols[:-1]]], batch_size=16, verbose=1)
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
     labels = cand["label"].to_numpy(dtype=int)
 
@@ -216,24 +220,52 @@ def run_val(output_dir, config_path):
     # /===================================================================/
     # Per-object Precision and Recall
 
-    metric_names = ["objpreds_gt3", "objpreds_f0.25", "objpreds_f0.5"]
-    metric_funcs = [lambda x: int(np.sum(x) > 3), lambda x: int((np.sum(x) / len(x)) > 0.25), lambda x: int((np.sum(x) / len(x)) > 0.5)]
-    metric_linestyles = ["solid", "dashed", "dotted"]
+    def gt3(alerts):
+        if np.sum(alerts['preds']) >= 3:
+            return True
+        return False
 
+    metric_names = ["gt3"]
+    metric_funcs = [gt3]
+    metric_linestyles = ["solid"]
+
+    # Get label and peakmag for each source (by taking all unique objectIds)
     metric_cand = pd.DataFrame(columns=["objectId", "label", "peakmag"])
+    # Iterate over all alerts in validation set
     for i in cand.index:
+        # If this objectId hasn't been seen,
         if cand.iloc[i]["objectId"] not in metric_cand["objectId"].to_numpy():
-            metric_cand.loc[len(metric_cand)] = cand.iloc[i][["objectId", "label"]]
-    metric_labels = metric_cand["label"].to_numpy()
+            # Select this source's objectId, label, and magpsf
+            metric_cand.loc[len(metric_cand)] = (cand.iloc[i]["objectId"], 
+                                                 cand.iloc[i]["label"], 
+                                                 np.min(cand.loc[cand['objectId'] == cand.iloc[i]["objectId"], "magpsf"]))
 
+    # For each metric
     for name, func, linestyle in zip(metric_names[0:1], metric_funcs[0:1], metric_linestyles[0:1]):
-        metric_cand[name] = 0
+        # Initialize new columns
+        metric_cand[[name+"_pred", name+"_select"]] = 0, 0
 
+        # For each source
         for obj_id in metric_cand["objectId"]:
-            obj_alerts = cand.loc[cand["objectId"] == obj_id]
-            metric_cand.loc[metric_cand["objectId"] == obj_id, ("peakmag", name)] = np.min(obj_alerts["magpsf"]), func(obj_alerts["preds"])
+            # Pick out alerts for that source and sort them by time
+            obj_alerts = cand.loc[cand["objectId"] == obj_id].sort_values(by="jd")
 
-        metric_preds = metric_cand[name].to_numpy()
+            # For each alert
+            for i in range(len(obj_alerts)):
+                # the obj_alerts index of the current row of iteration
+                idx_cur = obj_alerts.index[i]
+
+                # the obj_alerts index of the current and previous rows of iteration
+                idx_sofar = obj_alerts.index[0:i+1]
+
+                # Compute the prediction for this current metric
+                met_pred = gt3(obj_alerts.loc[idx_sofar])
+                
+                # Store metric prediction and whether it was the first positive
+                obj_alerts.loc[idx_cur, (name+"_pred", name+"_select")] = int(met_pred), int(met_pred and not np.any(obj_alerts.loc[idx_sofar, name+"_select"]))
+ 
+        metric_labels = metric_cand["label"].to_numpy()
+        metric_preds  = metric_cand[name+"_pred"].to_numpy()
         
         TP_mask_met = np.bitwise_and(metric_labels, metric_preds)
         TN_mask_met = 1-(np.bitwise_or(metric_labels, metric_preds))

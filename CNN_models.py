@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Concatenate, BatchNormalization, Activation
+from keras import activations
 
 # /----- ----- ----- -----/ IMAGES AND METADATA /----- ----- ----- -----/ 
 
@@ -961,5 +962,78 @@ def vgg9_2(image_shape=(63, 63, 3)):
     output = Dense(1, activation='sigmoid', name='fc_out')(x_conv)
 
     model = keras.Model(inputs=triplet_input, outputs=output, name="vgg9_2")
+
+    return model
+
+
+# /----- ----- ----- -----/ REGRESSION /----- ----- ----- -----/ 
+
+def vgg6_metadata_1_1_reg(image_shape=(63, 63, 3), metadata_shape=(17,)):
+    triplet_input = keras.Input(shape=image_shape, name="triplet")
+    meta_input = keras.Input(shape=metadata_shape, name="metadata")
+
+    # Convolution branch
+    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', input_shape=(63, 63, 3), name='conv1')(triplet_input)
+    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', name='conv2')(x_conv)
+    x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
+    x_conv = Dropout(0.25, name='drop_0.25')(x_conv)
+
+    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv3')(x_conv)
+    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv4')(x_conv)
+    x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
+    x_conv = Dropout(0.25, name='drop2_0.25')(x_conv)
+
+    x_conv = Flatten()(x_conv)
+
+    # Metadata branch
+    x_meta = Dense(16, activation='relu', name='metadata_fc_1')(meta_input)
+    x_meta = Dense(32, activation='relu', name='metadata_fc_2')(x_meta)
+    
+    # Merged branch
+    x = Concatenate(axis=1)([x_conv, x_meta])
+    x = Dense(16, activation='relu', name='comb_fc_2')(x)
+    x = Dropout(0.25)(x)
+
+    output = Dense(1, activation=activations.linear, name='fc_out')(x)
+
+    model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="vgg6_metadata_1_1_reg")
+
+    return model
+
+
+def vgg6_metadata_1_1_comb(image_shape=(63, 63, 3), metadata_shape=(16,)):
+    triplet_input = keras.Input(shape=image_shape, name="triplet")
+    meta_input = keras.Input(shape=metadata_shape, name="metadata")
+
+    # Convolution branch
+    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', input_shape=(63, 63, 3), name='conv1')(triplet_input)
+    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', name='conv2')(x_conv)
+    x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
+    x_conv = Dropout(0.25, name='drop_0.25')(x_conv)
+
+    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv3')(x_conv)
+    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv4')(x_conv)
+    x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
+    x_conv = Dropout(0.25, name='drop2_0.25')(x_conv)
+
+    x_conv = Flatten()(x_conv)
+
+    # Metadata branch
+    x_meta = Dense(16, activation='relu', name='metadata_fc_1')(meta_input)
+    x_meta = Dense(32, activation='relu', name='metadata_fc_2')(x_meta)
+    
+    # Merged branch
+    x = Concatenate(axis=1)([x_conv, x_meta])
+    x = Dense(16, activation='relu', name='comb_fc_2')(x)
+    x = Dropout(0.25)(x)
+
+    reg_output = Dense(1, activation=activations.linear, name='peakmag_pred')(x)
+
+    class_output = Dense(1, activation='sigmoid', name='class_pred')(x)
+
+    # reg_class_output = Concatenate(axis=0) ([reg_output, class_output]) 
+                                        # tf.broadcast_to(tf.constant(loss_const), [1, sequences, features])
+                                        
+    model = keras.Model(inputs=[triplet_input, meta_input], outputs=[reg_output, class_output], name="vgg6_metadata_1_1_comb")
 
     return model

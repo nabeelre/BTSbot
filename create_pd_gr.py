@@ -63,7 +63,7 @@ def create_train_data(set_names, cuts, N_max=None, seed=2):
     del triplets, cand
 
 
-def create_validation_data(set_names, ztfids_val):
+def create_validation_data(set_names, ztfids_val, for_regression=False):
     triplets = np.empty((0,63,63,3))
     cand = pd.DataFrame()
 
@@ -86,19 +86,20 @@ def create_validation_data(set_names, ztfids_val):
 
                 obj_cand = set_cand[obj_mask]
 
-                if np.min(obj_cand['magpsf']) > 18.4 and np.min(obj_cand['magpsf']) < 18.6:
-                    set_trips = np.delete(set_trips, obj_idx, axis=0)
-                    set_cand = set_cand.drop(obj_idx)
-                    set_cand.reset_index(inplace=True, drop=True)
+                if not for_regression:
+                    if np.min(obj_cand['magpsf']) > 18.4 and np.min(obj_cand['magpsf']) < 18.6:
+                        set_trips = np.delete(set_trips, obj_idx, axis=0)
+                        set_cand = set_cand.drop(obj_idx)
+                        set_cand.reset_index(inplace=True, drop=True)
         
         triplets = np.concatenate((triplets, set_trips))
         cand = pd.concat((cand, set_cand))
         cand.reset_index(inplace=True, drop=True)
         print(f"  Merged {set_name}")
         
-    np.save("data/triplets_v4_val.npy", triplets)
+    np.save(f"data/triplets_v4_val{'_reg' if for_regression else ''}.npy", triplets)
     cand.reset_index(inplace=True, drop=True)
-    cand.to_csv("data/candidates_v4_val.csv", index=False)
+    cand.to_csv(f"data/candidates_v4_val{'_reg' if for_regression else ''}.csv", index=False)
 
 
 def val_helper(trips, cand, ztfids_val):
