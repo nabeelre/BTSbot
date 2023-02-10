@@ -968,7 +968,7 @@ def vgg9_2(image_shape=(63, 63, 3)):
 
 # /----- ----- ----- -----/ REGRESSION /----- ----- ----- -----/ 
 
-def vgg6_metadata_1_1_reg(image_shape=(63, 63, 3), metadata_shape=(17,)):
+def vgg6_metadata_1_1_reg(image_shape=(63, 63, 3), metadata_shape=(16,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -994,7 +994,7 @@ def vgg6_metadata_1_1_reg(image_shape=(63, 63, 3), metadata_shape=(17,)):
     x = Dense(16, activation='relu', name='comb_fc_2')(x)
     x = Dropout(0.25)(x)
 
-    output = Dense(1, activation=activations.linear, name='fc_out')(x)
+    output = Dense(1, activation=activations.linear, name='peakmag_pred')(x)
 
     model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="vgg6_metadata_1_1_reg")
 

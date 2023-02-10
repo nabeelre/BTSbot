@@ -259,7 +259,7 @@ def run_val(output_dir, config_path):
                 idx_sofar = obj_alerts.index[0:i+1]
 
                 # Compute the prediction for this current metric
-                met_pred = gt3(obj_alerts.loc[idx_sofar])
+                met_pred = func(obj_alerts.loc[idx_sofar])
                 
                 # Store metric prediction and whether it was the first positive
                 obj_alerts.loc[idx_cur, (name+"_pred", name+"_select")] = int(met_pred), int(met_pred and not np.any(obj_alerts.loc[idx_sofar, name+"_select"]))
