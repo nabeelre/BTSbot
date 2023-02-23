@@ -1,5 +1,5 @@
 {
-    "N_max": 1,
+    "N_max": 30,
     "epochs": 1500,
     "loss": "binary_crossentropy",
     "optimizer": {
@@ -16,7 +16,7 @@
     "dont_use_GPU": 0,
     "metadata_cols": ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
                       "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
-                      "classtar", "ndethist", "ncovhist", "sharpnr", "photozpsnr1"],
+                      "classtar", "ndethist", "ncovhist", "sharpnr"],
     "data_aug": {
         "h_flip": 1,
         "v_flip": 1,

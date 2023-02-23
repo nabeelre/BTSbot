@@ -191,4 +191,4 @@ def val_helper(trips, cand, ztfids_val):
     return trips_val, cand_val
 
 if __name__ == "__main__":
-    create_train_data(["trues", "dims", "vars", "MS"], only_pd_gr, name="pd_gr", N_max=int(sys.argv[1]))
+    create_train_data(["trues", "dims", "vars", "MS"], only_pd_gr, N_max=int(sys.argv[1]))
