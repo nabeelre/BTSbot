@@ -10,24 +10,16 @@ def only_pd_gr(trips, cand):
     return triplets_pd_gr, cand_pd_gr
 
 
-def create_train_data(set_names, cuts, N_max=None, seed=2, sne_only=False):
-    # concat
-    # optionally save to disk? with provided name
-    
-    triplets = np.empty((0,63,63,3))
-    cand = pd.DataFrame()
-    mods_str = ""
+def merge_data(set_names, cuts, seed=2):
 
-    if N_max is not None:
-        mods_str += f"_n{N_max}"
-    if sne_only:
-        mods_str += "_sne"
+    train_triplets = np.empty((0,63,63,3))
+    train_cand = pd.DataFrame()
 
-        if "vars" in set_names:
-            print("Vars should not be included in a SNe only compilation")
-            print(set_names)
-            exit()
+    val_triplets = np.empty((0,63,63,3))
+    val_cand = pd.DataFrame()
 
+    test_triplets = np.empty((0,63,63,3))
+    test_cand = pd.DataFrame()
 
     for set_name in set_names:
         print(f"Working on {set_name} data")
@@ -36,61 +28,89 @@ def create_train_data(set_names, cuts, N_max=None, seed=2, sne_only=False):
         set_cand = pd.read_csv(f"data/base_data/{set_name}_candidates.csv", index_col=False)
         print("  Read")
 
-        print(f"  Initial median of {int(np.median(set_cand['objectId'].value_counts()))} detections per object")
         print(f"  {len(pd.unique(set_cand['objectId']))} sources initially in {set_name}")
+        print(f"  Median of {int(np.median(set_cand['objectId'].value_counts()))} detections per object")
         
-        if sne_only and set_name == "dims":
-            # froms dims, remove things classified with non-SN types - keep unclassifieds
-            print("  Removing non-SNe from dims")
-            dims = pd.read_csv(f"data/base_data/dims.csv")
-
-            non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate", 
-                            "nova", "rock", "star", "varstar", "QSO", "CV", 
-                            "CLAGN", "Blazar"]
-
-            objids_to_remove = dims.loc[dims['type'].isin(non_SN_types), "ZTFID"].to_numpy()
-
-            idxs = set_cand.loc[set_cand["objectId"].isin(objids_to_remove)].index
-
-            set_trips = np.delete(set_trips, idxs, axis=0)
-            set_cand = set_cand.drop(index=idxs)
-            set_cand.reset_index(inplace=True, drop=True)
-            print(f"  {len(pd.unique(set_cand['objectId']))} sources remaining in {set_name}")
-
         # run other optional cuts (ex: take only positive differences in g or r band)
         set_trips, set_cand = cuts(set_trips, set_cand)
         set_cand.reset_index(inplace=True, drop=True)
         print("  Ran cuts")
         print(f"  {len(pd.unique(set_cand['objectId']))} sources remaining in {set_name}")
 
-        # thin to N_max
-        # plt.figure()
-        # _ = plt.hist(set_cand['objectId'].value_counts(), histtype='step', bins=50)
-        # plt.tight_layout()
-        # plt.show()
-        if N_max is not None:
-            drops = np.empty((0,), dtype=int)
-            for ID in set(set_cand['objectId']):
-                reps = np.argwhere(np.asarray(set_cand['objectId']) == ID).flatten()
-                if len(reps) >= N_max:
-                    np.random.seed(seed)
-                    drops = np.concatenate((drops, np.random.choice(reps, len(reps)-N_max, replace=False)))
-            
-            set_trips = np.delete(set_trips, drops, axis=0)
-            set_cand = set_cand.drop(index=drops)
-            set_cand.reset_index(inplace=True, drop=True)
-            print(f"  Dropped {len(drops)} {set_name} alerts down to {N_max} max per obj")
-            print(f"  {len(pd.unique(set_cand['objectId']))} final sources in {set_name}")
+        set_cand['source_set'] = set_name
+        set_cand['N'] = None
+        set_cand['split'] = None
+
+        set_cand['is_SN'] = False
+        set_cand['near_threshold'] = np.bitwise_and(set_cand['peakmag'] > 18.4, set_cand['peakmag'] < 18.6)
+        set_cand['is_rise'] = False
         
-        # concat
-        triplets = np.concatenate((triplets, set_trips))
-        cand = pd.concat((cand, set_cand))
+        np.random.seed(seed)
+        splits = np.random.choice(["train","val","test"], size=(len(pd.unique(set_cand['objectId'])),), p=[0.81,0.09,0.1])
+
+        for i, objid in enumerate(pd.unique(set_cand['objectId'])):
+            obj_cand = set_cand[set_cand['objectId'] == objid]
+            
+            # Label rise alerts
+            jd_peak = obj_cand.iloc[np.argmin(obj_cand['magpsf']), obj_cand.columns.get_loc("jd")]
+            
+            set_cand.loc[np.bitwise_and(set_cand['objectId'] == objid, set_cand['jd'] <= jd_peak), "is_rise"] = True
+            
+            # Label alerts with N
+            N_tot = len(obj_cand)
+            np.random.seed(seed)
+            N_labels = np.random.choice(np.arange(1,N_tot+1), size=(N_tot,), replace=False)
+            
+            set_cand.loc[set_cand['objectId'] == objid, "N"] = N_labels
+            
+            # Train/Val/Test split
+            set_cand.loc[set_cand['objectId'] == objid, "split"] = splits[i]
+            
+        # Label as SN or not
+        if set_name in ["trues", "MS"]:
+            set_cand['is_SN'] = True
+            
+        if set_name == "dims":
+            # froms dims, remove things classified with non-SN types - keep unclassifieds
+            dims = pd.read_csv(f"data/base_data/dims.csv")
+
+            non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate", 
+                            "nova", "rock", "star", "varstar", "QSO", "CV", "CV?", 
+                            "CLAGN", "Blazar"]
+
+            SN_objectIds = dims.loc[~dims['type'].isin(non_SN_types), "ZTFID"].to_numpy()
+
+            set_cand.loc[set_cand['objectId'].isin(SN_objectIds), 'is_SN'] = True
+        
+        is_train = set_cand[set_cand['split'] == "train"].index
+        train_triplets = np.concatenate((train_triplets, set_trips[is_train]))
+        train_cand = pd.concat((train_cand, set_cand.loc[is_train]))
+        train_cand.reset_index(inplace=True, drop=True)
+
+        is_val = set_cand[set_cand['split'] == "val"].index
+        val_triplets = np.concatenate((val_triplets, set_trips[is_val]))
+        val_cand = pd.concat((val_cand, set_cand.loc[is_val]))
+        val_cand.reset_index(inplace=True, drop=True)
+
+        is_test = set_cand[set_cand['split'] == "test"].index
+        test_triplets = np.concatenate((test_triplets, set_trips[is_test]))
+        test_cand = pd.concat((test_cand, set_cand.loc[is_test]))
+        test_cand.reset_index(inplace=True, drop=True)
         print(f"  Merged {set_name}")
 
-    np.save(f"data/triplets_v4{mods_str}.npy", triplets)
-    cand.to_csv(f"data/candidates_v4{mods_str}.csv", index=False)
-    print("Wrote merged triplets and candidate data")
-    del triplets, cand
+    np.save(f"data/train_triplets_all.npy", train_triplets)
+    train_cand.to_csv(f"data/train_cand_all.csv", index=False)
+    print("Wrote merged train triplets and candidate data")
+
+    np.save(f"data/val_triplets_all.npy", val_triplets)
+    val_cand.to_csv(f"data/val_cand_all.csv", index=False)
+    print("Wrote merged val triplets and candidate data")
+
+    np.save(f"data/test_triplets_all.npy", test_triplets)
+    test_cand.to_csv(f"data/test_cand_all.csv", index=False)
+    print("Wrote merged test triplets and candidate data")
+
+    del train_triplets, train_cand, val_triplets, val_cand, test_triplets, test_cand
 
 
 def create_validation_data(set_names, ztfids_val, N_max=None, sne_only=False, keep_near_threshold=True, rise_only=False):
@@ -136,22 +156,6 @@ def create_validation_data(set_names, ztfids_val, N_max=None, sne_only=False, ke
             set_cand = set_cand.drop(index=idxs)
             set_cand.reset_index(inplace=True, drop=True)
 
-        # if rise_only:
-        #     print("  Removing non-rise-time alerts")
-        #     to_drop = []
-        #     for objid in pd.unique(set_cand['objectId']):
-        #         obj_alerts = set_cand.loc[set_cand['objectId'] == objid, ["magpsf", 'jd']]
-
-        #         jd_peak = obj_alerts.iloc[np.argmin(obj_alerts['magpsf']), -1]
-
-        #         postpeak = obj_alerts.loc[obj_alerts['jd'] > jd_peak].index
-        #         to_drop = np.append(to_drop, postpeak)
-
-        #     set_cand.drop(to_drop.astype(int), inplace=True)
-        #     set_cand.reset_index(drop=True, inplace=True)
-        #     set_trips = np.delete(triplets, to_drop.astype(int), axis=0)
-        #     print(f"  {len(cand)} sources remaining in {set_name}")
-
         set_cand.reset_index(inplace=True, drop=True)
         set_trips, set_cand = val_helper(set_trips, set_cand, ztfids_val)
         print("  Ran cuts")
@@ -191,4 +195,4 @@ def val_helper(trips, cand, ztfids_val):
     return trips_val, cand_val
 
 if __name__ == "__main__":
-    create_train_data(["trues", "dims", "vars", "MS"], only_pd_gr, N_max=int(sys.argv[1]))
+    merge_data(["trues", "dims", "vars", "MS"], only_pd_gr)

@@ -134,7 +134,7 @@ misc/
 data/
 credentials.json
 mat-smith/
-models/
+*models/
 slurm*
 test.py
 bts_train.sh
