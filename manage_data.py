@@ -103,93 +103,50 @@ def merge_data(set_names, cuts, seed=2):
                                        [train_triplets, val_triplets, test_triplets]):
         np.random.seed(seed)
         shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
-        np.save(f"data/{split_name}_triplets_all.npy", trips[shuffle_idx])
-        cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_all.csv", index=False)
+        np.save(f"data/{split_name}_triplets_v5.npy", trips[shuffle_idx])
+        cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_v5.csv", index=False)
         print(f"Wrote merged and shuffled {split_name} triplets and candidate data")
 
     del train_triplets, train_cand, val_triplets, val_cand, test_triplets, test_cand
 
 
-def create_validation_data(set_names, ztfids_val, N_max=None, sne_only=False, keep_near_threshold=True, rise_only=False):
-    triplets = np.empty((0,63,63,3))
-    cand = pd.DataFrame()
+def apply_cut(trips, cand, keep_idxs):
+    trips = trips[keep_idxs]
+    cand = cand.loc[keep_idxs]
+    cand.reset_index(inplace=True, drop=True)
+    
+    return trips, cand
+
+
+def create_subset(split_name, N_max : int = 0, sne_only : bool = False, 
+                  keep_near_threshold : bool = True, rise_only : bool = False):
+
+    trips = np.load(f"data/{split_name}_triplets_v5.npy", mmap_mode='r')
+    cand = pd.read_csv(f"data/{split_name}_cand_v5.csv", index_col=False)
+    print(f"Read {split_name}")
 
     mods_str = ""
-    if N_max is not None:
+    if N_max:
         mods_str += f"_n{N_max}"
+        trips, cand = apply_cut(trips, cand, cand[cand["N"] <= N_max].index)
+
     if sne_only:
         mods_str += "_sne"
+        trips, cand = apply_cut(trips, cand, cand[cand["is_SN"]].index)
 
-        if "vars" in set_names:
-            print("Vars should not be included in a SNe only compilation")
-            print(set_names)
-            exit()
     if not keep_near_threshold:
         mods_str += "_nnt"
-    # if rise_only:
-    #     mods_str += "_rt"
+        trips, cand = apply_cut(trips, cand, cand[~cand["near_threshold"]].index)
 
+    if rise_only:
+        mods_str += "_rt"
+        trips, cand = apply_cut(trips, cand, cand[cand["is_rise"]].index)
 
-    for set_name in set_names:
-        print(f"Working on {set_name} data")
+    print(f"Created a {mods_str} subset of {split_name}")
+    np.save(f"data/{split_name}_triplets_v5{mods_str}.npy", trips)
+    cand.to_csv(f"data/{split_name}_cand_v5{mods_str}.csv", index=False)
+    print(f"Wrote triplets and candidate data for {mods_str} subset of {split_name}")
 
-        set_trips = np.load(f"data/base_data/{set_name}_triplets.npy", mmap_mode='r')
-        set_cand = pd.read_csv(f"data/base_data/{set_name}_candidates.csv", index_col=False)
-        print("  Read")
-
-        # froms dims, remove things classified with non-SN types - keep unclassifieds
-        if sne_only and set_name == "dims":
-            dims = pd.read_csv(f"data/base_data/dims.csv")
-
-            non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate", 
-                            "nova", "rock", "star", "varstar", "QSO", "CV", 
-                            "CLAGN", "Blazar"]
-
-            objids_to_remove = dims.loc[dims['type'].isin(non_SN_types), "ZTFID"].to_numpy()
-
-            idxs = set_cand.loc[set_cand["objectId"].isin(objids_to_remove)].index
-
-            set_trips = np.delete(set_trips, idxs, axis=0)
-            set_cand = set_cand.drop(index=idxs)
-            set_cand.reset_index(inplace=True, drop=True)
-
-        set_cand.reset_index(inplace=True, drop=True)
-        set_trips, set_cand = val_helper(set_trips, set_cand, ztfids_val)
-        print("  Ran cuts")
-
-        if set_name in ["trues", "dims", "MS"]: 
-            for obj_id in pd.unique(set_cand['objectId']):
-                obj_mask = set_cand['objectId'] == obj_id
-                obj_idx = set_cand.index[obj_mask]
-
-                obj_cand = set_cand[obj_mask]
-
-                if not keep_near_threshold:
-                    print("  thinning near threshold", set_name)
-                    if np.min(obj_cand['magpsf']) > 18.4 and np.min(obj_cand['magpsf']) < 18.6:
-                        set_trips = np.delete(set_trips, obj_idx, axis=0)
-                        set_cand = set_cand.drop(obj_idx)
-                        set_cand.reset_index(inplace=True, drop=True)
-        
-        triplets = np.concatenate((triplets, set_trips))
-        cand = pd.concat((cand, set_cand))
-        cand.reset_index(inplace=True, drop=True)
-        print(f"  Merged {set_name}")
-        
-    np.save(f"data/triplets_v4_val{mods_str}.npy", triplets)
-    cand.reset_index(inplace=True, drop=True)
-    cand.to_csv(f"data/candidates_v4_val{mods_str}.csv", index=False)
-
-
-def val_helper(trips, cand, ztfids_val):
-    trips_pd_gr, cand_pd_gr = only_pd_gr(trips, cand)
-
-    is_val = cand_pd_gr['objectId'].isin(ztfids_val)
-    cand_val = cand_pd_gr.loc[is_val]
-    cand_val.reset_index(inplace=True, drop=True)
-    trips_val = trips_pd_gr[is_val]
-    
-    return trips_val, cand_val
 
 if __name__ == "__main__":
     merge_data(["trues", "dims", "vars", "MS"], only_pd_gr)
