@@ -98,17 +98,14 @@ def merge_data(set_names, cuts, seed=2):
         test_cand.reset_index(inplace=True, drop=True)
         print(f"  Merged {set_name}")
 
-    np.save(f"data/train_triplets_all.npy", train_triplets)
-    train_cand.to_csv(f"data/train_cand_all.csv", index=False)
-    print("Wrote merged train triplets and candidate data")
-
-    np.save(f"data/val_triplets_all.npy", val_triplets)
-    val_cand.to_csv(f"data/val_cand_all.csv", index=False)
-    print("Wrote merged val triplets and candidate data")
-
-    np.save(f"data/test_triplets_all.npy", test_triplets)
-    test_cand.to_csv(f"data/test_cand_all.csv", index=False)
-    print("Wrote merged test triplets and candidate data")
+    for split_name, cand, trips in zip(["train", "val", "test"], 
+                                       [train_cand, val_cand, test_cand], 
+                                       [train_triplets, val_triplets, test_triplets]):
+        np.random.seed(seed)
+        shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
+        np.save(f"data/{split_name}_triplets_all.npy", trips[shuffle_idx])
+        cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_all.csv", index=False)
+        print(f"Wrote merged and shuffled {split_name} triplets and candidate data")
 
     del train_triplets, train_cand, val_triplets, val_cand, test_triplets, test_cand
 
