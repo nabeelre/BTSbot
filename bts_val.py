@@ -8,13 +8,14 @@ from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from create_pd_gr import create_validation_data
+from create_pd_gr import create_subset, create_cuts_str
 
 plt.rcParams.update({
     "font.family": "Times New Roman",
     "font.size": 14,
 })
 plt.rcParams['axes.linewidth'] = 1.5
+random_state = 2
 
 def run_val(output_dir, config_path):
     with open(config_path, 'r') as f:
@@ -24,25 +25,24 @@ def run_val(output_dir, config_path):
         report = json.load(f)
     model_dir = output_dir + "model/"
 
-    df = pd.read_csv(f"data/candidates_v4_n{hparams['N_max']}.csv")
-    random_state = 2
-    split = 0.1
-    ztfids_seen, _ = train_test_split(pd.unique(df['objectId']), test_size=split, random_state=random_state)
-    _, ztfids_val = train_test_split(ztfids_seen, test_size=split, random_state=random_state)
+    val_cuts = hparams['val_cuts']
+    val_cuts_str = create_cuts_str(hparams['N_max'], val_cuts['sne_only'],
+                                   val_cuts['keep_near_threshold'], val_cuts['rise_only'])
 
-    if not (os.path.exists("data/triplets_v4_val.npy") and 
-            os.path.exists("data/candidates_v4_val.csv")):
+    if not (os.path.exists(f"data/val_triplets_v5{val_cuts_str}.npy") and 
+            os.path.exists(f"data/val_cand_v5{val_cuts_str}.csv")):
         
-        create_validation_data(["trues", "dims", "vars", "MS"],  ztfids_val)
+        create_subset("val", hparams['N_max'], val_cuts['sne_only'], 
+                      val_cuts['keep_near_threshold'], val_cuts['rise_only'])
     else:
         print("Validation data already present")
 
-    cand = pd.read_csv("data/candidates_v4_val.csv")
+    cand = pd.read_csv(f"data/val_cand_v5{val_cuts_str}.csv")
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    triplets = np.load("data/triplets_v4_val.npy", mmap_mode='r')
+    triplets = np.load(f"data/val_triplets_v5{val_cuts_str}.npy", mmap_mode='r')
     assert not np.any(np.isnan(triplets))
 
     metadata_cols = hparams["metadata_cols"]
@@ -56,7 +56,7 @@ def run_val(output_dir, config_path):
 
     model = tf.keras.models.load_model(model_dir)
     
-    raw_preds = model.predict([triplets, cand.loc[:,metadata_cols[:-1]]], batch_size=16, verbose=1)
+    raw_preds = model.predict([triplets, cand.loc[:,metadata_cols[:-1]]], batch_size=hparams['batch_size'], verbose=1)
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
     labels = cand["label"].to_numpy(dtype=int)
 

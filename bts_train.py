@@ -11,13 +11,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import CNN_models
 import bts_val
-from create_pd_gr import create_train_data, only_pd_gr
+from manage_data import create_subset, only_pd_gr
 
 plt.rcParams.update({
     "font.family": "Times New Roman",
     "font.size": 14,
 })
 plt.rcParams['axes.linewidth'] = 1.5
+random_state = 2
 
 # /-----------------------------
 #  HYPERPARAMETERS
@@ -38,7 +39,8 @@ if hparams['optimizer']['kind'] == "Adam":
         amsgrad=bool(opt_hparams['amsgrad'])
     )
 weight_classes = bool(hparams['weight_classes'])
-batch_size = hparams['batch_size']
+epochs = hparams["epochs"]
+patience = max(int(epochs*0.25), 50)
 
 tf.keras.backend.clear_session()
 
@@ -57,7 +59,7 @@ metadata_cols.append('label')
 metadata = True if "meta" in sys.argv[1].lower() else False
 
 N_max = hparams["N_max"]
-epochs = hparams["epochs"]
+batch_size = hparams['batch_size']
 
 if len(sys.argv) > 1:
     try: 
@@ -75,85 +77,54 @@ if len(sys.argv) > 2:
 
 if len(sys.argv) > 3:
     try:
-        epochs = int(sys.argv[3])
-        print("epochs overridden in command line as epochs =", sys.argv[3])
+        batch_size = int(sys.argv[3])
+        print("batch_size overridden in command line as batch_size =", sys.argv[3])
     except:
-        print("Could not understand provided epocs override:", sys.argv[3])
-
-patience = max(int(epochs*0.25), 50)
+        print("Could not understand provided batch_size override:", sys.argv[3])
 
 # /-----------------------------
 #  LOAD TRAINING DATA
 # /-----------------------------
 
-if not (os.path.exists(f'data/candidates_v4_n{N_max}.csv') and 
-        os.path.exists(f'data/triplets_v4_n{N_max}.npy')):
-    create_train_data(['trues', 'dims', 'vars', 'MS'], only_pd_gr, N_max=N_max)
+if not (os.path.exists(f'data/train_cand_v5_n{N_max}.csv') and 
+        os.path.exists(f'data/train_triplets_v5_n{N_max}.npy')):
+    create_subset("train", N_max=N_max)
 else:
     print("Training data already present")
 
-df = pd.read_csv(f'data/candidates_v4_n{N_max}.csv')
+cand = pd.read_csv(f'data/train_cand_v5_n{N_max}.csv')
 
-if df.isnull().values.any():
+if cand.isnull().values.any():
     print("HAD TO REMOVE NANS")
-    df = df.fillna(-999.0)
+    cand = cand.fillna(-999.0)
 
-print(f'num_notbts: {np.sum(df.label == 0)}')
-print(f'num_bts: {np.sum(df.label == 1)}')
+print(f'num_notbts: {np.sum(cand.label == 0)}')
+print(f'num_bts: {np.sum(cand.label == 1)}')
 
-triplets = np.load(f'data/triplets_v4_n{N_max}.npy', mmap_mode='r')
+triplets = np.load(f'data/train_triplets_v5_n{N_max}.npy', mmap_mode='r')
 assert not np.any(np.isnan(triplets))
 
 # /-----------------------------
-#  TRAIN/VAL/TEST SPLIT
+#  LOAD VALIDATION DATA
 # /-----------------------------
 
-test_split = 0.1  # fraction of all data
-random_state = 2
+val_cand = pd.read_csv(f'data/val_cand_v5.csv')
+val_triplets = np.load(f'data/val_triplets_v5.npy', mmap_mode='r')
 
-ztfids_seen, ztfids_test = train_test_split(pd.unique(df['objectId']), test_size=test_split, random_state=random_state)
+# /-----------------------------
+#  PREP DATA AS MODEL INPUT
+# /-----------------------------
 
-# Want array of indices for seen alerts and unseen/testing alerts
-# Need to shuffle because validation is bottom 10% of train - shuffle test as well for consistency
-is_seen = df['objectId'].isin(ztfids_seen)
-is_test = ~is_seen
-mask_seen = shuffle(df.index.values[is_seen], random_state=random_state)
-mask_test  = shuffle(df.index.values[is_test], random_state=random_state)
+x_train, y_train = triplets, cand['label']
+x_val, y_val = val_triplets, val_cand['label']
 
-# x_seen, seen_df = triplets[mask_seen], df.loc[mask_seen][metadata_cols]
-# x_test, test_df = triplets[mask_test], df.loc[mask_test][metadata_cols]
-
-print(f"{len(ztfids_seen)} seen/train+val objects; {len(ztfids_test)} unseen/test objects")
-print(f"{100*(len(ztfids_seen)/len(pd.unique(df['objectId']))):.2f}%/{100*(len(ztfids_test)/len(pd.unique(df['objectId']))):.2f}% seen/unseen split by object\n")
-
-print(f"{len(mask_seen)} seen/train+val alerts; {len(mask_test)} unseen/test alerts")
-print(f"{100*(len(mask_seen)/len(df['objectId'])):.2f}%/{100*(len(mask_test)/len(df['objectId'])):.2f}% seen/unseen split by alert\n")
-
-
-validation_split = 0.1  # fraction of the seen data
-
-ztfids_train, ztfids_val = train_test_split(ztfids_seen, test_size=validation_split, random_state=random_state)
-
-is_train = df['objectId'].isin(ztfids_train)
-is_val = df['objectId'].isin(ztfids_val)
-mask_train = shuffle(df.index.values[is_train], random_state=random_state)
-mask_val  = shuffle(df.index.values[is_val], random_state=random_state)
-
-x_train, y_train = triplets[mask_train], df['label'][mask_train]
-x_val, y_val = triplets[mask_val], df['label'][mask_val]
-
-val_alerts = df.loc[mask_val]
-
-# train/val_df is a combination of the desired metadata and y_train/val (labels)
+# train_df is a combination of the desired metadata and y_train (labels)
 # we provide the model a custom generator function to separate these as necessary
-train_df = df.loc[mask_train][metadata_cols]
-val_df   = val_alerts[metadata_cols]
+train_df = cand.loc[metadata_cols]
+val_df = val_cand.loc[metadata_cols]
 
-print(f"{len(ztfids_train)} train objects; {len(ztfids_val)} val objects")
-print(f"{100*(len(ztfids_train)/len(pd.unique(df['objectId']))):.2f}%/{100*(len(ztfids_val)/len(pd.unique(df['objectId']))):.2f}% train/val split by object\n")
-
-print(f"{len(x_train)} train alerts; {len(x_val)} val alerts")
-print(f"{100*(len(x_train)/len(df['objectId'])):.2f}%/{100*(len(x_val)/len(df['objectId'])):.2f}% train/val split by alert\n")
+print(f"{len(pd.unique(cand['objectId']))} train objects")
+print(f"{len(x_train)} train alerts")
 
 # /-----------------------------
 #  SET UP CALLBACKS
@@ -168,14 +139,14 @@ early_stopping = tf.keras.callbacks.EarlyStopping(
     patience=patience
 )
 
-tensorboard = tf.keras.callbacks.TensorBoard(
-    log_dir="tb_logs/", 
+# tensorboard = tf.keras.callbacks.TensorBoard(
+    # log_dir="tb_logs/", 
 #     histogram_freq=1,
 #     write_graph=True,
 #     write_images=True,
-    update_freq='epoch',
+    # update_freq='epoch',
 #     profile_batch=1
-)
+# )
 
 # /-----------------------------
 #  SET UP DATA GENERATORS WITH AUGMENTATION
@@ -274,7 +245,7 @@ h = model.fit(
     validation_steps=(0.8*len(x_val)) // batch_size,
     class_weight=class_weight,
     epochs=epochs,
-    verbose=1, callbacks=[early_stopping, tensorboard]
+    verbose=1, callbacks=[early_stopping]
 )
 
 # /-----------------------------
@@ -288,55 +259,15 @@ else:
     labels_training_pred = model.predict(x_train, batch_size=batch_size, verbose=1)
 
 # XOR will show misclassified samples
-misclassified_train_mask = np.array(list(map(int, df.label[mask_train]))).flatten() ^ \
+misclassified_train_mask = np.array(list(map(int, cand.label))).flatten() ^ \
                            np.array(list(map(int, np.rint(labels_training_pred)))).flatten()
 
 misclassified_train_mask = [ii for ii, mi in enumerate(misclassified_train_mask) if mi == 1]
 
 misclassifications_train = {int(c): [int(l), float(p)]
-                            for c, l, p in zip(df.candid.values[mask_train][misclassified_train_mask],
-                                               df.label.values[mask_train][misclassified_train_mask],
+                            for c, l, p in zip(cand.candid.values[misclassified_train_mask],
+                                               cand.label.values[misclassified_train_mask],
                                                labels_training_pred[misclassified_train_mask])}
-
-print('Evaluating on validation set for loss and accuracy:')
-if metadata:
-    preds = model.evaluate([x_val, val_df.iloc[:,:-1]], y_val, batch_size=batch_size, verbose=1)
-else:
-    preds = model.evaluate(x_val, y_val, batch_size=batch_size, verbose=1)
-val_loss = float(preds[0])
-val_accuracy = float(preds[1])
-print("Loss = " + str(val_loss))
-print("Val Accuracy = " + str(val_accuracy))
-
-print('Evaluating on validation set to check misclassified samples:')
-if metadata:
-    preds = model.predict(x=[x_val, val_df.iloc[:,:-1]], batch_size=batch_size, verbose=1)
-else:
-    preds = model.predict(x=x_val, batch_size=batch_size, verbose=1)
-# XOR will show misclassified samples
-misclassified_val_mask = np.array(list(map(int, df.label[mask_val]))).flatten() ^ \
-                          np.array(list(map(int, np.rint(preds)))).flatten()
-misclassified_val_mask = [ii for ii, mi in enumerate(misclassified_val_mask) if mi == 1]
-
-misclassifications_val = {int(c): [int(l), float(p)]
-                           for c, l, p in zip(df.candid.values[mask_val][misclassified_val_mask],
-                                              df.label.values[mask_val][misclassified_val_mask],
-                                              preds[misclassified_val_mask])}
-
-# round probs to nearest int (0 or 1)
-labels_pred = np.rint(preds)
-
-# /-----------------------------
-#  ROC CURVE AND CONFUSION MATRIX
-# /-----------------------------
-
-fpr, tpr, thresholds = roc_curve(df['label'][mask_val], preds)
-roc_auc = auc(fpr, tpr)
-
-fig, ax = plt.subplots()
-CFD = ConfusionMatrixDisplay.from_predictions(df.label.values[mask_val], 
-                                        labels_pred, normalize='true', ax=ax)
-plt.close()
 
 # /-----------------------------
 #  SAVE REPORT AND MODEL TO DISK
@@ -351,8 +282,6 @@ report = {'Run time stamp': run_t_stamp,
      'Optimizer': str(type(optimizer)),
      'Requested number of train epochs': epochs,
      'Early stopping after epochs': patience,
-     'Training+validation/test split': test_split,
-     'Training/validation split': validation_split,
      'Weight training data by class': class_weight,
      'Random state': random_state,
      'Number of training examples': x_train.shape[0],
@@ -362,12 +291,9 @@ report = {'Run time stamp': run_t_stamp,
      'X_val shape': x_val.shape,
      'Y_val shape': y_val.shape,
      'Data augmentation': data_aug,
-     'Confusion matrix': CFD.confusion_matrix.tolist(),
-     'Misclassified val candids': list(misclassifications_val.keys()),
      'Misclassified training candids': list(misclassifications_train.keys()),
-     'Training candids': list(df.candid[mask_train]),
-     'Validation candids': list(df.candid[mask_val]),
-     'Val misclassifications': misclassifications_val,
+     'Training candids': list(cand.candid),
+     'Validation candids': list(cand.candid),
      'Training misclassifications': misclassifications_train,
      'Training history': h.history
      }

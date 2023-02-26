@@ -10,6 +10,21 @@ def only_pd_gr(trips, cand):
     return triplets_pd_gr, cand_pd_gr
 
 
+def create_cuts_str(N_max : int, sne_only : bool, 
+                  keep_near_threshold : bool, rise_only : bool):
+    cuts_str = ""
+    if N_max:
+        cuts_str += f"_n{N_max}"
+    if sne_only:
+        cuts_str += "_sne"
+    if not keep_near_threshold:
+        cuts_str += "_nnt"
+    if rise_only:
+        cuts_str += "_rt"
+
+    return cuts_str
+
+
 def merge_data(set_names, cuts, seed=2):
 
     train_triplets = np.empty((0,63,63,3))
@@ -124,29 +139,27 @@ def create_subset(split_name, N_max : int = 0, sne_only : bool = False,
     trips = np.load(f"data/{split_name}_triplets_v5.npy", mmap_mode='r')
     cand = pd.read_csv(f"data/{split_name}_cand_v5.csv", index_col=False)
     print(f"Read {split_name}")
+    cuts_str = create_cuts_str(N_max, sne_only, keep_near_threshold, rise_only)
 
-    mods_str = ""
     if N_max:
-        mods_str += f"_n{N_max}"
         trips, cand = apply_cut(trips, cand, cand[cand["N"] <= N_max].index)
 
     if sne_only:
-        mods_str += "_sne"
         trips, cand = apply_cut(trips, cand, cand[cand["is_SN"]].index)
 
     if not keep_near_threshold:
-        mods_str += "_nnt"
         trips, cand = apply_cut(trips, cand, cand[~cand["near_threshold"]].index)
 
     if rise_only:
-        mods_str += "_rt"
         trips, cand = apply_cut(trips, cand, cand[cand["is_rise"]].index)
 
-    print(f"Created a {mods_str} subset of {split_name}")
-    np.save(f"data/{split_name}_triplets_v5{mods_str}.npy", trips)
-    cand.to_csv(f"data/{split_name}_cand_v5{mods_str}.csv", index=False)
-    print(f"Wrote triplets and candidate data for {mods_str} subset of {split_name}")
+    print(f"Created a {cuts_str} subset of {split_name}")
+    np.save(f"data/{split_name}_triplets_v5{cuts_str}.npy", trips)
+    cand.to_csv(f"data/{split_name}_cand_v5{cuts_str}.csv", index=False)
+    print(f"Wrote triplets and candidate data for {cuts_str} subset of {split_name}")
 
 
 if __name__ == "__main__":
-    merge_data(["trues", "dims", "vars", "MS"], only_pd_gr)
+    # merge_data(["trues", "dims", "vars", "MS"], only_pd_gr)
+    for n in [1,5,15,30,45]:    
+        create_subset("train", n)
