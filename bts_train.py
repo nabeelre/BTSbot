@@ -71,6 +71,7 @@ if len(sys.argv) > 1:
 if len(sys.argv) > 2:
     try:
         N_max = int(sys.argv[2])
+        hparams['N_max'] = N_max
         print("N_max overridden in command line as N_max =", sys.argv[2])
     except:
         print("Could not understand provided N_max override:", sys.argv[2])
@@ -78,6 +79,7 @@ if len(sys.argv) > 2:
 if len(sys.argv) > 3:
     try:
         batch_size = int(sys.argv[3])
+        hparams['batch_size'] = batch_size
         print("batch_size overridden in command line as batch_size =", sys.argv[3])
     except:
         print("Could not understand provided batch_size override:", sys.argv[3])
@@ -88,6 +90,7 @@ if len(sys.argv) > 3:
 
 if not (os.path.exists(f'data/train_cand_v5_n{N_max}.csv') and 
         os.path.exists(f'data/train_triplets_v5_n{N_max}.npy')):
+    print("Couldn't find correct train data subset, creating...")
     create_subset("train", N_max=N_max)
 else:
     print("Training data already present")
@@ -120,8 +123,8 @@ x_val, y_val = val_triplets, val_cand['label']
 
 # train_df is a combination of the desired metadata and y_train (labels)
 # we provide the model a custom generator function to separate these as necessary
-train_df = cand.loc[metadata_cols]
-val_df = val_cand.loc[metadata_cols]
+train_df = cand[metadata_cols]
+val_df = val_cand[metadata_cols]
 
 print(f"{len(pd.unique(cand['objectId']))} train objects")
 print(f"{len(x_train)} train alerts")
@@ -230,7 +233,7 @@ else:
     model = model_type(image_shape=image_shape)
 
 run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f"{model.name}-v4-n{N_max}{'-CPU' if bool(hparams['dont_use_GPU']) else ''}"
+model_name = f"{model.name}-v5-n{N_max}-bs{batch_size}{'-CPU' if bool(hparams['dont_use_GPU']) else ''}"
 
 # /-----------------------------
 #  COMPILE AND TRAIN MODEL
@@ -278,11 +281,8 @@ print('Generating report...')
 report = {'Run time stamp': run_t_stamp,
      'Model name': model_name,
      'Model trained': model_type.__name__,
-     'Batch size': batch_size,
-     'Optimizer': str(type(optimizer)),
-     'Requested number of train epochs': epochs,
+     'Train_config': hparams,
      'Early stopping after epochs': patience,
-     'Weight training data by class': class_weight,
      'Random state': random_state,
      'Number of training examples': x_train.shape[0],
      'Number of val examples': x_val.shape[0],
@@ -290,7 +290,6 @@ report = {'Run time stamp': run_t_stamp,
      'Y_train shape': y_train.shape,
      'X_val shape': x_val.shape,
      'Y_val shape': y_val.shape,
-     'Data augmentation': data_aug,
      'Misclassified training candids': list(misclassifications_train.keys()),
      'Training candids': list(cand.candid),
      'Validation candids': list(cand.candid),
@@ -303,7 +302,7 @@ for k in report['Training history'].keys():
 if metadata:
     report['metadata_cols'] = metadata_cols[:-1]
 
-report_dir = "models/photoz/"+model_name+"/"+str(run_t_stamp)+"/"
+report_dir = "models/"+model_name+"/"+str(run_t_stamp)+"/"
 model_dir = report_dir+"model/"
 
 if not os.path.exists(model_dir):

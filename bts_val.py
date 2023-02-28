@@ -6,9 +6,10 @@ from sklearn.model_selection import train_test_split
 
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
+import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from create_pd_gr import create_subset, create_cuts_str
+from manage_data import create_subset, create_cuts_str
 
 plt.rcParams.update({
     "font.family": "Times New Roman",
@@ -26,8 +27,10 @@ def run_val(output_dir, config_path):
     model_dir = output_dir + "model/"
 
     val_cuts = hparams['val_cuts']
-    val_cuts_str = create_cuts_str(hparams['N_max'], val_cuts['sne_only'],
-                                   val_cuts['keep_near_threshold'], val_cuts['rise_only'])
+    val_cuts_str = create_cuts_str(0, 
+                                   bool(val_cuts['sne_only']),
+                                   bool(val_cuts['keep_near_threshold']), 
+                                   bool(val_cuts['rise_only']))
 
     if not (os.path.exists(f"data/val_triplets_v5{val_cuts_str}.npy") and 
             os.path.exists(f"data/val_cand_v5{val_cuts_str}.csv")):
@@ -123,34 +126,41 @@ def run_val(output_dir, config_path):
     # /-----------------------------
     # Accuracy
 
-    fig, ((ax1, ax2, ax3), (ax4, ax5, ax6), (ax7, ax8, ax9)) = plt.subplots(nrows=3, ncols=3, figsize=(15, 12), dpi=250)
+    fig = plt.figure(figsize=(15, 12), dpi=250)
+    main_grid = gridspec.GridSpec(3, 3, wspace=0.3, hspace=0.3)
 
-    plt.suptitle(model_dir[:-7], size=28)
+    plt.suptitle(model_dir[:-7], size=28, y=0.92)
+    
+    ax1 = plt.Subplot(fig, main_grid[0])
     ax1.plot(report["Training history"]["accuracy"], label='Training', linewidth=2)
     ax1.plot(report['Training history']['val_accuracy'], label='Validation', linewidth=2)
     ax1.axhline(bts_acc, label="BTS", c='blue', linewidth=1.5, linestyle='dashed')
     ax1.axhline(notbts_acc, label="notBTS", c='green', linewidth=1.5, linestyle='dashed')
     ax1.axhline(bal_acc, label="Balanced", c='gray', linewidth=1.5, linestyle='dashed')
-    ax1.set_xlabel('Epoch')
-    ax1.set_ylabel('Accuracy')
+    ax1.set_xlabel('Epoch', size=18)
+    ax1.set_ylabel('Accuracy', size=18)
     ax1.legend(loc='best')
     # ax1.set_ylim([0.6,0.9])
     ax1.grid(True, linewidth=.3)
+    fig.add_subplot(ax1)
 
     # /===================================================================/
     # Loss
 
+    ax2 = plt.Subplot(fig, main_grid[1])
     ax2.plot(report['Training history']['loss'], label='Training', linewidth=2)
     ax2.plot(report['Training history']['val_loss'], label='Validation', linewidth=2)
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('Loss')
+    ax2.set_xlabel('Epoch', size=18)
+    ax2.set_ylabel('Loss', size=18)
     ax2.legend(loc='best')
     # ax2.set_ylim([0.2,0.7])
     ax2.grid(True, linewidth=.3)
+    fig.add_subplot(ax2)
 
     # /===================================================================/
     # ROC
 
+    ax3 = plt.Subplot(fig, main_grid[2])
     ax3.plot([0, 1], [0, 1], color='k', lw=2, linestyle='--')
     ax3.set_xlim([0.0, 1.0])
     ax3.set_ylim([0.0, 1.05])
@@ -160,44 +170,39 @@ def run_val(output_dir, config_path):
     ax3.legend(loc="lower right")
     ax3.grid(True, linewidth=.3)
     ax3.set(aspect='equal')
+    fig.add_subplot(ax3)
 
     # /===================================================================/
-    # Per-alert precision and recall
+    # 2d hist of score vs magpsf
 
-    ax4.step(narrow_bins[:-1], TP_count_nb/(TP_count_nb + FP_count_nb), color='green', label='Precision')
-    ax4.axhline(len(TP_idxs)/(len(TP_idxs)+len(FP_idxs)), color='darkgreen', label='Overall Precision', linestyle='dashed')
+    ax4 = plt.Subplot(fig, main_grid[3])
+    hist, xbins, ybins, im = ax4.hist2d(cand['magpsf'], raw_preds[:,0], norm=LogNorm(), bins=14, range=[[15, 22], [0, 1]])
+    ax4.set_xlabel('magpsf', size=18)
+    ax4.set_ylabel('Score', size=18)
+    ax4.xaxis.set_major_locator(MultipleLocator(1))
+    ax4.yaxis.set_major_locator(MultipleLocator(0.2))
 
-    ax4.step(narrow_bins[:-1], TP_count_nb/(TP_count_nb + FN_count_nb), color='red', label='Recall')
-    ax4.axhline(len(TP_idxs)/(len(TP_idxs)+len(FN_idxs)), color='darkred', label='Overall Recall', linestyle='dashed')
-
-    ax4.axvline(18.5, c='k', linewidth=2, linestyle='dashed', zorder=10)
-    ax4.grid(True, linewidth=.3)
-    ax4.yaxis.set_minor_locator(MultipleLocator(0.1))
-    ax4.xaxis.set_major_locator(MultipleLocator(0.5))
-
-    ax4.set_xlim([17,20.5])
-    ax4.set_ylim([0,1])
-    # ax4.set_ylabel("Precision", size=20)
-    ax4.set_xlabel("PSF Magnitude", size=18)
-    ax4.set_ylabel("Fraction of alerts", size=18)
-    ax4.legend(prop={'size': 10})
-
-    ax4.tick_params(direction='in', axis='both', length=3, width=1.5, bottom=True, left=True, right=True, pad=10)
-    ax4.tick_params(which='minor', direction='in', axis='y', length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
+    dividex4 = make_axes_locatable(ax4)
+    cax4 = dividex4.append_axes('right', size='5%', pad=0.05)
+    fig.colorbar(im, cax=cax4, orientation='vertical')
+    fig.add_subplot(ax4)
 
     # /===================================================================/
     # Confusion Matrix
 
+    ax5 = plt.Subplot(fig, main_grid[4])
     ConfusionMatrixDisplay.from_predictions(labels, preds, normalize='true', 
                                             display_labels=["notBTS", "BTS"], 
                                             cmap=plt.cm.Blues, colorbar=False, ax=ax5)
 
     for im in plt.gca().get_images():
         im.set_clim(vmin=0,vmax=1)
+    fig.add_subplot(ax5)
 
     # /===================================================================/
     # Classification type hist vs mag
 
+    ax6 = plt.Subplot(fig, main_grid[5])
     colors = ['#26547C', '#A9BCD0', '#BA5A31', '#E59F71']
 
     ax6.bar(bins[:-1], TP_count,                                    align='edge', width=bins[1]-bins[0], color=colors[0], label='TP')
@@ -210,24 +215,81 @@ def run_val(output_dir, config_path):
 
     ax6.xaxis.set_major_locator(MultipleLocator(1))
     ax6.xaxis.set_minor_locator(MultipleLocator(0.5))
-    ax6.set_xlabel("PSF Magnitude", size=18)
     ax6.tick_params(direction='out', axis='x', length=2, width=1, bottom=True, pad=10)
     ax6.tick_params(axis='y', left=False, right=False)
 
-    ax6.set_xlabel("PSF Magnitude", size=22)
-    ax6.set_ylabel("# of alerts", size=22)
+    ax6.set_xlabel("PSF Magnitude", size=18)
+    ax6.set_ylabel("# of alerts", size=18)
+    fig.add_subplot(ax6)
+
+    # /===================================================================/
+    # Per-alert precision and recall
+
+    ax7 = plt.Subplot(fig, main_grid[6])
+    ax7.step(narrow_bins[:-1], TP_count_nb/(TP_count_nb + FP_count_nb), color='green', label='Precision')
+    ax7.axhline(len(TP_idxs)/(len(TP_idxs)+len(FP_idxs)), color='darkgreen', label='Overall Precision', linestyle='dashed')
+
+    ax7.step(narrow_bins[:-1], TP_count_nb/(TP_count_nb + FN_count_nb), color='red', label='Recall')
+    ax7.axhline(len(TP_idxs)/(len(TP_idxs)+len(FN_idxs)), color='darkred', label='Overall Recall', linestyle='dashed')
+
+    ax7.axvline(18.5, c='k', linewidth=2, linestyle='dashed', zorder=10)
+    ax7.grid(True, linewidth=.3)
+    ax7.yaxis.set_minor_locator(MultipleLocator(0.1))
+    ax7.xaxis.set_major_locator(MultipleLocator(0.5))
+
+    ax7.set_xlim([17,20.5])
+    ax7.set_ylim([0,1])
+    # ax7.set_ylabel("Precision", size=20)
+    ax7.set_xlabel("PSF Magnitude", size=18)
+    ax7.set_ylabel("Fraction of alerts", size=18)
+    ax7.legend(prop={'size': 10})
+
+    ax7.tick_params(direction='in', axis='both', length=3, width=1.5, bottom=True, left=True, right=True, pad=10)
+    ax7.tick_params(which='minor', direction='in', axis='y', length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
+    fig.add_subplot(ax7)
 
     # /===================================================================/
     # Per-object Precision and Recall
+
+    ax8_grid = gridspec.GridSpecFromSubplotSpec(2, 1, 
+                                                subplot_spec=main_grid[7], 
+                                                wspace=0.1, hspace=0.1)
+    ax9_grid = gridspec.GridSpecFromSubplotSpec(2, 1, 
+                                                subplot_spec=main_grid[8], 
+                                                wspace=0.1, hspace=0.1)
+
+    ax8_top = plt.Subplot(fig, ax8_grid[0])
+    ax8_bot = plt.Subplot(fig, ax8_grid[1])
+
+    ax9_top = plt.Subplot(fig, ax9_grid[0])
+    ax9_bot = plt.Subplot(fig, ax9_grid[1])
+
+    def gt1(alerts):
+        if np.sum(alerts['preds']) >= 1:
+            return True
+        return False
+    
+    def gt2(alerts):
+        if np.sum(alerts['preds']) >= 2:
+            return True
+        return False
 
     def gt3(alerts):
         if np.sum(alerts['preds']) >= 3:
             return True
         return False
+    
+    def combi(alerts):
+        if np.max(alerts['preds'] > 0.95):
+            return True
+        if np.sum(alerts['preds']) >= 5:
+            return True
+        return False
 
-    metric_names = ["gt3"]
-    metric_funcs = [gt3]
-    metric_linestyles = ["solid"]
+    metric_names = ["gt1", "gt2", "gt3", "combi"]
+    metric_funcs = [gt1, gt2, gt3, combi]
+    metric_linestyles = ["solid", "dashed"]
+    axes = [ax8_top, ax8_bot, ax9_top, ax9_bot]
 
     # Get label and peakmag for each source (by taking all unique objectIds)
     metric_cand = pd.DataFrame(columns=["objectId", "label", "peakmag"])
@@ -237,13 +299,13 @@ def run_val(output_dir, config_path):
         if cand.iloc[i]["objectId"] not in metric_cand["objectId"].to_numpy():
             # Select this source's objectId, label, and magpsf
             metric_cand.loc[len(metric_cand)] = (cand.iloc[i]["objectId"], 
-                                                 cand.iloc[i]["label"], 
-                                                 np.min(cand.loc[cand['objectId'] == cand.iloc[i]["objectId"], "magpsf"]))
+                                                cand.iloc[i]["label"], 
+                                                cand.iloc[i]["peakmag"])
 
     # For each metric
-    for name, func, linestyle in zip(metric_names[0:1], metric_funcs[0:1], metric_linestyles[0:1]):
+    for name, func, ax in zip(metric_names, metric_funcs, axes[0:len(metric_names)]):
         # Initialize new columns
-        metric_cand[[name+"_pred", name+"_select"]] = 0, 0
+        metric_cand[name+"_pred"] = 0
 
         # For each source
         for obj_id in metric_cand["objectId"]:
@@ -260,13 +322,15 @@ def run_val(output_dir, config_path):
 
                 # Compute the prediction for this current metric
                 met_pred = func(obj_alerts.loc[idx_sofar])
-                
+
                 # Store metric prediction and whether it was the first positive
-                obj_alerts.loc[idx_cur, (name+"_pred", name+"_select")] = int(met_pred), int(met_pred and not np.any(obj_alerts.loc[idx_sofar, name+"_select"]))
- 
+                metric_cand.loc[metric_cand['objectId'] == obj_id, name+"_pred"] = int(met_pred)
+    #             cand.loc[idx_cur, name+"_pred"] = met_pred
+                
         metric_labels = metric_cand["label"].to_numpy()
         metric_preds  = metric_cand[name+"_pred"].to_numpy()
-        
+        bright_narrow_bins = np.arange(17.00, 18.50+0.25, 0.25)
+
         TP_mask_met = np.bitwise_and(metric_labels, metric_preds)
         TN_mask_met = 1-(np.bitwise_or(metric_labels, metric_preds))
         FP_mask_met = np.bitwise_and(1-metric_labels, metric_preds)
@@ -277,62 +341,53 @@ def run_val(output_dir, config_path):
         FP_idxs_met = [ii for ii, mi in enumerate(FP_mask_met) if mi == 1]
         FN_idxs_met = [ii for ii, mi in enumerate(FN_mask_met) if mi == 1]
 
-        TP_count_met, _, _  = ax8.hist(metric_cand.loc[TP_idxs_met, "peakmag"], bins=narrow_bins)
-        FP_count_met, _, _  = ax8.hist(metric_cand.loc[FP_idxs_met, "peakmag"], bins=narrow_bins)
-        TN_count_met, _, _  = ax8.hist(metric_cand.loc[TN_idxs_met, "peakmag"], bins=narrow_bins)
-        FN_count_met, _, _  = ax8.hist(metric_cand.loc[FN_idxs_met, "peakmag"], bins=narrow_bins)
-        ax8.clear()
+        # _, ax_temp = plt.subplots()
+        TP_count_met, _  = np.histogram(metric_cand.loc[TP_idxs_met, "peakmag"], bins=bright_narrow_bins)
+        FP_count_met, _  = np.histogram(metric_cand.loc[FP_idxs_met, "peakmag"], bins=bright_narrow_bins)
+        # TN_count_met, _  = np.histogram(metric_cand.loc[TN_idxs_met, "peakmag"], bins=bright_narrow_bins)
+        FN_count_met, _  = np.histogram(metric_cand.loc[FN_idxs_met, "peakmag"], bins=bright_narrow_bins)
 
-        ax7.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FP_idxs_met)), color='green', label='Precision '+name)
-        ax7.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FN_idxs_met)), color='red', label='Recall '+name)
-        ax7.step(narrow_bins[:-1], TP_count_met/(TP_count_met + FP_count_met), color='green', label='Precision '+name, linestyle=linestyle)
-        ax7.step(narrow_bins[:-1], TP_count_met/(TP_count_met + FN_count_met), color='red', label='Recall '+name, linestyle=linestyle)
+        precision = TP_count_met/(TP_count_met + FP_count_met)
+        recall = TP_count_met/(TP_count_met + FN_count_met)
+        
+        ax.step(bright_narrow_bins, np.append(precision[0], precision), color='green', label='Precision')
+        ax.step(bright_narrow_bins, np.append(recall[0], recall), color='red', label='Recall')
+    #     ax.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FP_idxs_met)), color='green', label='Precision '+name)
+    #     ax.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FN_idxs_met)), color='red', label='Recall '+name)
+        
+        ax.text(x=18, y=0.8, s=name, fontsize=14, fontweight='bold')
+        ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
+        ax.grid(True, linewidth=.3)
 
-    ax7.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
-    ax7.grid(True, linewidth=.3)
-    ax7.yaxis.set_minor_locator(MultipleLocator(0.1))
-    ax7.xaxis.set_major_locator(MultipleLocator(0.5))
+        ax.set_xlim([17.0,18.5])
+        ax.set_ylim([0.75,1.005])
+        
+        ax.xaxis.set_major_locator(MultipleLocator(0.25))
+        # ax.xaxis.set_minor_locator(MultipleLocator(0.1))
+        ax.yaxis.set_major_locator(MultipleLocator(0.1))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.tick_params(direction='in', axis='both', length=3, width=1.5, bottom=True, left=True, right=True, pad=10)
+        ax.tick_params(which='minor', direction='in', axis='y', length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
 
-    ax7.set_xlim([17,20.5])
-    ax7.set_ylim([0,1.01])
-    ax7.set_ylabel("Precision", size=20)
-    ax7.set_xlabel("PSF Magnitude", size=18)
-    ax7.set_ylabel("Fraction of objects", size=18)
-    ax7.legend(prop={'size': 10})
+    ax8_top.axes.get_xaxis().set_ticklabels([])
+    ax9_top.axes.get_xaxis().set_ticklabels([])
 
-    ax7.tick_params(direction='in', axis='both', length=3, width=1.5, bottom=True, left=True, right=True, pad=10)
-    ax7.tick_params(which='minor', direction='in', axis='y', length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
+    ax8_bot.set_xlabel("Peak Magnitude", size=18)
+    ax9_bot.set_xlabel("Peak Magnitude", size=18)
+    ax8_top.set_ylabel("Fraction of objects", size=18)
+    ax8_top.yaxis.set_label_coords(-0.15,0)
+    ax8_top.legend(prop={'size': 10}, frameon=False)
 
-    # /===================================================================/
-
-    hist, xbins, ybins, im = ax8.hist2d(cand['distnr'], raw_preds[:,0], norm=LogNorm())
-    ax8.set_xlabel('distnr')
-    ax8.set_ylabel('Score')
-    # ax8.xaxis.set_major_locator(MultipleLocator(1))
-    ax8.yaxis.set_major_locator(MultipleLocator(0.2))
-
-    divider8 = make_axes_locatable(ax8)
-    cax8 = divider8.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(im, cax=cax8, orientation='vertical')
-
-    # /===================================================================/
-
-    hist, xbins, ybins, im = ax9.hist2d(cand['magpsf'], raw_preds[:,0], norm=LogNorm(), bins=14, range=[[15, 22], [0, 1]])
-    ax9.set_xlabel('magpsf')
-    ax9.set_ylabel('Score')
-    ax9.xaxis.set_major_locator(MultipleLocator(1))
-    ax9.yaxis.set_major_locator(MultipleLocator(0.2))
-
-    divider9 = make_axes_locatable(ax9)
-    cax9 = divider9.append_axes('right', size='5%', pad=0.05)
-    fig.colorbar(im, cax=cax9, orientation='vertical')
+    fig.add_subplot(ax8_top)
+    fig.add_subplot(ax8_bot)
+    fig.add_subplot(ax9_top)
+    fig.add_subplot(ax9_bot)
 
     # /===================================================================/
 
-    for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, cax8, cax9]:
+    for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8_top, ax8_bot, ax9_top, ax9_bot, cax4]:
         ax.tick_params(which='both', width=1.5)
 
-    plt.tight_layout()
     plt.savefig(output_dir+"/"+os.path.basename(os.path.normpath(output_dir))+".pdf", bbox_inches='tight')
     plt.close()
 

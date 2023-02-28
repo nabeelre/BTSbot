@@ -1,5 +1,5 @@
 {
-    "N_max": 2,
+    "N_max": 1,
     "epochs": 1500,
     "loss": "binary_crossentropy",
     "optimizer": {
@@ -25,9 +25,9 @@
         "rot": 1
     },
     "val_cuts": {
-        "sne_only": "False",
-        "keep_near_threshold": "True",
-        "rise_only": "False"
+        "sne_only": 0,
+        "keep_near_threshold": 1,
+        "rise_only": 0
     }
   }
   
