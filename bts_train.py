@@ -84,6 +84,8 @@ if len(sys.argv) > 3:
     except:
         print("Could not understand provided batch_size override:", sys.argv[3])
 
+print(f"*** Running {model_type.__name__} with N_max={N_max} and batch_size={batch_size} for epochs={epochs} ***")
+
 # /-----------------------------
 #  LOAD TRAINING DATA
 # /-----------------------------
@@ -281,6 +283,7 @@ print('Generating report...')
 report = {'Run time stamp': run_t_stamp,
      'Model name': model_name,
      'Model trained': model_type.__name__,
+     'Weight training data by class': class_weight,
      'Train_config': hparams,
      'Early stopping after epochs': patience,
      'Random state': random_state,
