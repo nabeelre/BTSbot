@@ -27,6 +27,9 @@ def train_sweep_iter(config=None):
         plt.rcParams['axes.linewidth'] = 1.5
         random_state = 2
 
+        tf.keras.backend.clear_session()
+        tf.keras.utils.set_random_seed(random_state)
+
         # /-----------------------------
         #  HYPERPARAMETERS
         # /-----------------------------
@@ -41,10 +44,10 @@ def train_sweep_iter(config=None):
         epochs = config["epochs"]
         patience = config["patience"]
 
-        tf.keras.backend.clear_session()
 
         if sys.platform == "darwin":
             # DISABLE ALL GPUs
+            print("Disabling GPU")
             tf.config.set_visible_devices([], 'GPU')
 
         # removing negative diffs makes finding AGN easier
@@ -347,4 +350,4 @@ def train_sweep_iter(config=None):
 if __name__ == "__main__":
     testing_sweep_id = "mttelhfy"
     sweep_id = "er9c8y7g"
-    wandb.agent(testing_sweep_id, function=train_sweep_iter, count=1, project="BNB-classifier")
+    wandb.agent(testing_sweep_id, function=train_sweep_iter, count=int(sys.argv[1]), project="BNB-classifier")
