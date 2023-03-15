@@ -226,18 +226,25 @@ def run_val(output_dir, config):
     # /===================================================================/
     # Per-alert precision and recall
 
-    alert_precision = TP_count_nb/(TP_count_nb + FP_count_nb)
-    alert_recall = TP_count_nb/(TP_count_nb + FN_count_nb)
-    
-    overall_precision = len(TP_idxs)/(len(TP_idxs)+len(FP_idxs))
-    overall_recall = len(TP_idxs)/(len(TP_idxs)+len(FN_idxs))
-
     ax7 = plt.Subplot(fig, main_grid[6])
-    ax7.step(narrow_bins[:-1], alert_precision, color='green', label='Precision')
-    ax7.axhline(overall_precision, color='darkgreen', label='Overall Precision', linestyle='dashed')
 
-    ax7.step(narrow_bins[:-1], alert_recall, color='red', label='Recall')
-    ax7.axhline(overall_recall, color='darkred', label='Overall Recall', linestyle='dashed')
+    if len(TP_idxs) > 0 and len(TN_idxs) > 0:
+        alert_precision = TP_count_nb/(TP_count_nb + FP_count_nb)
+        alert_recall = TP_count_nb/(TP_count_nb + FN_count_nb)
+        
+        overall_precision = len(TP_idxs)/(len(TP_idxs)+len(FP_idxs))
+        overall_recall = len(TP_idxs)/(len(TP_idxs)+len(FN_idxs))
+
+        ax7.step(narrow_bins[:-1], alert_precision, color='green', label='Precision')
+        ax7.axhline(overall_precision, color='darkgreen', label='Overall Precision', linestyle='dashed')
+
+        ax7.step(narrow_bins[:-1], alert_recall, color='red', label='Recall')
+        ax7.axhline(overall_recall, color='darkred', label='Overall Recall', linestyle='dashed')
+    else:
+        alert_precision = -1
+        alert_recall = -1
+        overall_precision = -1
+        overall_recall = -1
 
     ax7.axvline(18.5, c='k', linewidth=2, linestyle='dashed', zorder=10)
     ax7.grid(True, linewidth=.3)
@@ -356,17 +363,21 @@ def run_val(output_dir, config):
         # TN_count_met, _  = np.histogram(metric_cand.loc[TN_idxs_met, "peakmag"], bins=bright_narrow_bins)
         FN_count_met, _  = np.histogram(metric_cand.loc[FN_idxs_met, "peakmag"], bins=bright_narrow_bins)
 
-        precision = TP_count_met/(TP_count_met + FP_count_met)
-        recall = TP_count_met/(TP_count_met + FN_count_met)
+        if len(TP_idxs_met) >= 0 and len(TN_idxs_met) > 0:
+            precision = TP_count_met/(TP_count_met + FP_count_met)
+            recall = TP_count_met/(TP_count_met + FN_count_met)
 
+            ax.step(bright_narrow_bins, np.append(precision[0], precision), color='green', label='Precision')
+            ax.step(bright_narrow_bins, np.append(recall[0], recall), color='red', label='Recall')
+        #     ax.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FP_idxs_met)), color='green', label='Precision '+name)
+        #     ax.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FN_idxs_met)), color='red', label='Recall '+name)
+        else:
+            precision = -1
+            recall = -1
+            
         metric_precision.append(np.mean(precision))
         metric_recall.append(np.mean(recall))
-        
-        ax.step(bright_narrow_bins, np.append(precision[0], precision), color='green', label='Precision')
-        ax.step(bright_narrow_bins, np.append(recall[0], recall), color='red', label='Recall')
-    #     ax.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FP_idxs_met)), color='green', label='Precision '+name)
-    #     ax.axhline(len(TP_idxs_met)/(len(TP_idxs_met) + len(FN_idxs_met)), color='red', label='Recall '+name)
-        
+
         ax.text(x=18, y=0.8, s=name, fontsize=14, fontweight='bold')
         ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
         ax.grid(True, linewidth=.3)
