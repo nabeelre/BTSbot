@@ -25,7 +25,7 @@ def train_sweep_iter(config=None):
             "font.size": 14,
         })
         plt.rcParams['axes.linewidth'] = 1.5
-        random_state = 2
+        random_state = config['random_seed']
 
         tf.keras.backend.clear_session()
         tf.keras.utils.set_random_seed(random_state)
@@ -125,21 +125,12 @@ def train_sweep_iter(config=None):
             patience=20,
             factor=config['reduce_LR_factor'],
             min_lr=config['reduce_LR_minLR'],
-            verbose=1
+            verbose=0
         )
 
         WandBLogger = WandbMetricsLogger(log_freq=5)
 
         # WandBCheckpoints = WandbModelCheckpoint("models")
-
-        # tensorboard = tf.keras.callbacks.TensorBoard(
-        #     log_dir="tb_logs/", 
-        #     histogram_freq=1,
-        #     write_graph=True,
-        #     write_images=True,
-        #     update_freq='epoch',
-        #     profile_batch=1
-        # )
 
         # /-----------------------------
         #  SET UP DATA GENERATORS WITH AUGMENTATION
@@ -345,9 +336,10 @@ def train_sweep_iter(config=None):
                                         val_summary['metric_recall']):
             wandb.summary[name+"_precision"] = precision
             wandb.summary[name+"_recall"] = recall
+            wandb.summary[name+"_avg"] = (precision+recall)/2
 
 
 if __name__ == "__main__":
-    testing_sweep_id = "mttelhfy"
-    sweep_id = "er9c8y7g"
-    wandb.agent(testing_sweep_id, function=train_sweep_iter, count=int(sys.argv[1]), project="BNB-classifier")
+    sweep4 = "ap5dhir3"
+    sweep5 = "6sonp7wy"
+    wandb.agent(sweep4, function=train_sweep_iter, count=int(sys.argv[1]), project="BNB-classifier")
