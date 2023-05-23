@@ -9,7 +9,7 @@ from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from wandb.keras import WandbMetricsLogger
+import wandb
 
 import CNN_models
 import bts_val
@@ -154,7 +154,14 @@ LR_plateau = tf.keras.callbacks.ReduceLROnPlateau(
     verbose=0
 )
 
-WandBLogger = WandbMetricsLogger(log_freq=5)
+wandb.init(project="BNB-classifier")
+config = wandb.config
+config.data_aug_h_flip = bool(hparams['data_aug']["h_flip"])
+config.data_aug_v_flip = bool(hparams['data_aug']["v_flip"])
+config.data_aug_rot = bool(hparams['data_aug']["rot"])
+config.metadata_cols = hparams['metadata_cols']
+
+WandBLogger = wandb.keras.WandbMetricsLogger(log_freq=5)
 
 # tensorboard = tf.keras.callbacks.TensorBoard(
     # log_dir="tb_logs/", 

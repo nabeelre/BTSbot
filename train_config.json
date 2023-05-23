@@ -1,5 +1,5 @@
 {
-    "N_max": 60,
+    "N_max": 1,
     "epochs": 1500,
     "loss": "binary_crossentropy",
     "optimizer": {
