@@ -17,6 +17,9 @@
     "metadata_cols": ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
                       "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
                       "classtar", "ndethist", "ncovhist", "sharpnr"],
+    "dropout_1": 0.1738,
+    "dropout_2": 0.1895,
+    "dropout_3": 0.4203,
     "data_aug": {
         "h_flip": 1,
         "v_flip": 1,

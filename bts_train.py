@@ -230,9 +230,9 @@ print('Input image shape:', image_shape)
 if metadata:
     metadata_shape = np.shape(train_df.iloc[0][:-1])
     print('Input metadata shape:', metadata_shape)
-    model = model_type(image_shape=image_shape, metadata_shape=metadata_shape)
+    model = model_type(hparams, image_shape=image_shape, metadata_shape=metadata_shape)
 else:
-    model = model_type(image_shape=image_shape)
+    model = model_type(hparams, image_shape=image_shape)
 
 run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 model_name = f"{model.name}-v5-n{N_max}-bs{batch_size}{'-CPU' if bool(hparams['dont_use_GPU']) else ''}"
