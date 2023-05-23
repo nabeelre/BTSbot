@@ -1,11 +1,11 @@
 {
-    "N_max": 1,
+    "N_max": 60,
     "epochs": 1500,
     "loss": "binary_crossentropy",
     "optimizer": {
         "kind": "Adam",
-        "learning_rate": 3e-4,
-        "beta_1": 0.9,
+        "learning_rate": 7.7e-5,
+        "beta_1": 0.99,
         "beta_2": 0.999,
         "epsilon": "None",
         "decay": 0.0,
