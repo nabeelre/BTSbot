@@ -20,6 +20,8 @@
     "dropout_1": 0.1738,
     "dropout_2": 0.1895,
     "dropout_3": 0.4203,
+    "reduce_LR_factor": 0.4,
+    "reduce_LR_minLR": 1e-8,
     "data_aug": {
         "h_flip": 1,
         "v_flip": 1,

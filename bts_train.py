@@ -9,6 +9,8 @@ from matplotlib.colors import LogNorm
 from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+from wandb.keras import WandbMetricsLogger
+
 import CNN_models
 import bts_val
 from manage_data import create_subset, only_pd_gr
@@ -144,6 +146,16 @@ early_stopping = tf.keras.callbacks.EarlyStopping(
     patience=patience
 )
 
+LR_plateau = tf.keras.callbacks.ReduceLROnPlateau(
+    monitor="val_loss", 
+    patience=20,
+    factor=hparams['reduce_LR_factor'],
+    min_lr=hparams['reduce_LR_minLR'],
+    verbose=0
+)
+
+WandBLogger = WandbMetricsLogger(log_freq=5)
+
 # tensorboard = tf.keras.callbacks.TensorBoard(
     # log_dir="tb_logs/", 
 #     histogram_freq=1,
@@ -250,7 +262,7 @@ h = model.fit(
     validation_steps=(0.8*len(x_val)) // batch_size,
     class_weight=class_weight,
     epochs=epochs,
-    verbose=1, callbacks=[early_stopping]
+    verbose=1, callbacks=[early_stopping, LR_plateau, WandBLogger]
 )
 
 # /-----------------------------
