@@ -19,7 +19,7 @@ BTSbot_groupid = "1534"
 
 gt1_groupid = "1555"
 gt2_groupid = "1556"
-gr3_groupid = "1557"
+gt3_groupid = "1557"
 
 
 def gt_N(scores, N):
@@ -58,7 +58,7 @@ def save_to_group(objid, groupid, group_name=""):
             print(r.text)
             exit(0)
         else:
-            print(f"  already saved to {group_name}")
+            print(f"  already saved with {group_name}")
     else:
         print(f"  {BOLD}saved to {group_name}{END}")
 
@@ -103,7 +103,7 @@ def save_and_summarize(date):
     # Criteria to run BTS scores through
     critera_names = ["gt1", "gt2", "gt3"]
     critera = [lambda x: gt_N(x, 1), lambda x: gt_N(x, 2), lambda x: gt_N(x, 3)]
-    groupids = [gt1_groupid, gt2_groupid, gr3_groupid]
+    groupids = [gt1_groupid, gt2_groupid, gt3_groupid]
 
     # Initialize columns to store jd of when each criterion was passed
     for crit_name in critera_names:
