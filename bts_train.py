@@ -40,7 +40,7 @@ if hparams['optimizer']['kind'] == "Adam":
         decay=opt_hparams['decay'],
         amsgrad=bool(opt_hparams['amsgrad'])
     )
-weight_classes = bool(hparams['weight_classes'])
+weight_classes = hparams['weight_classes']
 epochs = hparams["epochs"]
 patience = max(int(epochs*0.25), 50)
 
@@ -163,15 +163,6 @@ config.metadata_cols = hparams['metadata_cols']
 
 WandBLogger = wandb.keras.WandbMetricsLogger(log_freq=5)
 
-# tensorboard = tf.keras.callbacks.TensorBoard(
-    # log_dir="tb_logs/", 
-#     histogram_freq=1,
-#     write_graph=True,
-#     write_images=True,
-    # update_freq='epoch',
-#     profile_batch=1
-# )
-
 # /-----------------------------
 #  SET UP DATA GENERATORS WITH AUGMENTATION
 # /-----------------------------
@@ -228,19 +219,23 @@ else:
 #  OTHER MODEL SET UP
 # /-----------------------------
 
-if weight_classes:
-    # weight data on number of examples per class?
-    num_training_examples_per_class = np.array([len(y_train) - np.sum(y_train), np.sum(y_train)])
-    assert 0 not in num_training_examples_per_class, 'found class without any examples!'
-
-    # fewer examples -> larger weight
-    weights = (1 / num_training_examples_per_class) / np.linalg.norm((1 / num_training_examples_per_class))
-    normalized_weight = weights / np.max(weights)
-
-    class_weight = {i: w for i, w in enumerate(normalized_weight)}
+if "alert" in weight_classes:
+    # weight data on number of ALERTS per class
+    num_training_examples_per_class = np.array([np.sum(cand['label'] == 0), np.sum(cand['label'] == 1)])
+elif "source" in weight_classes:
+    # weight data on number of SOURCES per class
+    num_training_examples_per_class = np.array([len(pd.unique(cand.loc[cand['label'] == 0, 'objectId'])),
+                                                len(pd.unique(cand.loc[cand['label'] == 1, 'objectId']))])
 else:
-    class_weight = {i: 1 for i in range(2)}
-    
+    # even weighting / no weighting
+    num_training_examples_per_class = np.array([1,1])
+
+# fewer examples -> larger weight
+weights = (1 / num_training_examples_per_class) / np.linalg.norm((1 / num_training_examples_per_class))
+normalized_weight = weights / np.max(weights)
+
+class_weight = {i: w for i, w in enumerate(normalized_weight)}
+
 # image shape:
 image_shape = x_train.shape[1:]
 print('Input image shape:', image_shape)
@@ -302,7 +297,7 @@ print('Generating report...')
 report = {'Run time stamp': run_t_stamp,
      'Model name': model_name,
      'Model trained': model_type.__name__,
-     'Weight training data by class': class_weight,
+     'Weighting loss contribution by class size': class_weight,
      'Train_config': hparams,
      'Early stopping after epochs': patience,
      'Random state': random_state,
@@ -337,4 +332,21 @@ with open(f_name, 'w') as f:
 model.save(model_dir)
 tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf", show_shapes=True, show_layer_names=False, show_layer_activations=True)
 
-bts_val.run_val(report_dir, "train_config.json")
+val_summary = bts_val.run_val(report_dir)
+
+wandb.summary['ROC_AUC']    = val_summary['roc_auc']
+wandb.summary['bal_acc']    = val_summary['bal_acc']
+wandb.summary['bts_acc']    = val_summary['bts_acc']
+wandb.summary['notbts_acc'] = val_summary['notbts_acc']
+
+for name in list(val_summary['policy_performance']):
+    perf = val_summary['policy_performance'][name]
+
+    wandb.summary[name+"_overall_precision"] = perf['overall_precision']
+    wandb.summary[name+"_overall_recall"] = perf['overall_recall']
+    wandb.summary[name+"_precision"] = perf['precision']
+    wandb.summary[name+"_recall"] = perf['recall']
+
+    wandb.summary[name+"_med_del_st"] = perf['med_del_st']
+
+    wandb.summary[name+"_F1"] = (2 * perf['overall_precision'] * perf['overall_recall']) / (perf['overall_precision'] + perf['overall_recall'])
