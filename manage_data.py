@@ -1,4 +1,4 @@
-import sys, numpy as np, pandas as pd
+import os, numpy as np, pandas as pd
 
 
 def only_pd_gr(trips, cand):
@@ -136,8 +136,16 @@ def apply_cut(trips, cand, keep_idxs):
 def create_subset(split_name, N_max : int = 0, sne_only : bool = False, 
                   keep_near_threshold : bool = True, rise_only : bool = False):
 
-    trips = np.load(f"data/{split_name}_triplets_v5.npy", mmap_mode='r')
-    cand = pd.read_csv(f"data/{split_name}_cand_v5.csv", index_col=False)
+    split_trip_path = f"data/{split_name}_triplets_v5.npy"
+    split_cand_path = f"data/{split_name}_cand_v5.csv"
+
+    if not (os.path.exists(split_trip_path) and os.path.exists(split_cand_path)):
+        print("Parent split files absent, creating them first")
+        merge_data(["trues", "dims", "vars", "MS"], only_pd_gr)
+    
+    trips = np.load(split_trip_path, mmap_mode='r')
+    cand = pd.read_csv(split_cand_path, index_col=False)
+    
     print(f"Read {split_name}")
     cuts_str = create_cuts_str(N_max, sne_only, keep_near_threshold, rise_only)
 
