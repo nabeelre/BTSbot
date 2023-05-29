@@ -347,7 +347,7 @@ def train(config, sweeping : bool = False):
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "xm5kqa00"
+        sweep_id = "m1il156a"
         wandb.agent(sweep_id, function=sweep_train, count=2, project="BNB-classifier")
     else:
         classic_train(sys.argv[1])
