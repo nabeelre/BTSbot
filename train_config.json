@@ -1,38 +1,30 @@
 {
+    "model_name": "mi_cnn",
     "N_max": 60,
     "epochs": 1500,
+    "patience": 150,
     "loss": "binary_crossentropy",
-    "optimizer": {
-        "kind": "Adam",
-        "learning_rate": 7.7e-5,
-        "beta_1": 0.99,
-        "beta_2": 0.999,
-        "epsilon": "None",
-        "decay": 0.0,
-        "amsgrad": 0
-    },
+    "learning_rate": 7.7e-5,
+    "beta_1": 0.99,
+    "beta_2": 0.999,
     "weight_classes": "alert",
     "batch_size": 16,
-    "dont_use_GPU": 0,
     "metadata_cols": ["sgscore1", "distpsnr1", "sgscore2", "distpsnr2", "sgscore3", "distpsnr3",
                       "fwhm", "magpsf", "sigmapsf", "ra", "dec", "diffmaglim", 
-                      "classtar", "ndethist", "ncovhist", "sharpnr"],
+                      "classtar", "ndethist", "ncovhist", "sharpnr", "age", "peakmag_so_far"],
     "dropout_1": 0.1738,
     "dropout_2": 0.1895,
     "dropout_3": 0.4203,
     "reduce_LR_factor": 0.4,
     "reduce_LR_minLR": 1e-8,
-    "data_aug": {
-        "h_flip": 1,
-        "v_flip": 1,
-        "fill_mode": "constant",
-        "cval": 0,
-        "rot": 1
-    },
-    "val_cuts": {
-        "sne_only": 0,
-        "keep_near_threshold": 1,
-        "rise_only": 0
-    }
+    "data_aug_h_flip": 1,
+    "data_aug_v_flip": 1,
+    "data_aug_rot": 1,
+
+    "val_sne_only": 0,
+    "val_keep_near_threshold": 1,
+    "val_rise_only": 0,
+    
+    "random_seed": 2
   }
   

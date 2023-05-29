@@ -24,19 +24,18 @@ def run_val(output_dir):
     with open(output_dir+"report.json", 'r') as f:
         report = json.load(f)
     model_dir = output_dir + "model/"
-    hparams = report['Train_config']
+    config = report['Train_config']
 
-    val_cuts = hparams['val_cuts']
     val_cuts_str = create_cuts_str(0, 
-                                   bool(val_cuts['sne_only']),
-                                   bool(val_cuts['keep_near_threshold']), 
-                                   bool(val_cuts['rise_only']))
+                                   bool(config['val_sne_only']),
+                                   bool(config['val_keep_near_threshold']), 
+                                   bool(config['val_rise_only']))
 
     if not (os.path.exists(f"data/val_triplets_v5{val_cuts_str}.npy") and 
             os.path.exists(f"data/val_cand_v5{val_cuts_str}.csv")):
         
-        create_subset("val", hparams['N_max'], val_cuts['sne_only'], 
-                      val_cuts['keep_near_threshold'], val_cuts['rise_only'])
+        create_subset("val", config['N_max'], config['val_sne_only'], 
+                      config['val_keep_near_threshold'], config['val_rise_only'])
     else:
         print("Validation data already present")
 
@@ -48,18 +47,15 @@ def run_val(output_dir):
     triplets = np.load(f"data/val_triplets_v5{val_cuts_str}.npy", mmap_mode='r')
     assert not np.any(np.isnan(triplets))
 
-    metadata_cols = hparams["metadata_cols"][0:-1]
-    metadata_cols.append("label")
-
     tf.keras.backend.clear_session()
 
-    if bool(hparams['dont_use_GPU']):
-        # DISABLE ALL GPUs
+    if sys.platform == "darwin":
+        # Disable GPUs if on darwin (macOS)
         tf.config.set_visible_devices([], 'GPU')
 
     model = tf.keras.models.load_model(model_dir)
     
-    raw_preds = model.predict([triplets, cand.loc[:,metadata_cols[:-1]]], batch_size=hparams['batch_size'], verbose=1)
+    raw_preds = model.predict([triplets, cand.loc[:,config["metadata_cols"]]], batch_size=config['batch_size'], verbose=1)
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
     labels = cand["label"].to_numpy(dtype=int)
 
@@ -83,47 +79,34 @@ def run_val(output_dir):
     FN_idxs = [ii for ii, mi in enumerate(FN_mask) if mi == 1]
 
     bins = np.arange(15,21.5,0.5)
-    all_count, _, _ = plt.hist(cand['magpsf']                    , bins=bins)
-    TP_count, _, _  = plt.hist(cand['magpsf'].to_numpy()[TP_idxs], bins=bins)
-    FP_count, _, _  = plt.hist(cand['magpsf'].to_numpy()[FP_idxs], bins=bins)
-    TN_count, _, _  = plt.hist(cand['magpsf'].to_numpy()[TN_idxs], bins=bins)
-    FN_count, _, _  = plt.hist(cand['magpsf'].to_numpy()[FN_idxs], bins=bins)
-    plt.close()
+    all_count, _ = np.histogram(cand['magpsf']                    , bins=bins)
+    TP_count, _  = np.histogram(cand['magpsf'].to_numpy()[TP_idxs], bins=bins)
+    FP_count, _  = np.histogram(cand['magpsf'].to_numpy()[FP_idxs], bins=bins)
+    TN_count, _  = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=bins)
+    FN_count, _  = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=bins)
 
     narrow_bins = np.arange(17,21.00,0.25)
-    all_count_nb, _, _ = plt.hist(cand['magpsf']                    , bins=narrow_bins)
-    TP_count_nb, _, _  = plt.hist(cand['magpsf'].to_numpy()[TP_idxs], bins=narrow_bins)
-    FP_count_nb, _, _  = plt.hist(cand['magpsf'].to_numpy()[FP_idxs], bins=narrow_bins)
-    TN_count_nb, _, _  = plt.hist(cand['magpsf'].to_numpy()[TN_idxs], bins=narrow_bins)
-    FN_count_nb, _, _  = plt.hist(cand['magpsf'].to_numpy()[FN_idxs], bins=narrow_bins)
-    plt.close()
-
-    # TP_frac = TP_count / all_count
-    # FP_frac = FP_count / all_count
-    # TN_frac = TN_count / all_count
-    # FN_frac = FN_count / all_count
-
-    # perobj_acc = np.zeros(len(ztfids_val))
-
-    # for i, ztfid in enumerate(ztfids_val):  
-    #     obj_trips = triplets[cand['objectId']==ztfid]
-    #     obj_label = labels[cand['objectId']==ztfid][0]
-        
-    #     if "metadata" in model_dir:
-    #         obj_df = cand[cand['objectId']==ztfid][metadata_cols]
-    #         obj_preds = np.array(np.rint(model.predict([obj_trips, obj_df.iloc[:,:-1]], batch_size=hparams["batch_size"], verbose=0).flatten()), dtype=int)
-    #     else:
-    #         obj_preds = np.array(np.rint(model.predict(obj_trips, batch_size=hparams["batch_size"], verbose=0).flatten()), dtype=int)
-        
-    #     perobj_acc[i] = np.sum(obj_preds==obj_label)/len(obj_trips)
+    all_count_nb, _ = np.histogram(cand['magpsf']                    , bins=narrow_bins)
+    TP_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[TP_idxs], bins=narrow_bins)
+    FP_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[FP_idxs], bins=narrow_bins)
+    TN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=narrow_bins)
+    FN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=narrow_bins)
 
     bts_acc = len(TP_idxs)/(len(TP_idxs)+len(FN_idxs))
     notbts_acc = len(TN_idxs)/(len(TN_idxs)+len(FP_idxs))
     bal_acc = (bts_acc + notbts_acc) / 2
 
+    if len(TP_idxs) > 0 and len(TN_idxs) > 0:
+        alert_precision = len(TP_idxs)/(len(TP_idxs)+len(FP_idxs))
+        alert_recall = len(TP_idxs)/(len(TP_idxs)+len(FN_idxs))
+    else:
+        alert_precision = -999.0
+        alert_recall = -999.0
+
     # /-----------------------------
     #  MAKE FIGURE
     # /-----------------------------
+    print("Starting figure")
     # Accuracy
 
     fig = plt.figure(figsize=(20, 22), dpi=400)
@@ -451,16 +434,17 @@ def run_val(output_dir):
 
     return {
         "roc_auc": roc_auc, "bal_acc": bal_acc, "bts_acc": bts_acc, 
-        "notbts_acc": notbts_acc, "policy_performance": policy_performance
+        "notbts_acc": notbts_acc, "alert_precision": alert_precision,
+        "alert_recall": alert_recall, "policy_performance": policy_performance
     }
 
 
 if __name__ == "__main__":
-    # run_val(sys.argv[1])
+    run_val(sys.argv[1])
 
-    import glob
+    # import glob
 
-    models = glob.glob("models/vgg6_metadata_1_1-v5-n60-bs16/*/")
-    print(models)
-    for model in models:
-        run_val(model)
+    # models = glob.glob("models/vgg6_metadata_1_1-v5-n60-bs16/*/")
+    # print(models)
+    # for model in models:
+    #     run_val(model)
