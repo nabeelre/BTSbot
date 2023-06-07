@@ -169,5 +169,5 @@ def create_subset(split_name, N_max : int = 0, sne_only : bool = False,
 
 if __name__ == "__main__":
     # merge_data(["trues", "dims", "vars", "MS"], only_pd_gr)
-    for n in [1,5,15,30,45]:    
-        create_subset("train", n)
+    create_subset("train", 1)
+    create_subset("train", 60)
