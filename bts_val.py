@@ -34,7 +34,7 @@ def run_val(output_dir):
     if not (os.path.exists(f"data/val_triplets_v5{val_cuts_str}.npy") and 
             os.path.exists(f"data/val_cand_v5{val_cuts_str}.csv")):
         
-        create_subset("val", config['N_max'], config['val_sne_only'], 
+        create_subset("val", 0, config['val_sne_only'], 
                       config['val_keep_near_threshold'], config['val_rise_only'])
     else:
         print("Validation data already present")
