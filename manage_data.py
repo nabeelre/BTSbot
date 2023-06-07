@@ -61,7 +61,7 @@ def merge_data(set_names, cuts, seed=2):
         set_cand['is_rise'] = False
         
         np.random.seed(seed)
-        splits = np.random.choice(["train","val","test"], size=(len(pd.unique(set_cand['objectId'])),), p=[0.81,0.09,0.1])
+        splits = np.random.choice(["train","val","test"], size=(len(pd.unique(set_cand['objectId'])),), p=[0.81,0.09,0.10])
 
         for i, objid in enumerate(pd.unique(set_cand['objectId'])):
             obj_cand = set_cand[set_cand['objectId'] == objid]
@@ -150,7 +150,20 @@ def create_subset(split_name, N_max : int = 0, sne_only : bool = False,
     cuts_str = create_cuts_str(N_max, sne_only, keep_near_threshold, rise_only)
 
     if N_max:
-        trips, cand = apply_cut(trips, cand, cand[cand["N"] <= N_max].index)
+        mask = np.zeros(len(cand))
+
+        for objid in pd.unique(cand['objectId']):
+            obj_alerts = cand.loc[cand['objectId'] == objid]
+            
+            if obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] in ["trues", "dims", "MS"]:
+                mask[obj_alerts.index] = obj_alerts["N"] <= N_max
+            else:
+                # source_set = "vars", take latest N_max alerts from vars sources
+                N_max_latest_alerts = obj_alerts.sort_values(by='jd').iloc[-N_max:]
+                
+                mask[N_max_latest_alerts.index] = 1
+
+        trips, cand = apply_cut(trips, cand, np.where(mask == 1)[0])
 
     if sne_only:
         trips, cand = apply_cut(trips, cand, cand[cand["is_SN"]].index)

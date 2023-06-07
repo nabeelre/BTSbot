@@ -257,26 +257,16 @@ def run_val(output_dir):
     ax12 = plt.Subplot(fig, main_grid[11])
 
     def gt1(alerts):
-        if np.sum(alerts['preds']) >= 1:
-            return True
-        return False
-    
+        return np.sum(alerts['preds']) >= 1
+        
     def gt2(alerts):
-        if np.sum(alerts['preds']) >= 2:
-            return True
-        return False
+        return np.sum(alerts['preds']) >= 2
 
     def gt3(alerts):
-        if np.sum(alerts['preds']) >= 3:
-            return True
-        return False
+        return np.sum(alerts['preds']) >= 3
     
-    def combi(alerts):
-        if np.max(alerts['preds'] > 0.95):
-            return True
-        if np.sum(alerts['preds']) >= 5:
-            return True
-        return False
+    def g1l20(alerts):
+        return (np.sum(alerts['preds']) >= 1) and (np.sum(alerts['raw_preds'] < 0.5) < 20)
 
     policy_names = ["gt1", "gt2", "gt3"]
     policies = [gt1, gt2, gt3]
