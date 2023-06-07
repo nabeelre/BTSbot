@@ -36,7 +36,7 @@ def mi_cnn(config, image_shape=(63, 63, 3), metadata_shape=(16,)):
     return model
 
 
-def mag_cnn(config, image_shape=(63, 63, 3), metadata_shape=(1,)):
+def mi_magonly_cnn(config, image_shape=(63, 63, 3), metadata_shape=(1,)):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -63,7 +63,7 @@ def mag_cnn(config, image_shape=(63, 63, 3), metadata_shape=(1,)):
 
     output = Dense(1, activation='sigmoid', name='fc_out')(x)
 
-    model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="mi_cnn")
+    model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="mi_magonly_cnn")
 
     return model
 
