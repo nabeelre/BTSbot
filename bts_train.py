@@ -19,7 +19,7 @@ random_state = 2
 
 def sweep_train(config=None):
     with wandb.init(config=config) as run:
-        train(run.config, sweeping=True)
+        train(run.config, run_name=run.name, sweeping=True)
     
 
 def classic_train(config_path):
@@ -28,7 +28,7 @@ def classic_train(config_path):
     train(config)
 
 
-def train(config, sweeping : bool = False):
+def train(config, run_name : str = None, sweeping : bool = False):
     loss = config['loss']
     optimizer = tf.keras.optimizers.Adam(
         learning_rate=config['learning_rate'], 
@@ -156,6 +156,7 @@ def train(config, sweeping : bool = False):
         for param in list(config):
             wandb.config[param] = config[param]
 
+        run_name = wandb.run.name
     WandBLogger = wandb.keras.WandbMetricsLogger(log_freq=5)
 
     # /-----------------------------
@@ -289,6 +290,7 @@ def train(config, sweeping : bool = False):
     print('Generating report...')
     report = {'Run time stamp': run_t_stamp,
         'Model name': model_name,
+        'Run name': run_name,
         'Model trained': model_type.__name__,
         'Weighting loss contribution by class size': class_weight,
         'Train_config': dict(config),
@@ -309,7 +311,7 @@ def train(config, sweeping : bool = False):
     for k in report['Training history'].keys():
         report['Training history'][k] = np.array(report['Training history'][k]).tolist()
 
-    report_dir = "models/"+model_name+"/"+str(run_t_stamp)+"/"
+    report_dir = f"models/{model_name}/{run_name}/"
     model_dir = report_dir+"model/"
 
     if not os.path.exists(model_dir):
@@ -333,17 +335,17 @@ def train(config, sweeping : bool = False):
     wandb.summary['alert_recall'] = val_summary['alert_recall']
     wandb.summary['alert_F1'] = (2 * val_summary['alert_precision'] * val_summary['alert_recall']) / (val_summary['alert_precision'] + val_summary['alert_recall'])
 
-    for name in list(val_summary['policy_performance']):
-        perf = val_summary['policy_performance'][name]
+    for policy_name in list(val_summary['policy_performance']):
+        perf = val_summary['policy_performance'][policy_name]
 
-        wandb.summary[name+"_overall_precision"] = perf['overall_precision']
-        wandb.summary[name+"_overall_recall"] = perf['overall_recall']
-        wandb.summary[name+"_precision"] = perf['precision']
-        wandb.summary[name+"_recall"] = perf['recall']
+        wandb.summary[policy_name+"_overall_precision"] = perf['overall_precision']
+        wandb.summary[policy_name+"_overall_recall"] = perf['overall_recall']
+        wandb.summary[policy_name+"_precision"] = perf['precision']
+        wandb.summary[policy_name+"_recall"] = perf['recall']
 
-        wandb.summary[name+"_med_del_st"] = perf['med_del_st']
+        wandb.summary[policy_name+"_med_del_st"] = perf['med_del_st']
 
-        wandb.summary[name+"_F1"] = (2 * perf['overall_precision'] * perf['overall_recall']) / (perf['overall_precision'] + perf['overall_recall'])
+        wandb.summary[policy_name+"_F1"] = (2 * perf['overall_precision'] * perf['overall_recall']) / (perf['overall_precision'] + perf['overall_recall'])
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
