@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import requests, urllib, numpy as np, json, time, os, pandas as pd
+import requests, urllib, numpy as np, json, time, os, sys, pandas as pd
 import astropy.time as astrotime
 import astropy.units as u
 BOLD = "\033[1m"; END  = "\033[0m"
@@ -8,9 +8,14 @@ host = "https://fritz.science"
 metadata_endpoint = "alerts"
 triplets_endpoint = "alerts_triplets"
 
-base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BNB-classifier/autoscan/"
+if sys.platform == "darwin":
+    base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BNB-classifier/"
+    creds_path = "/Users/nabeelr/credentials.json"
+else:
+    base_path = "/projects/b1094/rehemtulla/BNB-classifier/"
+    creds_path = f"{base_path}misc/credentials.json"
 
-with open('/Users/nabeelr/credentials.json', 'r') as f:
+with open(creds_path, 'r') as f:
     creds = json.load(f)
     api_token = creds['fritz_api_key']
 headers = {'Authorization': f'token {api_token}'}
@@ -70,7 +75,10 @@ def autoscan():
     Save RCF candidates to BTS policy groups they pass and create a CSV showing 
     which candidates were saved to RCF or BTSbot groups in past 30 minutes
 
-    Times are always in UTC or jd 
+    Intended to be run every 30 minutes from 8PM-10AM CT with cron:
+        */30 20-23,0-10 * * * path/python3 path/autoscan_30min.py >> path/log.log 2>&1
+
+    Times are in UTC unless otherwise specified 
     
     Parameters
     ----------
@@ -188,7 +196,7 @@ def autoscan():
         # too many requests too quickly gets you rate limited
         time.sleep(0.1)
 
-    night_path = f"{base_path}nightly_summaries/{start_date.strftime('%h%d')}/"
+    night_path = f"{base_path}autoscan/nightly_summaries/{start_date.strftime('%h%d')}/"
 
     if not os.path.exists(night_path):
         os.makedirs(night_path)
