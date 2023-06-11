@@ -419,7 +419,7 @@ def run_val(output_dir):
     for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10, ax11, ax12, extend]:
         ax.tick_params(which='both', width=1.5)
 
-    plt.savefig(output_dir+"/"+os.path.basename(os.path.normpath(output_dir))+".pdf", bbox_inches='tight')
+    plt.savefig(output_dir+"/"+os.path.basename(os.path.normpath(output_dir))+val_cuts_str+".pdf", bbox_inches='tight')
     plt.close()
 
     return {

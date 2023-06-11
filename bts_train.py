@@ -243,7 +243,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         model = model_type(config, image_shape=image_shape)
 
     run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f"{model.name}-v5-n{N_max}-bs{batch_size}{'-CPU' if sys.platform == 'darwin' else ''}"
+    model_name = f"{model.name}_v5_n{N_max}_bs{batch_size}{'_CPU' if sys.platform == 'darwin' else ''}"
 
     # /-----------------------------
     #  COMPILE AND TRAIN MODEL
