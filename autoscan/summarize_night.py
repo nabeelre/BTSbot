@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import sys, pdfkit, glob, pandas as pd
+import sys, glob, pandas as pd
+from weasyprint import HTML
 import astropy.time as astrotime
 
 if sys.platform == "darwin":
@@ -68,15 +69,7 @@ def summarize_night():
     </html>
     """
 
-    if sys.platform == "darwin":
-        path_to_wkhtmltopdf = "/System/Volumes/Data/usr/local/bin/wkhtmltopdf"
-    else:
-        pass
-
-    # Convert HTML to PDF and save to disk
-    config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf)
-    pdfkit.from_string(html_content, f"{base_path}nightly_summaries/{date}/{date}_summary.pdf", configuration=config)
-
+    HTML(html_content).write_pdf(f"{base_path}nightly_summaries/{date}/{date}_summary.pdf")
     print(html_content)
 
 if __name__ == "__main__":

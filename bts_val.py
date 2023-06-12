@@ -1,8 +1,7 @@
 import numpy as np, pandas as pd, tensorflow as tf, matplotlib.pyplot as plt
-import json, datetime, os, sys
+import json, os, sys
 
 from sklearn.metrics import roc_curve, auc, ConfusionMatrixDisplay
-from sklearn.model_selection import train_test_split
 
 from matplotlib.colors import LogNorm
 import matplotlib.ticker as mtick
