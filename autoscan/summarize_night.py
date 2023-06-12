@@ -1,12 +1,28 @@
 #!/usr/bin/env python3
-import sys, glob, pandas as pd
+import sys, glob, yagmail, json, pandas as pd
 from weasyprint import HTML
 import astropy.time as astrotime
 
 if sys.platform == "darwin":
-    base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BNB-classifier/autoscan/"
+    base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BNB-classifier/"
+    creds_path = "/Users/nabeelr/credentials.json"
 else:
-    base_path = "/projects/b1094/rehemtulla/BNB-classifier/autoscan/"
+    base_path = "/projects/b1094/rehemtulla/BNB-classifier/"
+    creds_path = f"{base_path}misc/credentials.json"
+
+with open(creds_path, 'r') as f:
+    creds = json.load(f)
+
+def send_email_with_attachment(sender_email, sender_password, recipient_email, 
+                               subject, message, attachment_path):
+    yag = yagmail.SMTP(sender_email, sender_password)
+    yag.send(
+        to=recipient_email,
+        subject=subject,
+        contents=message,
+        attachments=attachment_path
+    )
+
 
 def summarize_night():
     """
@@ -27,9 +43,10 @@ def summarize_night():
 
     now = astrotime.Time.now()
     date = now.strftime('%h%d')  # formatted as "MonDD"
+    date = "Jun09"
 
     # Collect all of tonight's saved sources written by autoscan
-    files = glob.glob(f"nightly_summaries/{date}/*")
+    files = glob.glob(f"{base_path}autoscan/nightly_summaries/{date}/*.csv")
 
     nights_cand = pd.DataFrame()
 
@@ -58,9 +75,6 @@ def summarize_night():
 
     html_content = f"""
     <html>
-        <head>
-            {head_text}
-        </head>
         <body>
             <p>{intro_text}</p>
             {html_table}
@@ -69,8 +83,17 @@ def summarize_night():
     </html>
     """
 
-    HTML(html_content).write_pdf(f"{base_path}nightly_summaries/{date}/{date}_summary.pdf")
-    print(html_content)
+    HTML(string=html_content).write_pdf(f"{base_path}autoscan/nightly_summaries/summaries/{date}_summary.pdf")
+    
+    sender_email = 'nabeelre@gmail.com'
+    sender_password = creds['email_app_password']
+    recipient_email = 'nabeelre@gmail.com'
+    subject = head_text
+    message = ""
+    attachment_path = f"{base_path}autoscan/nightly_summaries/summaries/{date}_summary.pdf"
+
+    send_email_with_attachment(sender_email, sender_password, recipient_email, subject, message, attachment_path)
+
 
 if __name__ == "__main__":
     summarize_night()
