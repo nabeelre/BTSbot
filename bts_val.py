@@ -25,6 +25,8 @@ def run_val(output_dir):
     model_dir = output_dir + "model/"
     config = report['Train_config']
 
+    metadata = True if len(config['metadata_cols']) > 0 else False
+
     val_cuts_str = create_cuts_str(0, 
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
@@ -54,7 +56,10 @@ def run_val(output_dir):
 
     model = tf.keras.models.load_model(model_dir)
     
-    raw_preds = model.predict([triplets, cand.loc[:,config["metadata_cols"]]], batch_size=config['batch_size'], verbose=1)
+    if metadata:
+        raw_preds = model.predict([triplets, cand.loc[:,config["metadata_cols"]]], batch_size=config['batch_size'], verbose=1)
+    else:
+        raw_preds = model.predict(triplets, batch_size=config['batch_size'], verbose=1)
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
     labels = cand["label"].to_numpy(dtype=int)
 
