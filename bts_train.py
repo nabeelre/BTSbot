@@ -55,7 +55,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     except:
         print("Could not find model of name", sys.argv[1].lower())
         exit(0)
-    metadata = True if len(config['metadata_cols'] > 0) else False
+    metadata = True if len(config['metadata_cols']) > 0 else False
         
     # /-----------------------------
     #  BASIC COMMAND LINE INTERFACE
