@@ -43,18 +43,18 @@ def summarize_night():
 
     now = astrotime.Time.now()
     date = now.strftime('%h%d')  # formatted as "MonDD"
-    date = "Jun09"
 
     # Collect all of tonight's saved sources written by autoscan
     files = glob.glob(f"{base_path}autoscan/nightly_summaries/{date}/*.csv")
+    print(f"Found {len(files)} files")
 
     nights_cand = pd.DataFrame()
 
     for file in files:
         nights_cand = pd.concat((nights_cand, pd.read_csv(file)))
-        
     nights_cand = nights_cand.reset_index(drop=True)
-    
+    print(f"{len(nights_cand)} candidates tonight")
+
     # Make dates relative to present
     nights_cand.iloc[:, 1:] = nights_cand.iloc[:, 1:].subtract(now.jd)
     
@@ -84,7 +84,9 @@ def summarize_night():
     """
 
     HTML(string=html_content).write_pdf(f"{base_path}autoscan/nightly_summaries/summaries/{date}_summary.pdf")
-    
+    print("Rendered PDF")
+    print(html_content)
+
     sender_email = 'nabeelre@gmail.com'
     sender_password = creds['email_app_password']
     recipient_email = 'nabeelre@gmail.com'
@@ -93,7 +95,8 @@ def summarize_night():
     attachment_path = f"{base_path}autoscan/nightly_summaries/summaries/{date}_summary.pdf"
 
     send_email_with_attachment(sender_email, sender_password, recipient_email, subject, message, attachment_path)
-
+    print("Sent email")
+    
 
 if __name__ == "__main__":
     summarize_night()
