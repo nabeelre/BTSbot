@@ -204,10 +204,18 @@ def autoscan(start_date, end_date):
                 "classifications.bts": 1,
             }),
         }
-        r = requests.get(url, headers=headers, params=params)
+        try:
+            r = requests.get(url, headers=headers, params=params)
+        except Exception as e:
+            print(e)
+            print(r, url, params)
+            print("Failed to query alerts of {objid}\nSkipping to next source")
+            continue
         if not r.ok:
-            print(r.json())
-            exit(0)
+            print(r.text)
+            print("Failed to unpack alerts of {objid}\nSkipping to next source")
+            print(f"Skipping {objid}")
+            continue
 
         dat = r.json()['data']
         # Only keep alerts that have a BTS score
