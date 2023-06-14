@@ -52,6 +52,11 @@ def summarize_night():
 
     for file in files:
         nights_cand = pd.concat((nights_cand, pd.read_csv(file)))
+
+    # Don't show the same source twice in the summary
+    # The last appearance of it will have the most up-to-date save times
+    nights_cand = nights_cand.drop_duplicates(subset='objectId', keep='last')
+    
     nights_cand = nights_cand.reset_index(drop=True)
     print(f"{len(nights_cand)} candidates tonight")
 

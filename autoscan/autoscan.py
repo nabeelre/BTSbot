@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import requests, urllib, numpy as np, json, time, sys, pandas as pd
+import requests, urllib, numpy as np, json, time, os, sys, pandas as pd
 import astropy.time as astrotime
 import astropy.units as u
 BOLD = "\033[1m"; END  = "\033[0m"
@@ -8,7 +8,14 @@ host = "https://fritz.science"
 metadata_endpoint = "alerts"
 triplets_endpoint = "alerts_triplets"
 
-with open('/Users/nabeelr/credentials.json', 'r') as f:
+if sys.platform == "darwin":
+    base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BNB-classifier/"
+    creds_path = "/Users/nabeelr/credentials.json"
+else:
+    base_path = "/projects/b1094/rehemtulla/BNB-classifier/"
+    creds_path = f"{base_path}misc/credentials.json"
+
+with open(creds_path, 'r') as f:
     creds = json.load(f)
     api_token = creds['fritz_api_key']
 headers = {'Authorization': f'token {api_token}'}
@@ -26,7 +33,7 @@ def gt_N(scores, N):
     return np.sum(np.asarray(scores) > 0.5) >= N
 
 
-def save_to_group(objid, groupid, group_name=""):
+def save_to_group(objid, groupid, group_name="", retry=False):
     """
     Save source with objid to fritz group with groupid and name group_name
     
@@ -54,69 +61,137 @@ def save_to_group(objid, groupid, group_name=""):
     r = requests.post(url, headers=headers, json=params)
 
     if not r.ok:
-        if "Source already saved" not in r.json()['message']:
-            print(r.text)
-            exit(0)
-        else:
+        try:
+            message = r.json()['message']
+            # print(r.text)
+        except Exception as e:
+            print("failed to extract message from response")
+            print(e)
+            message = ""
+
+        if "Source already saved" in message:
             print(f"  already saved with {group_name}")
+        elif not retry:
+            print(f"retrying save of {objid} to {group_name}={groupid}")
+            time.sleep(1)
+            save_to_group(objid, groupid, group_name, retry=True)
+            return
+        else:
+            print(f"save of {objid} to {group_name}={groupid} failed on retry")
     else:
         print(f"  {BOLD}saved to {group_name}{END}")
 
 
-def save_and_summarize(date):
+def get_candidates(start_date, end_date):
     """
-    Save RCF candidates for a specified night to BTS bot test groups if they 
-    pass set criteria and create a CSV showing which candidates were saved
-    to RCF or BTS bot groups that day 
-    
+    Get RCF candidates between start_ and end_date that are not RCF_Junk
+
     Parameters
     ----------
-    date: string
-        Beginning date of 24 hour window to search for candidates from
-        Provide string formatted as YYYY-MM-DD
+    start_date and end_date
+    astropy time objects indicating UTC time window of search
     
     Returns
     -------
-    Nothing
+    candidates
+    DataFrame with column "objectId" containing ZTF objectIds for sources that 
+    had alerts pass the RCF filter in the start_ end_date window
     """
     
-    # Noon of given date to next day noon (PDT)
-    start_date = astrotime.Time(date+"T19:00:00")
-    end_date = start_date + 1*u.day
 
     # Get objectIds of RCF candidates from specified night 
     # Only select those not already saved to RCFJunk
     url = urllib.parse.urljoin(host, f'/api/candidates')
     params = {
         "savedStatus": "notSavedToAnySelected",
-        "startDate": start_date.value,
+        "startDate": start_date.value,  # expects UTC
         "endDate": end_date.value,
         "groupIDs": BTSbot_groupid + "," + RCFJunk_groupid,
         "numPerPage": 500,
     }
     r = requests.get(url, headers=headers, params=params)
 
-    objids = [cand['id'] for cand in r.json()['data']['candidates']]
+    try:
+        objids = [cand['id'] for cand in r.json()['data']['candidates']]
+    except Exception as e:
+        print(e)
+        print("failed to get candidates")
+        objids = []
+
     candidates = pd.DataFrame(objids, columns=["objectId"])
     print(f"Found {len(objids)} RCF candidates")
 
-    # Criteria to run BTS scores through
-    critera_names = ["gt1", "gt2", "gt3"]
-    critera = [lambda x: gt_N(x, 1), lambda x: gt_N(x, 2), lambda x: gt_N(x, 3)]
+    return candidates
+
+
+def save_log(start_date, end_date, saved_now):
+    """
+    Write log of sources saved in time window to disk as a CSV
+    Naming is slightly different based on the size of the time window
+
+    Parameters
+    ----------
+    start_date and end_date
+    astropy time objects indicating UTC time window of search
+    
+    saved_now
+    DataFrame with columns objectId, and save times of each policy and RCF scanners
+
+    Returns
+    -------
+    Nothing
+    """
+    night_path = f"{base_path}autoscan/nightly_summaries/{end_date.strftime('%h%d')}/"
+    if not os.path.exists(night_path):
+        os.makedirs(night_path)
+
+    if end_date - start_date < 1*u.hr:
+        filename = f"{(start_date+5*u.min).strftime('%H%M')}.csv"
+    else:
+        filename = f"since{start_date.strftime('%h%d_%H%M')}.csv"
+
+    saved_now.to_csv(f"{night_path}{filename}", index=None)
+    
+
+def autoscan(start_date, end_date):
+    """
+    Save RCF candidates to BTS policy groups they pass and create a CSV showing 
+    which candidates were saved to RCF or BTSbot groups in past 30 minutes
+
+    Intended to be run every 30 minutes from 8PM-10AM CT with cron:
+        */30 20-23,0-10 * * * path/python3 path/autoscan_30min.py >> path/log.log 2>&1
+
+    Times are in UTC unless otherwise specified 
+    
+    Parameters
+    ----------
+    start_date and end_date
+    astropy time objects indicating UTC time window of search
+    
+    Returns
+    -------
+    Nothing
+    """
+    
+    # New RCF candidates from specified time window
+    candidates = get_candidates(start_date, end_date)
+
+    # Policy to map BTS alert-based scores to source-based classification
+    policy_names = ["gt1", "gt2", "gt3"]
+    policies = [lambda x: gt_N(x, 1), lambda x: gt_N(x, 2), lambda x: gt_N(x, 3)]
     groupids = [gt1_groupid, gt2_groupid, gt3_groupid]
 
-    # Initialize columns to store jd of when each criterion was passed
-    for crit_name in critera_names:
-        candidates[crit_name+"_savetime"] = None
-
+    # Initialize columns to store jd of when each policy was passed
+    for pol_name in policy_names:
+        candidates[pol_name+"_savetime"] = None
     candidates['RCF_savetime'] = None
 
-    # Only candidates that were saved 'tonight' (by model using any criterion or RCF scanners)
-    # tonight: between 4 PM PDT of selected date to 4 PM PDT of next day
-    saved_tonight = pd.DataFrame(columns=candidates.columns)
+    # Only candidates that were saved in the past 35 mins 
+    # by model using any policy or by RCF scanners
+    saved_now = pd.DataFrame(columns=candidates.columns)
     
     # For every candidate,
-    for objid in objids:
+    for objid in candidates['objectId'].to_numpy():
         print(objid)
 
         # Query fritz for bts scores and their jds
@@ -141,7 +216,7 @@ def save_and_summarize(date):
         alerts = pd.DataFrame(alerts, columns=['candid', 'jd', 'bts']).sort_values(by="jd")
         print(f"  found {len(alerts)} alerts with bts scores")
         
-        for criterion, groupid, crit_name in zip(critera, groupids, critera_names):
+        for policy, groupid, pol_name in zip(policies, groupids, policy_names):
             for i in range(len(alerts)):
                 # the alerts index of the current row of iteration
                 idx_cur = alerts.index[i]
@@ -149,19 +224,19 @@ def save_and_summarize(date):
                 # the alerts index of the current and previous rows of iteration
                 idx_sofar = alerts.index[0:i+1]
 
-                # Compute the prediction for the current criterion
-                crit_pred = criterion(alerts.loc[idx_sofar, 'bts'].to_list())
+                # Compute the prediction for the current policy
+                pol_pred = policy(alerts.loc[idx_sofar, 'bts'].to_list())
 
-                # If the source passed criterion, 
-                if crit_pred:
+                # If the source passed policy, 
+                if pol_pred:
                     # Save it to the respective group
-                    save_to_group(objid, groupid, crit_name)
+                    save_to_group(objid, groupid, pol_name)
 
-                    # If it was the first time passing this criterion, store jd of save
-                    if not candidates.loc[candidates['objectId'] == objid, crit_name+"_savetime"].values[0]:
-                        candidates.loc[candidates['objectId'] == objid, crit_name+"_savetime"] = alerts.loc[idx_cur, 'jd']
+                    # If it was the first time passing this policy, store jd of save
+                    if not candidates.loc[candidates['objectId'] == objid, pol_name+"_savetime"].values[0]:
+                        candidates.loc[candidates['objectId'] == objid, pol_name+"_savetime"] = alerts.loc[idx_cur, 'jd']
                     
-                    # Don't need to check for future alerts because source already passed this criterion
+                    # Don't need to check for future alerts because source already passed this policy
                     break
 
         # Query for RCF save time
@@ -173,27 +248,42 @@ def save_and_summarize(date):
                 print("  saved to RCF at", astrotime.Time(group['saved_at']).jd)
                 candidates.loc[candidates['objectId'] == objid, "RCF_savetime"] = astrotime.Time(group['saved_at']).jd
             
-        # jd of when every criterion and scanners saved source 
+        # jd of when every policy and scanners saved source 
+        # array([gt1_savetime, gt2_savetime, gt3_savetime, RCF_savetime])
         save_times = candidates[candidates['objectId'] == objid].to_numpy()[0,1:]
 
         for save_time in save_times:
             # check if any saving happened in the specified time window
             if save_time and (save_time - start_date.jd > 0) and (save_time - end_date.jd < 0):
-                print(f'  {BOLD}saved tonight{END}')
-                saved_tonight = pd.concat((saved_tonight, candidates[candidates['objectId'] == objid]))
+                print(f'  {BOLD}saved now{END}')
+                saved_now = pd.concat((saved_now, candidates[candidates['objectId'] == objid]))
                 break
 
         # too many requests too quickly gets you rate limited
-        time.sleep(0.1)
+        time.sleep(1.0)
 
-    saved_tonight.to_csv(f"nightly_summaries/{start_date.strftime('%Y-%m-%d')}.csv", index=None)
-    print(f"Done autoscan for {start_date.strftime('%Y-%m-%d')}")
+    save_log(start_date, end_date, saved_now)
+    print(f"Done autoscan for {start_date.strftime('%h%d %H:%M')} to {end_date.strftime('%h%d %H:%M')}")
 
 
 if __name__ == "__main__":
-    try:
-        date = astrotime.Time(sys.argv[1]).strftime('%Y-%m-%d')
-    except IndexError:
-        date = (astrotime.Time.now() - 1*u.day).strftime('%Y-%m-%d')
-
-    save_and_summarize(date)
+    if len(sys.argv) < 2:
+        print("Must provide scan type")
+        exit(1)
+    scan_type = sys.argv[1]
+    
+    if scan_type == "during_night":
+        # Select candidates from 35 minutes ago to now 
+        end_date = astrotime.Time.now() - 4.5*u.hr  # in UTC
+        start_date = end_date - 180*u.min
+    elif scan_type == "after_night":
+        # Select candidates from the past 24 hours
+        end_date = astrotime.Time.now()  # in UTC
+        start_date = end_date - 24*u.hr
+    else:
+        print(f"could not understand scan_type {scan_type}")
+        print("defaulting to 'after_night'")
+        end_date = astrotime.Time.now()  # in UTC
+        start_date = end_date - 24*u.hr
+        
+    autoscan(start_date, end_date)
