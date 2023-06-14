@@ -2,6 +2,9 @@
 import sys, glob, yagmail, json, pandas as pd
 from weasyprint import HTML
 import astropy.time as astrotime
+import astropy.units as u
+
+from autoscan import autoscan
 
 if sys.platform == "darwin":
     base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BNB-classifier/"
@@ -104,4 +107,13 @@ def summarize_night():
     
 
 if __name__ == "__main__":
+     # Select candidates from the past 24 hours
+    end_date = astrotime.Time.now()  # in UTC
+    start_date = end_date - 24*u.hr
+
+    # Rescan past 24 hours to catch any missed sources and get recent RCF saves
+    print("Scanning the past 24 hours")
+    autoscan(start_date, end_date)
+    print("Done scanning")
+
     summarize_night()
