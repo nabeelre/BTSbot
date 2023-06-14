@@ -274,8 +274,8 @@ if __name__ == "__main__":
     
     if scan_type == "during_night":
         # Select candidates from 35 minutes ago to now 
-        end_date = astrotime.Time.now() - 4.5*u.hr  # in UTC
-        start_date = end_date - 180*u.min
+        end_date = astrotime.Time.now()  # in UTC
+        start_date = end_date - 35*u.min
     elif scan_type == "after_night":
         # Select candidates from the past 24 hours
         end_date = astrotime.Time.now()  # in UTC
