@@ -24,9 +24,9 @@ RCF_groupid = "41"
 RCFJunk_groupid = "255"
 BTSbot_groupid = "1534"
 
-gt1_groupid = "1555"
-gt2_groupid = "1556"
-gt3_groupid = "1557"
+gt1_groupid = "1583"
+gt2_groupid = "1584"
+gt3_groupid = "1585"
 
 
 def gt_N(scores, N):
@@ -202,6 +202,7 @@ def autoscan(start_date, end_date):
                 "candid": 1,
                 "candidate.jd": 1,
                 "classifications.bts": 1,
+                "classifications.bts_version": 1,
             }),
         }
         try:
@@ -218,8 +219,14 @@ def autoscan(start_date, end_date):
             continue
 
         dat = r.json()['data']
-        # Only keep alerts that have a BTS score
-        alerts = [[alr['candid'], alr['candidate']['jd'], alr['classifications']['bts']] for alr in dat if "bts" in list(alr['classifications'])]
+        # Only keep alerts that have a BTS score from model version v03
+        alerts = []
+        for alert in dat:
+            if "bts" in list(alert['classifications']) and alert['classifications']['bts_version'] == "v03":
+                alerts += [[alert['candid'], 
+                            alert['candidate']['jd'], 
+                            alert['classifications']['bts']]]
+
         # Store in dataframe and sort by jd
         alerts = pd.DataFrame(alerts, columns=['candid', 'jd', 'bts']).sort_values(by="jd")
         print(f"  found {len(alerts)} alerts with bts scores")
