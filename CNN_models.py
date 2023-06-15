@@ -70,25 +70,24 @@ def mi_magonly_cnn(config, image_shape=(63, 63, 3), metadata_shape=(1,)):
 
 # /----- ----- ----- -----/ METADATA ONLY /----- ----- ----- -----/  
 
-def fcnn(image_shape=(63, 63, 3), metadata_shape=(16,)):
-    triplet_input = keras.Input(shape=image_shape, name="triplet")
+def fcnn(config, metadata_shape=(16,)):
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
-    x_meta = Dense(64, activation='relu', name='metadata_fc_1')(meta_input)
-    x_meta = Dropout(0.25)(x_meta)
+    x_meta = Dense(16, activation='relu', name='metadata_fc_1')(meta_input)
+    x_meta = Dropout(config['dropout_1'])(x_meta)
     
-    x_meta = Dense(64, activation='relu', name='metadata_fc_2')(x_meta)
-    x_meta = Dropout(0.25)(x_meta)
+    x_meta = Dense(32, activation='relu', name='metadata_fc_2')(x_meta)
+    x_meta = Dropout(config['dropout_1'])(x_meta)
     
-    x_meta = Dense(64, activation='relu', name='metadata_fc_3')(x_meta)
-    x_meta = Dropout(0.25)(x_meta)
+    x_meta = Dense(32, activation='relu', name='metadata_fc_3')(x_meta)
+    x_meta = Dropout(config['dropout_2'])(x_meta)
     
-    x_meta = Dense(64, activation='relu', name='metadata_fc_4')(x_meta)
-    x_meta = Dropout(0.25)(x_meta)
+    x_meta = Dense(16, activation='relu', name='metadata_fc_4')(x_meta)
+    x_meta = Dropout(config['dropout_3'])(x_meta)
 
     output = Dense(1, activation='sigmoid', name='fc_out')(x_meta)
 
-    model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="fcnn")
+    model = keras.Model(inputs=meta_input, outputs=output, name="fcnn")
 
     return model
 
