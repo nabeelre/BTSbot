@@ -151,7 +151,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     )
 
     if not sweeping:
-        wandb.init(project="BNB-classifier")
+        wandb.init(project="BTSbot")
         # Send parameters of this run to WandB
         for param in list(config):
             wandb.config[param] = config[param]
@@ -350,6 +350,6 @@ def train(config, run_name : str = None, sweeping : bool = False):
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
         sweep_id = "m1il156a"
-        wandb.agent(sweep_id, function=sweep_train, count=10, project="BNB-classifier")
+        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbot")
     else:
         classic_train(sys.argv[1])

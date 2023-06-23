@@ -9,10 +9,10 @@ metadata_endpoint = "alerts"
 triplets_endpoint = "alerts_triplets"
 
 if sys.platform == "darwin":
-    base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BNB-classifier/"
+    base_path = "/Users/nabeelr/Desktop/School/ZTF Research/BTSbot/"
     creds_path = "/Users/nabeelr/credentials.json"
 else:
-    base_path = "/projects/b1094/rehemtulla/BNB-classifier/"
+    base_path = "/projects/b1094/rehemtulla/BTSbot/"
     creds_path = f"{base_path}misc/credentials.json"
 
 with open(creds_path, 'r') as f:
