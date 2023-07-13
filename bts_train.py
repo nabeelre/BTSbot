@@ -84,15 +84,17 @@ def train(config, run_name : str = None, sweeping : bool = False):
     #  LOAD TRAINING DATA
     # /-----------------------------
 
-    if not (os.path.exists(f'data/train_cand_v5_n{N_max}.csv') and 
-            os.path.exists(f'data/train_triplets_v5_n{N_max}.npy')):
+    train_data_version = config['train_data_version']
+
+    if not (os.path.exists(f'data/train_cand_{train_data_version}_n{N_max}.csv') and 
+            os.path.exists(f'data/train_triplets_{train_data_version}_n{N_max}.npy')):
         print("Couldn't find correct train data subset, creating...")
         create_subset("train", N_max=N_max)
     else:
         print("Training data already present")
 
-    cand = pd.read_csv(f'data/train_cand_v5_n{N_max}.csv')
-    triplets = np.load(f'data/train_triplets_v5_n{N_max}.npy', mmap_mode='r')
+    cand = pd.read_csv(f'data/train_cand_{train_data_version}_n{N_max}.csv')
+    triplets = np.load(f'data/train_triplets_{train_data_version}_n{N_max}.npy', mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
@@ -108,8 +110,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
     #  LOAD VALIDATION DATA
     # /-----------------------------
 
-    val_cand = pd.read_csv(f'data/val_cand_v5.csv')
-    val_triplets = np.load(f'data/val_triplets_v5.npy', mmap_mode='r')
+    val_cand = pd.read_csv(f'data/val_cand_{train_data_version}.csv')
+    val_triplets = np.load(f'data/val_triplets_{train_data_version}.npy', mmap_mode='r')
 
     # /-----------------------------
     #  PREP DATA AS MODEL INPUT
@@ -151,7 +153,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     )
 
     if not sweeping:
-        wandb.init(project="BNB-classifier")
+        wandb.init(project="BTSbot")
         # Send parameters of this run to WandB
         for param in list(config):
             wandb.config[param] = config[param]
@@ -243,7 +245,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         model = model_type(config, image_shape=image_shape)
 
     run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f"{model.name}_v5_n{N_max}_bs{batch_size}{'_CPU' if sys.platform == 'darwin' else ''}"
+    model_name = f"{model.name}_{train_data_version}_n{N_max}{'_CPU' if sys.platform == 'darwin' else ''}"
 
     # /-----------------------------
     #  COMPILE AND TRAIN MODEL
@@ -292,6 +294,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         'Model name': model_name,
         'Run name': run_name,
         'Model trained': model_type.__name__,
+        'Training data version': train_data_version,
         'Weighting loss contribution by class size': class_weight,
         'Train_config': dict(config),
         'Early stopping after epochs': patience,
@@ -350,6 +353,6 @@ def train(config, run_name : str = None, sweeping : bool = False):
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
         sweep_id = "m1il156a"
-        wandb.agent(sweep_id, function=sweep_train, count=10, project="BNB-classifier")
+        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbot")
     else:
         classic_train(sys.argv[1])

@@ -31,21 +31,23 @@ def run_val(output_dir):
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
                                    bool(config['val_rise_only']))
+    
+    train_data_version = config['train_data_version']
 
-    if not (os.path.exists(f"data/val_triplets_v5{val_cuts_str}.npy") and 
-            os.path.exists(f"data/val_cand_v5{val_cuts_str}.csv")):
+    if not (os.path.exists(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy") and 
+            os.path.exists(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")):
         
         create_subset("val", 0, config['val_sne_only'], 
                       config['val_keep_near_threshold'], config['val_rise_only'])
     else:
         print("Validation data already present")
 
-    cand = pd.read_csv(f"data/val_cand_v5{val_cuts_str}.csv")
+    cand = pd.read_csv(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    triplets = np.load(f"data/val_triplets_v5{val_cuts_str}.npy", mmap_mode='r')
+    triplets = np.load(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
     assert not np.any(np.isnan(triplets))
 
     tf.keras.backend.clear_session()
@@ -438,7 +440,7 @@ if __name__ == "__main__":
 
     # import glob
 
-    # models = glob.glob("models/vgg6_metadata_1_1-v5-n60-bs16/*/")
+    # models = glob.glob("models/vgg6_metadata_1_1-v5a-n60-bs16/*/")
     # print(models)
     # for model in models:
     #     run_val(model)
