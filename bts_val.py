@@ -294,6 +294,9 @@ def run_val(output_dir):
     for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes[0:len(policy_names)], ST_axes[0:len(policy_names)]):
         # Initialize new columns
         policy_cand[name+"_pred"] = 0
+        policy_cand[name+"_save_jd"] = -1
+        policy_cand[name+"_save_mag"] = -1
+        policy_cand[name+"_del_st"] = np.nan
 
         # For each source
         for obj_id in policy_cand["objectId"]:
@@ -307,6 +310,10 @@ def run_val(output_dir):
 
                 # the obj_alerts index of the current and previous rows of iteration
                 idx_sofar = obj_alerts.index[0:i+1]
+
+                # Don't save before 19 mag
+                if np.min(obj_alerts.loc[obj_alerts.index[0:i+1], 'magpsf']) > 19:
+                    continue
 
                 # Compute the prediction for this current policy
                 policy_pred = func(obj_alerts.loc[idx_sofar])
