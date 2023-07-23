@@ -99,7 +99,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    if cand.isnull().values.any():
+    if cand[config['metadata_cols']].isnull().values.any():
         print("Null in cand")
         exit(0)
     if np.any(np.isnan(triplets)):
