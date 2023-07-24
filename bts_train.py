@@ -113,9 +113,9 @@ def train(config, run_name : str = None, sweeping : bool = False):
     val_cand = pd.read_csv(f'data/val_cand_{train_data_version}.csv')
     val_triplets = np.load(f'data/val_triplets_{train_data_version}.npy', mmap_mode='r')
 
-    # /-----------------------------
-    #  PREP DATA AS MODEL INPUT
-    # /-----------------------------
+    # /----------------------------------
+    #  MODEL INPUT AND SOME PARAMS PREP 
+    # /----------------------------------
 
     gen_cols = np.append(config['metadata_cols'], ['label'])
 
@@ -129,6 +129,38 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     print(f"{len(pd.unique(cand['objectId']))} train objects")
     print(f"{len(x_train)} train alerts")
+
+    if "alert" in weight_classes:
+        # weight data on number of ALERTS per class
+        num_training_examples_per_class = np.array([np.sum(cand['label'] == 0), np.sum(cand['label'] == 1)])
+    elif "source" in weight_classes:
+        # weight data on number of SOURCES per class
+        num_training_examples_per_class = np.array([len(pd.unique(cand.loc[cand['label'] == 0, 'objectId'])),
+                                                    len(pd.unique(cand.loc[cand['label'] == 1, 'objectId']))])
+    else:
+        # even weighting / no weighting
+        num_training_examples_per_class = np.array([1,1])
+
+    # fewer examples -> larger weight
+    weights = (1 / num_training_examples_per_class) / np.linalg.norm((1 / num_training_examples_per_class))
+    normalized_weight = weights / np.max(weights)
+
+    class_weight = {i: w for i, w in enumerate(normalized_weight)}
+
+    # image shape:
+    image_shape = x_train.shape[1:]
+    print('Input image shape:', image_shape)
+
+    # metadata shape (if necessary):
+    if metadata:
+        metadata_shape = np.shape(train_df.iloc[0][:-1])
+        print('Input metadata shape:', metadata_shape)
+        model = model_type(config, image_shape=image_shape, metadata_shape=metadata_shape)
+    else:
+        model = model_type(config, image_shape=image_shape)
+
+    run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_name = f"{model.name}_{train_data_version}_n{N_max}{'_CPU' if sys.platform == 'darwin' else ''}"
 
     # /-----------------------------
     #  SET UP CALLBACKS
@@ -160,6 +192,17 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
         run_name = wandb.run.name
     WandBLogger = wandb.keras.WandbMetricsLogger(log_freq=5)
+
+    report_dir = f"models/{model_name}/{run_name}/"
+    model_dir = report_dir+"best_model/"
+
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    # Save new model whenever there's an improvement in val_loss
+    checkpointing = tf.keras.callbacks.ModelCheckpoint(model_dir, verbose=1,
+                                                       monitor="val_loss", 
+                                                       save_best_only=True)
 
     # /-----------------------------
     #  SET UP DATA GENERATORS WITH AUGMENTATION
@@ -212,42 +255,6 @@ def train(config, run_name : str = None, sweeping : bool = False):
         validation_generator = val_datagen.flow(x_val, y_val, batch_size=batch_size, seed=random_state, shuffle=False)
 
     # /-----------------------------
-    #  OTHER MODEL SET UP
-    # /-----------------------------
-
-    if "alert" in weight_classes:
-        # weight data on number of ALERTS per class
-        num_training_examples_per_class = np.array([np.sum(cand['label'] == 0), np.sum(cand['label'] == 1)])
-    elif "source" in weight_classes:
-        # weight data on number of SOURCES per class
-        num_training_examples_per_class = np.array([len(pd.unique(cand.loc[cand['label'] == 0, 'objectId'])),
-                                                    len(pd.unique(cand.loc[cand['label'] == 1, 'objectId']))])
-    else:
-        # even weighting / no weighting
-        num_training_examples_per_class = np.array([1,1])
-
-    # fewer examples -> larger weight
-    weights = (1 / num_training_examples_per_class) / np.linalg.norm((1 / num_training_examples_per_class))
-    normalized_weight = weights / np.max(weights)
-
-    class_weight = {i: w for i, w in enumerate(normalized_weight)}
-
-    # image shape:
-    image_shape = x_train.shape[1:]
-    print('Input image shape:', image_shape)
-
-    # metadata shape (if necessary):
-    if metadata:
-        metadata_shape = np.shape(train_df.iloc[0][:-1])
-        print('Input metadata shape:', metadata_shape)
-        model = model_type(config, image_shape=image_shape, metadata_shape=metadata_shape)
-    else:
-        model = model_type(config, image_shape=image_shape)
-
-    run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f"{model.name}_{train_data_version}_n{N_max}{'_CPU' if sys.platform == 'darwin' else ''}"
-
-    # /-----------------------------
     #  COMPILE AND TRAIN MODEL
     # /-----------------------------
 
@@ -260,7 +267,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
         validation_steps=(0.8*len(x_val)) // batch_size,
         class_weight=class_weight,
         epochs=epochs,
-        verbose=1, callbacks=[early_stopping, LR_plateau, WandBLogger]
+        verbose=1, callbacks=[early_stopping, LR_plateau, WandBLogger, 
+                              checkpointing]
     )
 
     # /-----------------------------
@@ -314,17 +322,15 @@ def train(config, run_name : str = None, sweeping : bool = False):
     for k in report['Training history'].keys():
         report['Training history'][k] = np.array(report['Training history'][k]).tolist()
 
-    report_dir = f"models/{model_name}/{run_name}/"
-    model_dir = report_dir+"model/"
-
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
     f_name = os.path.join(report_dir, f'report.json')
     with open(f_name, 'w') as f:
         json.dump(report, f, indent=2)
 
-    model.save(model_dir)
+    final_model_dir = report_dir+"final_model/"
+    if not os.path.exists(final_model_dir):
+        os.makedirs(final_model_dir)
+
+    model.save(final_model_dir)
     tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf", show_shapes=True, show_layer_names=False, show_layer_activations=True)
 
     val_summary = bts_val.run_val(report_dir)

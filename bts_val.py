@@ -22,7 +22,7 @@ def run_val(output_dir):
 
     with open(output_dir+"report.json", 'r') as f:
         report = json.load(f)
-    model_dir = output_dir + "model/"
+    model_dir = output_dir + "best_model/"
     config = report['Train_config']
 
     metadata = True if len(config['metadata_cols']) > 0 else False
@@ -118,7 +118,7 @@ def run_val(output_dir):
     fig = plt.figure(figsize=(20, 22), dpi=400)
     main_grid = gridspec.GridSpec(4, 3, wspace=0.3, hspace=0.3)
 
-    plt.suptitle(model_dir[:-7], size=28, y=0.92)
+    plt.suptitle(model_dir[:-11], size=28, y=0.92)
     
     ax1 = plt.Subplot(fig, main_grid[0])
     ax1.plot(report["Training history"]["accuracy"], label='Training', linewidth=2)
