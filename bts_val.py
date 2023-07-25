@@ -22,9 +22,8 @@ def run_val(output_dir):
 
     with open(output_dir+"report.json", 'r') as f:
         report = json.load(f)
-    model_dir = output_dir + "best_model/"
+    
     config = report['Train_config']
-
     metadata = True if len(config['metadata_cols']) > 0 else False
 
     val_cuts_str = create_cuts_str(0, 
@@ -40,7 +39,7 @@ def run_val(output_dir):
         create_subset("val", 0, config['val_sne_only'], 
                       config['val_keep_near_threshold'], config['val_rise_only'])
     else:
-        print("Validation data already present")
+        print(f"{train_data_version}{val_cuts_str} Validation data already present")
 
     cand = pd.read_csv(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")
 
@@ -56,7 +55,11 @@ def run_val(output_dir):
         # Disable GPUs if on darwin (macOS)
         tf.config.set_visible_devices([], 'GPU')
 
-    model = tf.keras.models.load_model(model_dir)
+    try:
+        model = tf.keras.models.load_model(output_dir + "best_model/")
+    except:
+        print("couldn't find best_model/ trying to find model/")
+        model = tf.keras.models.load_model(output_dir + "model/")
     
     if metadata:
         raw_preds = model.predict([triplets, cand.loc[:,config["metadata_cols"]]], batch_size=config['batch_size'], verbose=1)
@@ -118,7 +121,7 @@ def run_val(output_dir):
     fig = plt.figure(figsize=(20, 22), dpi=400)
     main_grid = gridspec.GridSpec(4, 3, wspace=0.3, hspace=0.3)
 
-    plt.suptitle(model_dir[:-11], size=28, y=0.92)
+    plt.suptitle(output_dir, size=28, y=0.92)
     
     ax1 = plt.Subplot(fig, main_grid[0])
     ax1.plot(report["Training history"]["accuracy"], label='Training', linewidth=2)
@@ -443,11 +446,11 @@ def run_val(output_dir):
 
 
 if __name__ == "__main__":
-    run_val(sys.argv[1])
+    # run_val(sys.argv[1])
 
-    # import glob
+    import glob
 
-    # models = glob.glob("models/vgg6_metadata_1_1-v5a-n60-bs16/*/")
-    # print(models)
-    # for model in models:
-    #     run_val(model)
+    models = glob.glob("models/mi_cnn_v5c_n60/*/")
+    print(models)
+    for model in models:
+        run_val(model)
