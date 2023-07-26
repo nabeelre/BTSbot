@@ -256,6 +256,7 @@ def run_val(output_dir):
     # Per-object Precision and Recall
 
     save_times = pd.read_csv("data/base_data/trues.csv").set_index("ZTFID")['RCF_save_time'].to_dict()
+    RCFJunk = pd.read_csv("data/base_data/RCFJunk_Jul25.csv", index_col=None)
 
     ax7 = plt.Subplot(fig, main_grid[6])
     ax8 = plt.Subplot(fig, main_grid[7])
@@ -289,7 +290,7 @@ def run_val(output_dir):
     # Iterate over all alerts in validation set
     for i in cand.index:
         # If this objectId hasn't been seen,
-        if cand.iloc[i]["objectId"] not in policy_cand["objectId"].to_numpy():
+        if cand.iloc[i]["objectId"] not in np.concatenate((policy_cand["objectId"].to_numpy(), RCFJunk['id'].to_numpy())):
             # Select this source's objectId, label, and magpsf
             policy_cand.loc[len(policy_cand)] = (cand.iloc[i]["objectId"], 
                                                 cand.iloc[i]["label"], 
@@ -446,11 +447,11 @@ def run_val(output_dir):
 
 
 if __name__ == "__main__":
-    # run_val(sys.argv[1])
+    run_val(sys.argv[1])
 
-    import glob
+    # import glob
 
-    models = glob.glob("models/mi_cnn_v5c_n60/*/")
-    print(models)
-    for model in models:
-        run_val(model)
+    # models = glob.glob("models/mi_cnn_v5c_n60/*/")
+    # print(models)
+    # for model in models:
+    #     run_val(model)
