@@ -43,6 +43,10 @@ def run_val(output_dir):
 
     cand = pd.read_csv(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")
 
+    if cand[config['metadata_cols']].isnull().values.any():
+        # bandaid fix
+        cand.loc[cand['drb'].isnull(), "drb"] = -999
+
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
