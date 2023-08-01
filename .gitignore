@@ -134,8 +134,8 @@ misc/
 data/
 credentials.json
 mat-smith/
+*models/
 models/
-old_models/
 slurm*
 test.py
 bts_train.sh
@@ -162,3 +162,5 @@ RF_model/
 nightly_summaries/
 sweep models/
 figs/
+*.py~
+core*

@@ -45,6 +45,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     if sys.platform == "darwin":
         # Disable GPUs if running on macOS
+        print("disabling gpus")
         tf.config.set_visible_devices([], 'GPU')
 
     N_max = config["N_max"]
@@ -100,8 +101,13 @@ def train(config, run_name : str = None, sweeping : bool = False):
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
     if cand[config['metadata_cols']].isnull().values.any():
-        print("Null in cand")
-        exit(0)
+        print("Null still in cand")
+        # bandaid fix
+        cand.loc[cand['drb'].isnull(), "drb"] = -999
+
+        if cand[config['metadata_cols']].isnull().values.any():
+            print("Null still in cand")
+        # exit(0)
     if np.any(np.isnan(triplets)):
         print("Null in triplets")
         exit(0)
@@ -267,7 +273,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         validation_steps=(0.8*len(x_val)) // batch_size,
         class_weight=class_weight,
         epochs=epochs,
-        verbose=1, callbacks=[early_stopping, LR_plateau, WandBLogger, 
+        verbose=2, callbacks=[early_stopping, LR_plateau, WandBLogger, 
                               checkpointing]
     )
 
@@ -277,9 +283,9 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     print('Evaluating on training set to check misclassified samples:')
     if metadata:
-        labels_training_pred = model.predict([x_train, train_df.iloc[:,:-1]], batch_size=batch_size, verbose=1)
+        labels_training_pred = model.predict([x_train, train_df.iloc[:,:-1]], batch_size=batch_size, verbose=2)
     else:
-        labels_training_pred = model.predict(x_train, batch_size=batch_size, verbose=1)
+        labels_training_pred = model.predict(x_train, batch_size=batch_size, verbose=2)
 
     # XOR will show misclassified samples
     misclassified_train_mask = np.array(list(map(int, cand.label))).flatten() ^ \
@@ -331,7 +337,12 @@ def train(config, run_name : str = None, sweeping : bool = False):
         os.makedirs(final_model_dir)
 
     model.save(final_model_dir)
-    tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf", show_shapes=True, show_layer_names=False, show_layer_activations=True)
+    try:
+        tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf", 
+                                  show_shapes=True, show_layer_names=False, 
+                                  show_layer_activations=True)
+    except Exception as e:
+        print(e)
 
     val_summary = bts_val.run_val(report_dir)
 
@@ -358,7 +369,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "m1il156a"
-        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbot")
+        sweep_id = "kaihq9jt"
+        wandb.agent(sweep_id, function=sweep_train, count=5, project="BTSbot")
     else:
         classic_train(sys.argv[1])
