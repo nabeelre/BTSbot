@@ -26,7 +26,7 @@ def run_val(output_dir):
     config = report['Train_config']
     metadata = True if len(config['metadata_cols']) > 0 else False
 
-    val_cuts_str = create_cuts_str(0, 
+    val_cuts_str = create_cuts_str(0, 0,
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
                                    bool(config['val_rise_only']))

@@ -3,7 +3,7 @@
     "train_data_version": "v7",
     "N_max_p": 60,
     "N_max_n": 20,
-    "epochs": 5,
+    "epochs": 500,
     "patience": 75,
     "loss": "binary_crossentropy",
     "learning_rate": 1e-4,
@@ -26,7 +26,7 @@
       "nmtchps",
       "age",
       "peakmag_so_far",
-      "drb"
+      "new_drb"
     ],
     "dropout_1": 0.20,
     "dropout_2": 0.35,
