@@ -10,11 +10,16 @@ def only_pd_gr(trips, cand):
     return triplets_pd_gr, cand_pd_gr
 
 
-def create_cuts_str(N_max : int, sne_only : bool, 
+def create_cuts_str(N_max_p : int, N_max_n : int, sne_only : bool, 
                   keep_near_threshold : bool, rise_only : bool):
     cuts_str = ""
-    if N_max:
-        cuts_str += f"_n{N_max}"
+    if N_max_p:
+        if N_max_p == N_max_n:
+            cuts_str += f"_N{N_max_p}"
+        else:
+            cuts_str += f"_Np{N_max_p}"
+            if N_max_n:
+                cuts_str += f"n{N_max_n}"
     if sne_only:
         cuts_str += "_sne"
     if not keep_near_threshold:
@@ -133,8 +138,9 @@ def apply_cut(trips, cand, keep_idxs):
     return trips, cand
 
 
-def create_subset(split_name, N_max : int = 0, sne_only : bool = False, 
-                  keep_near_threshold : bool = True, rise_only : bool = False):
+def create_subset(split_name, N_max_p : int, N_max_n : int = 0, 
+                  sne_only : bool = False, keep_near_threshold : bool = True, 
+                  rise_only : bool = False):
 
     split_trip_path = f"data/{split_name}_triplets_v7.npy"
     split_cand_path = f"data/{split_name}_cand_v7.csv"
@@ -147,21 +153,32 @@ def create_subset(split_name, N_max : int = 0, sne_only : bool = False,
     cand = pd.read_csv(split_cand_path, index_col=False)
     
     print(f"Read {split_name}")
-    cuts_str = create_cuts_str(N_max, sne_only, keep_near_threshold, rise_only)
+    if N_max_p and not N_max_n:
+        N_max_n = N_max_p
 
-    if N_max:
+    cuts_str = create_cuts_str(N_max_p, N_max_n, sne_only, keep_near_threshold, rise_only)
+
+    if N_max_p:
         mask = np.zeros(len(cand))
 
         for objid in pd.unique(cand['objectId']):
             obj_alerts = cand.loc[cand['objectId'] == objid]
             
-            if obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] in ["trues", "dims", "extIas"]:
-                mask[obj_alerts.index] = obj_alerts["N"] <= N_max
-            else:
-                # source_set = "vars", take latest N_max alerts from vars sources
-                N_max_latest_alerts = obj_alerts.sort_values(by='jd').iloc[-N_max:]
+            if obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] == "trues":
+                mask[obj_alerts.index] = obj_alerts["N"] <= N_max_p
+            elif obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] == "dims":
+                mask[obj_alerts.index] = obj_alerts["N"] <= N_max_n
+            elif obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] in ["vars", "rejects"]:
+                # source_set = "vars" and "rejects", take latest N_max_n alerts
+                N_max_n_latest_alerts = obj_alerts.sort_values(by='jd').iloc[-N_max_n:]
                 
-                mask[N_max_latest_alerts.index] = 1
+                mask[N_max_n_latest_alerts.index] = 1
+            else:  # extIas
+                p_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 1)]
+                n_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 0)]
+
+                mask[p_obj_alerts.index] = p_obj_alerts["N"] <= N_max_p
+                mask[n_obj_alerts.index] = n_obj_alerts["N"] <= N_max_n
 
         trips, cand = apply_cut(trips, cand, np.where(mask == 1)[0])
 
@@ -182,6 +199,6 @@ def create_subset(split_name, N_max : int = 0, sne_only : bool = False,
 
 if __name__ == "__main__":
     merge_data(["trues", "dims", "vars", "extIas", "rejects"], only_pd_gr)
-    # create_subset("train", 1)
-    create_subset("train", 30)
-    create_subset("train", 60)
+    create_subset("train", N_max_p=60, N_max_n=20)
+    # create_subset("train", N_max_p=60, N_max_n=40)
+    # create_subset("train", N_max_p=60, N_max_n=60)
