@@ -48,7 +48,19 @@ def train(config, run_name : str = None, sweeping : bool = False):
         print("disabling gpus")
         tf.config.set_visible_devices([], 'GPU')
 
-    N_max = config["N_max"]
+    N_max_p = config["N_max_p"]
+    if "N_max_n" in config:
+        N_max_n = config["N_max_n"]
+    else:
+        N_max_n = N_max_p
+    
+    if N_max_p == N_max_n:
+        N_str = f"_N{N_max_p}"
+    else:
+        N_str = f"_Np{N_max_p}"
+        if N_max_n:
+            N_str += f"n{N_max_n}"
+
     batch_size = config['batch_size']
 
     try: 
@@ -57,29 +69,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
         print("Could not find model of name", sys.argv[1].lower())
         exit(0)
     metadata = True if len(config['metadata_cols']) > 0 else False
-        
-    # /-----------------------------
-    #  BASIC COMMAND LINE INTERFACE
-    # /-----------------------------
 
-    if not sweeping:
-        if len(sys.argv) > 2:
-            try:
-                N_max = int(sys.argv[2])
-                config['N_max'] = N_max
-                print("N_max overridden in command line as N_max =", sys.argv[2])
-            except:
-                print("Could not understand provided N_max override:", sys.argv[2])
-
-        if len(sys.argv) > 3:
-            try:
-                batch_size = int(sys.argv[3])
-                config['batch_size'] = batch_size
-                print("batch_size overridden in command line as batch_size =", sys.argv[3])
-            except:
-                print("Could not understand provided batch_size override:", sys.argv[3])
-
-    print(f"*** Running {model_type.__name__} with N_max={N_max} and batch_size={batch_size} for epochs={epochs} ***")
+    print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}, N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
 
     # /-----------------------------
     #  LOAD TRAINING DATA
@@ -87,15 +78,15 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     train_data_version = config['train_data_version']
 
-    if not (os.path.exists(f'data/train_cand_{train_data_version}_n{N_max}.csv') and 
-            os.path.exists(f'data/train_triplets_{train_data_version}_n{N_max}.npy')):
+    if not (os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv') and 
+            os.path.exists(f'data/train_triplets_{train_data_version}{N_str}.npy')):
         print("Couldn't find correct train data subset, creating...")
-        create_subset("train", N_max=N_max)
+        create_subset("train", N_max_p=N_max_p, N_max_n=N_max_n)
     else:
         print("Training data already present")
 
-    cand = pd.read_csv(f'data/train_cand_{train_data_version}_n{N_max}.csv')
-    triplets = np.load(f'data/train_triplets_{train_data_version}_n{N_max}.npy', mmap_mode='r')
+    cand = pd.read_csv(f'data/train_cand_{train_data_version}{N_str}.csv')
+    triplets = np.load(f'data/train_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
@@ -166,7 +157,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         model = model_type(config, image_shape=image_shape)
 
     run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f"{model.name}_{train_data_version}_n{N_max}{'_CPU' if sys.platform == 'darwin' else ''}"
+    model_name = f"{model.name}_{train_data_version}{N_str}{'_CPU' if sys.platform == 'darwin' else ''}"
 
     # /-----------------------------
     #  SET UP CALLBACKS
