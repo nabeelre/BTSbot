@@ -92,13 +92,13 @@ def train(config, run_name : str = None, sweeping : bool = False):
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
     if cand[config['metadata_cols']].isnull().values.any():
-        print("Null still in cand")
+        print("Null in cand")
         # bandaid fix
-        cand.loc[cand['drb'].isnull(), "drb"] = -999
+        # cand.loc[cand['drb'].isnull(), "drb"] = -999
 
-        if cand[config['metadata_cols']].isnull().values.any():
-            print("Null still in cand")
-        # exit(0)
+        # if cand[config['metadata_cols']].isnull().values.any():
+        #     print("Null still in cand")
+        exit()
     if np.any(np.isnan(triplets)):
         print("Null in triplets")
         exit(0)
