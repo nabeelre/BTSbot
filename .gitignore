@@ -164,3 +164,4 @@ sweep models/
 figs/
 *.py~
 core*
+train_configs/
