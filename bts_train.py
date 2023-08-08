@@ -356,7 +356,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "kaihq9jt"
+        sweep_id = "i9315ibw"
         wandb.agent(sweep_id, function=sweep_train, count=5, project="BTSbot")
     else:
         classic_train(sys.argv[1])
