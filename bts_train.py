@@ -45,7 +45,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     if sys.platform == "darwin":
         # Disable GPUs if running on macOS
-        print("disabling gpus")
+        print("disabling GPUs")
         tf.config.set_visible_devices([], 'GPU')
 
     N_max_p = config["N_max_p"]
@@ -80,10 +80,10 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     if not (os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv') and 
             os.path.exists(f'data/train_triplets_{train_data_version}{N_str}.npy')):
-        print("Couldn't find correct train data subset, creating...")
+        print(f"Couldn't find {train_data_version}{N_str} train subset, creating...")
         create_subset("train", N_max_p=N_max_p, N_max_n=N_max_n)
     else:
-        print("Training data already present")
+        print(f"{train_data_version} training data already present")
 
     cand = pd.read_csv(f'data/train_cand_{train_data_version}{N_str}.csv')
     triplets = np.load(f'data/train_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
@@ -93,12 +93,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     if cand[config['metadata_cols']].isnull().values.any():
         print("Null in cand")
-        # bandaid fix
-        # cand.loc[cand['drb'].isnull(), "drb"] = -999
-
-        # if cand[config['metadata_cols']].isnull().values.any():
-        #     print("Null still in cand")
-        exit()
+        exit(0)
     if np.any(np.isnan(triplets)):
         print("Null in triplets")
         exit(0)
@@ -351,6 +346,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
         wandb.summary[policy_name+"_overall_precision"] = perf['overall_precision']
         wandb.summary[policy_name+"_overall_recall"] = perf['overall_recall']
+        wandb.summary[policy_name+"_overall_accuracy"] = perf['overall_accuracy']
         wandb.summary[policy_name+"_precision"] = perf['precision']
         wandb.summary[policy_name+"_recall"] = perf['recall']
 

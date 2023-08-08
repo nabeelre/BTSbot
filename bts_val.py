@@ -20,10 +20,15 @@ random_state = 2
 def run_val(output_dir):
     print(f"*** Running validation on {output_dir} ***")
 
-    with open(output_dir+"report.json", 'r') as f:
-        report = json.load(f)
+    try:
+        with open(output_dir+"report.json", 'r') as f:
+            report = json.load(f)
+            config = report['Train_config']
+    except:
+        with open(output_dir+"train_config.json", 'r') as f:
+            report = None
+            config = json.load(f)
     
-    config = report['Train_config']
     metadata = True if len(config['metadata_cols']) > 0 else False
 
     val_cuts_str = create_cuts_str(0, 0,
@@ -39,24 +44,26 @@ def run_val(output_dir):
         create_subset("val", 0, config['val_sne_only'], 
                       config['val_keep_near_threshold'], config['val_rise_only'])
     else:
-        print(f"{train_data_version}{val_cuts_str} Validation data already present")
+        print(f"{train_data_version}{val_cuts_str} validation data already present")
 
     cand = pd.read_csv(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")
-
-    if cand[config['metadata_cols']].isnull().values.any():
-        # bandaid fix
-        cand.loc[cand['drb'].isnull(), "drb"] = -999
+    triplets = np.load(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    triplets = np.load(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
-    assert not np.any(np.isnan(triplets))
+    if cand[config['metadata_cols']].isnull().values.any():
+        print("Null in cand")
+        exit(0)
+    if np.any(np.isnan(triplets)):
+        print("Null in triplets")
+        exit(0)
 
     tf.keras.backend.clear_session()
 
     if sys.platform == "darwin":
         # Disable GPUs if on darwin (macOS)
+        print("disabling GPUs")
         tf.config.set_visible_devices([], 'GPU')
 
     try:
@@ -92,18 +99,18 @@ def run_val(output_dir):
     FN_idxs = [ii for ii, mi in enumerate(FN_mask) if mi == 1]
 
     bins = np.arange(15,21.5,0.5)
-    all_count, _ = np.histogram(cand['magpsf']                    , bins=bins)
+    # all_count, _ = np.histogram(cand['magpsf']                    , bins=bins)
     TP_count, _  = np.histogram(cand['magpsf'].to_numpy()[TP_idxs], bins=bins)
     FP_count, _  = np.histogram(cand['magpsf'].to_numpy()[FP_idxs], bins=bins)
     TN_count, _  = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=bins)
     FN_count, _  = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=bins)
 
-    narrow_bins = np.arange(17,21.00,0.25)
-    all_count_nb, _ = np.histogram(cand['magpsf']                    , bins=narrow_bins)
-    TP_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[TP_idxs], bins=narrow_bins)
-    FP_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[FP_idxs], bins=narrow_bins)
-    TN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=narrow_bins)
-    FN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=narrow_bins)
+    # narrow_bins = np.arange(17,21.00,0.25)
+    # all_count_nb, _ = np.histogram(cand['magpsf']                    , bins=narrow_bins)
+    # TP_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[TP_idxs], bins=narrow_bins)
+    # FP_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[FP_idxs], bins=narrow_bins)
+    # TN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=narrow_bins)
+    # FN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=narrow_bins)
 
     bts_acc = len(TP_idxs)/(len(TP_idxs)+len(FN_idxs))
     notbts_acc = len(TN_idxs)/(len(TN_idxs)+len(FP_idxs))
@@ -128,8 +135,9 @@ def run_val(output_dir):
     plt.suptitle(output_dir, size=28, y=0.92)
     
     ax1 = plt.Subplot(fig, main_grid[0])
-    ax1.plot(report["Training history"]["accuracy"], label='Training', linewidth=2)
-    ax1.plot(report['Training history']['val_accuracy'], label='Validation', linewidth=2)
+    if report:
+        ax1.plot(report["Training history"]["accuracy"], label='Training', linewidth=2)
+        ax1.plot(report['Training history']['val_accuracy'], label='Validation', linewidth=2)
     ax1.axhline(bts_acc, label="BTS", c='blue', linewidth=1.5, linestyle='dashed')
     ax1.axhline(notbts_acc, label="notBTS", c='green', linewidth=1.5, linestyle='dashed')
     ax1.axhline(bal_acc, label="Balanced", c='gray', linewidth=1.5, linestyle='dashed')
@@ -144,8 +152,9 @@ def run_val(output_dir):
     # Loss
 
     ax2 = plt.Subplot(fig, main_grid[1])
-    ax2.plot(report['Training history']['loss'], label='Training', linewidth=2)
-    ax2.plot(report['Training history']['val_loss'], label='Validation', linewidth=2)
+    if report:
+        ax2.plot(report['Training history']['loss'], label='Training', linewidth=2)
+        ax2.plot(report['Training history']['val_loss'], label='Validation', linewidth=2)
     ax2.set_xlabel('Epoch', size=18)
     ax2.set_ylabel('Loss', size=18)
     ax2.legend(loc='best')
@@ -278,9 +287,6 @@ def run_val(output_dir):
 
     def gt3(alerts):
         return np.sum(alerts['preds']) >= 3
-    
-    def g1l20(alerts):
-        return (np.sum(alerts['preds']) >= 1) and (np.sum(alerts['raw_preds'] < 0.5) < 20)
 
     policy_names = ["gt1", "gt2", "gt3"]
     policies = [gt1, gt2, gt3]
@@ -359,10 +365,11 @@ def run_val(output_dir):
         if all((len(TP_idxs_policy) > 0, len(TN_idxs_policy) > 0, len(FP_idxs_policy) > 0, len(FN_idxs_policy) > 0)):
             precision = TP_count_policy/(TP_count_policy + FP_count_policy)
             recall = TP_count_policy/(TP_count_policy + FN_count_policy)
-
+            
             overall_precision = np.sum(TP_count_policy)/(np.sum(TP_count_policy) + np.sum(FP_count_policy))
             overall_recall = np.sum(TP_count_policy)/(np.sum(TP_count_policy) + np.sum(FN_count_policy))
-            
+            overall_accuracy = np.sum(policy_labels == policy_preds) / len(policy_labels)
+
             cp_ax.step(bright_narrow_bins, 100*np.append(recall[0], recall), color='#263D65', label='Completeness', linewidth=3)
             cp_ax.step(bright_narrow_bins, 100*np.append(precision[0], precision), color='#FE7F2D', label='Purity', linewidth=3)
             
@@ -383,18 +390,19 @@ def run_val(output_dir):
             med_del_st = np.nanmedian(policy_cand[name+"_del_st"])
             st_ax.hist(policy_cand[name+"_del_st"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name)
         else:
-            precision = recall = overall_precision = overall_recall = med_del_st = -999.0
+            precision = recall = overall_precision = overall_recall = med_del_st = overall_accuracy = -999.0
 
         policy_performance[name] = {
             "overall_precision": overall_precision,
             "overall_recall": overall_recall,
+            "overall_accuracy": overall_accuracy,
             "precision": precision,
             "recall": recall,
             "peakmag_bins": bright_narrow_bins,
             "med_del_st": med_del_st,
         }
 
-        cp_ax.text(x=17.8, y=76.25, s=f"{name}\n({100*overall_recall:.0f}%,{100*overall_precision:.0f}%)", fontsize=28, fontweight='bold', c='#654690')
+        cp_ax.text(x=17.75, y=76.25, s=f"{name} acc{100*overall_accuracy:.0f}%\nc,p({100*overall_recall:.0f}%,{100*overall_precision:.0f}%)", fontsize=20, fontweight='bold', c='#654690')
         cp_ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
         cp_ax.grid(True, linewidth=.3)
 
@@ -451,11 +459,16 @@ def run_val(output_dir):
 
 
 if __name__ == "__main__":
-    run_val(sys.argv[1])
+    # run_val(sys.argv[1])
+
+    run_val("models/mi_cnn_v7_N60/lunar-sweep-25/")
 
     # import glob
 
-    # models = glob.glob("models/mi_cnn_v5c_n60/*/")
+    # models = glob.glob("models/*v7*/*/")
+
     # print(models)
     # for model in models:
-    #     run_val(model)
+    #     if len(glob.glob(model+"*.pdf")) == 0:
+    #         print(model)
+    #         run_val(model)
