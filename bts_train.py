@@ -346,7 +346,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
         wandb.summary[policy_name+"_overall_precision"] = perf['overall_precision']
         wandb.summary[policy_name+"_overall_recall"] = perf['overall_recall']
-        wandb.summary[policy_name+"_overall_accuracy"] = perf['overall_accuracy']
+        wandb.summary[policy_name+"_full_precision"] = perf['full_precision']
         wandb.summary[policy_name+"_precision"] = perf['precision']
         wandb.summary[policy_name+"_recall"] = perf['recall']
 

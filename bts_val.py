@@ -368,7 +368,7 @@ def run_val(output_dir):
             
             overall_precision = np.sum(TP_count_policy)/(np.sum(TP_count_policy) + np.sum(FP_count_policy))
             overall_recall = np.sum(TP_count_policy)/(np.sum(TP_count_policy) + np.sum(FN_count_policy))
-            overall_accuracy = np.sum(policy_labels == policy_preds) / len(policy_labels)
+            full_precision = np.sum((policy_labels == 1) & (policy_labels == policy_preds)) / np.sum(policy_preds == 1)
 
             cp_ax.step(bright_narrow_bins, 100*np.append(recall[0], recall), color='#263D65', label='Completeness', linewidth=3)
             cp_ax.step(bright_narrow_bins, 100*np.append(precision[0], precision), color='#FE7F2D', label='Purity', linewidth=3)
@@ -390,19 +390,19 @@ def run_val(output_dir):
             med_del_st = np.nanmedian(policy_cand[name+"_del_st"])
             st_ax.hist(policy_cand[name+"_del_st"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name)
         else:
-            precision = recall = overall_precision = overall_recall = med_del_st = overall_accuracy = -999.0
+            precision = recall = overall_precision = overall_recall = med_del_st = full_precision = -999.0
 
         policy_performance[name] = {
             "overall_precision": overall_precision,
             "overall_recall": overall_recall,
-            "overall_accuracy": overall_accuracy,
+            "full_precision": full_precision,
             "precision": precision,
             "recall": recall,
             "peakmag_bins": bright_narrow_bins,
             "med_del_st": med_del_st,
         }
 
-        cp_ax.text(x=17.75, y=76.25, s=f"{name} acc{100*overall_accuracy:.0f}%\nc,p({100*overall_recall:.0f}%,{100*overall_precision:.0f}%)", fontsize=20, fontweight='bold', c='#654690')
+        cp_ax.text(x=17.75, y=76.25, s=f"{name} prec{100*full_precision:.0f}%\nc,p({100*overall_recall:.0f}%,{100*overall_precision:.0f}%)", fontsize=20, fontweight='bold', c='#654690')
         cp_ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
         cp_ax.grid(True, linewidth=.3)
 
@@ -459,9 +459,9 @@ def run_val(output_dir):
 
 
 if __name__ == "__main__":
-    # run_val(sys.argv[1])
+    run_val(sys.argv[1])
 
-    run_val("models/mi_cnn_v7_N60/lunar-sweep-25/")
+    # run_val("models/mi_cnn_v7_N60/lunar-sweep-25/")
 
     # import glob
 
