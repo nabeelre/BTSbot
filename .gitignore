@@ -134,7 +134,7 @@ misc/
 data/
 credentials.json
 mat-smith/
-*models/
+old_models/
 models/
 slurm*
 test.py
