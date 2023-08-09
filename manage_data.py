@@ -10,6 +10,15 @@ def only_pd_gr(trips, cand):
     return triplets_pd_gr, cand_pd_gr
 
 
+def only_pd_gr_ps(trips, cand):
+    cand['isdiffpos'] = [True if isdiffpos == 't' else False for isdiffpos in cand['isdiffpos']]
+
+    cand_pd_gr_ps = cand[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2)) & ((cand['sgscore1'] >=0) | (cand['sgscore2'] >=0))]
+    triplets_pd_gr_ps = trips[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2)) & ((cand['sgscore1'] >=0) | (cand['sgscore2'] >=0))]
+
+    return triplets_pd_gr_ps, cand_pd_gr_ps
+
+
 def create_cuts_str(N_max_p : int, N_max_n : int, sne_only : bool, 
                   keep_near_threshold : bool, rise_only : bool):
     cuts_str = ""
@@ -30,8 +39,7 @@ def create_cuts_str(N_max_p : int, N_max_n : int, sne_only : bool,
     return cuts_str
 
 
-def merge_data(set_names, cuts, seed=2):
-
+def merge_data(set_names, cuts, version_name, seed=2):
     train_triplets = np.empty((0,63,63,3))
     train_cand = pd.DataFrame()
 
@@ -123,8 +131,8 @@ def merge_data(set_names, cuts, seed=2):
                                        [train_triplets, val_triplets, test_triplets]):
         np.random.seed(seed)
         shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
-        np.save(f"data/{split_name}_triplets_v7.npy", trips[shuffle_idx])
-        cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_v7.csv", index=False)
+        np.save(f"data/{split_name}_triplets_{version_name}.npy", trips[shuffle_idx])
+        cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_{version_name}.csv", index=False)
         print(f"Wrote merged and shuffled {split_name} triplets and candidate data")
 
     del train_triplets, train_cand, val_triplets, val_cand, test_triplets, test_cand
@@ -138,16 +146,17 @@ def apply_cut(trips, cand, keep_idxs):
     return trips, cand
 
 
-def create_subset(split_name, N_max_p : int, N_max_n : int = 0, 
+def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0, 
                   sne_only : bool = False, keep_near_threshold : bool = True, 
                   rise_only : bool = False):
 
-    split_trip_path = f"data/{split_name}_triplets_v7.npy"
-    split_cand_path = f"data/{split_name}_cand_v7.csv"
+    split_trip_path = f"data/{split_name}_triplets_{version_name}.npy"
+    split_cand_path = f"data/{split_name}_cand_{version_name}.csv"
 
     if not (os.path.exists(split_trip_path) and os.path.exists(split_cand_path)):
         print("Parent split files absent, creating them first")
-        merge_data(["trues", "dims", "vars", "extIas", "rejects"], only_pd_gr)
+        merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects_nojunk"], 
+                   cuts=only_pd_gr_ps, version_name=version_name)
     
     trips = np.load(split_trip_path, mmap_mode='r')
     cand = pd.read_csv(split_cand_path, index_col=False)
@@ -168,8 +177,8 @@ def create_subset(split_name, N_max_p : int, N_max_n : int = 0,
                 mask[obj_alerts.index] = obj_alerts["N"] <= N_max_p
             elif obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] == "dims":
                 mask[obj_alerts.index] = obj_alerts["N"] <= N_max_n
-            elif obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] in ["vars", "rejects"]:
-                # source_set = "vars" and "rejects", take latest N_max_n alerts
+            elif obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] in ["vars", "rejects_nojunk", "junk", "rejects"]:
+                # source_set = "vars" and "rejects_nojunk", take latest N_max_n alerts
                 N_max_n_latest_alerts = obj_alerts.sort_values(by='jd').iloc[-N_max_n:]
                 
                 mask[N_max_n_latest_alerts.index] = 1
@@ -192,13 +201,26 @@ def create_subset(split_name, N_max_p : int, N_max_n : int = 0,
         trips, cand = apply_cut(trips, cand, cand[cand["is_rise"]].index)
 
     print(f"Created a {cuts_str} subset of {split_name}")
-    np.save(f"data/{split_name}_triplets_v7{cuts_str}.npy", trips)
-    cand.to_csv(f"data/{split_name}_cand_v7{cuts_str}.csv", index=False)
+    np.save(f"data/{split_name}_triplets_{version_name}{cuts_str}.npy", trips)
+    cand.to_csv(f"data/{split_name}_cand_{version_name}{cuts_str}.csv", index=False)
     print(f"Wrote triplets and candidate data for {cuts_str} subset of {split_name}")
 
 
 if __name__ == "__main__":
-    merge_data(["trues", "dims", "vars", "extIas", "rejects"], only_pd_gr)
-    create_subset("train", N_max_p=60, N_max_n=20)
-    # create_subset("train", N_max_p=60, N_max_n=40)
-    # create_subset("train", N_max_p=60, N_max_n=60)
+    # merge_data(set_names=["trues", "dims"], 
+    #            cuts=only_pd_gr_ps, version_name="v0", seed=2)
+
+    # merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects_nojunk"], 
+    #            cuts=only_pd_gr_ps, version_name="v7a", seed=2)
+    
+    # to do
+    merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects_nojunk", "junk"], 
+               cuts=only_pd_gr_ps, version_name="v7b", seed=2)
+    
+    N_max_ps = [60, 30, 10]
+    N_max_ns = [60, 30, 10]
+
+    for N_max_p in N_max_ps:
+        for N_max_n in N_max_ns:
+            # create_subset("train", version_name="v7a", N_max_p=N_max_p, N_max_n=N_max_n)
+            create_subset("train", version_name="v7b", N_max_p=N_max_p, N_max_n=N_max_n)
