@@ -288,26 +288,36 @@ def run_val(output_dir):
     def gt3(alerts):
         return np.sum(alerts['preds']) >= 3
 
-    policy_names = ["gt1", "gt2", "gt3"]
-    policies = [gt1, gt2, gt3]
-    CP_axes = [ax7, ax8, ax9]
-    ST_axes = [ax10, ax11, ax12]
+    def bts_save(alerts):
+        valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
+        return len(valid) >= 2
+
+    def bts_trigger(alerts):
+        if np.min(alerts['magpsf']) <= 18.5:
+            valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
+            return len(valid) >= 2
+        return False
+
+    policy_names = ["gt1", "gt2", "bts_save", "bts_trigger", "gt3"]
+    policies = [gt1, gt2, bts_save, bts_trigger, gt3]
+    CP_axes = [ax7, ax8, ax9, None, None]
+    ST_axes = [ax10, ax11, ax12, None, None]
 
     policy_performance = dict.fromkeys(policy_names)
 
     # Get label and peakmag for each source (by taking all unique objectIds)
     policy_cand = pd.DataFrame(columns=["objectId", "label", "peakmag"])
     # Iterate over all alerts in validation set
-    for i in cand.index:
-        # If this objectId hasn't been seen,
-        if cand.iloc[i]["objectId"] not in np.concatenate((policy_cand["objectId"].to_numpy(), RCFJunk['id'].to_numpy())):
-            # Select this source's objectId, label, and magpsf
-            policy_cand.loc[len(policy_cand)] = (cand.iloc[i]["objectId"], 
-                                                cand.iloc[i]["label"], 
-                                                cand.iloc[i]["peakmag"])
+    for objid in pd.unique(cand['objectId']):
+        if objid not in np.concatenate((policy_cand['objectId'], RCFJunk['id'])):
+            if len(cand[cand['objectId'] == objid]) >= 5:
+                policy_cand.loc[len(policy_cand)] = (objid,
+                                                    cand.loc[cand['objectId'] == objid, "label"].iloc[0],
+                                                    cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0])
 
     # For each policy
-    for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes[0:len(policy_names)], ST_axes[0:len(policy_names)]):
+    for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes, ST_axes):
+        plot_policy = cp_ax != None
         # Initialize new columns
         policy_cand[name+"_pred"] = 0
         policy_cand[name+"_save_jd"] = -1
@@ -356,25 +366,24 @@ def run_val(output_dir):
         FP_idxs_policy = [ii for ii, mi in enumerate(FP_mask_policy) if mi == 1]
         FN_idxs_policy = [ii for ii, mi in enumerate(FN_mask_policy) if mi == 1]
 
-        # _, ax_temp = plt.subplots()
-        TP_count_policy, _  = np.histogram(policy_cand.loc[TP_idxs_policy, "peakmag"], bins=bright_narrow_bins)
-        FP_count_policy, _  = np.histogram(policy_cand.loc[FP_idxs_policy, "peakmag"], bins=bright_narrow_bins)
-        # TN_count_policy, _  = np.histogram(policy_cand.loc[TN_idxs_policy, "peakmag"], bins=bright_narrow_bins)
-        FN_count_policy, _  = np.histogram(policy_cand.loc[FN_idxs_policy, "peakmag"], bins=bright_narrow_bins)
+        TP_count_policy_binned, _  = np.histogram(policy_cand.loc[TP_idxs_policy, "peakmag"], bins=bright_narrow_bins)
+        FP_count_policy_binned, _  = np.histogram(policy_cand.loc[FP_idxs_policy, "peakmag"], bins=bright_narrow_bins)
+        # TN_count_policy_binned, _  = np.histogram(policy_cand.loc[TN_idxs_policy, "peakmag"], bins=bright_narrow_bins)
+        FN_count_policy_binned, _  = np.histogram(policy_cand.loc[FN_idxs_policy, "peakmag"], bins=bright_narrow_bins)
 
-        if all((len(TP_idxs_policy) > 0, len(TN_idxs_policy) > 0, len(FP_idxs_policy) > 0, len(FN_idxs_policy) > 0)):
-            precision = TP_count_policy/(TP_count_policy + FP_count_policy)
-            recall = TP_count_policy/(TP_count_policy + FN_count_policy)
-            
-            overall_precision = np.sum(TP_count_policy)/(np.sum(TP_count_policy) + np.sum(FP_count_policy))
-            overall_recall = np.sum(TP_count_policy)/(np.sum(TP_count_policy) + np.sum(FN_count_policy))
-            full_precision = np.sum((policy_labels == 1) & (policy_labels == policy_preds)) / np.sum(policy_preds == 1)
+        if all((len(TP_idxs_policy) > 0, len(TN_idxs_policy) > 0)):
+            policy_precision = len(TP_idxs_policy) / (len(FP_idxs_policy) + len(TP_idxs_policy))
+            policy_recall = len(TP_idxs_policy) / (len(FN_idxs_policy) + len(TP_idxs_policy))
 
-            cp_ax.step(bright_narrow_bins, 100*np.append(recall[0], recall), color='#263D65', label='Completeness', linewidth=3)
-            cp_ax.step(bright_narrow_bins, 100*np.append(precision[0], precision), color='#FE7F2D', label='Purity', linewidth=3)
-            
-            cp_ax.axhline(100*overall_precision, color='#FE7F2D', linewidth=2, linestyle='dashed')
-            cp_ax.axhline(100*overall_recall, color='#263D65', linewidth=2, linestyle='dashed')
+            binned_precision = TP_count_policy_binned/(TP_count_policy_binned + FP_count_policy_binned)
+            binned_recall = TP_count_policy_binned/(TP_count_policy_binned + FN_count_policy_binned)
+
+            if plot_policy:
+                cp_ax.step(bright_narrow_bins, 100*np.append(binned_recall[0], binned_recall), color='#263D65', label='Completeness', linewidth=3)
+                cp_ax.step(bright_narrow_bins, 100*np.append(binned_precision[0], binned_precision), color='#FE7F2D', label='Purity', linewidth=3)
+                
+                cp_ax.axhline(100*policy_precision, color='#FE7F2D', linewidth=2, linestyle='dashed')
+                cp_ax.axhline(100*policy_recall, color='#263D65', linewidth=2, linestyle='dashed')
 
             # policy cand has only val for all sets
             # save_times has train+val+test but only BTSSE trues
@@ -388,49 +397,52 @@ def run_val(output_dir):
                         policy_cand.loc[policy_cand["objectId"] == objid, name+"_del_st"] = policy_cand.loc[policy_cand["objectId"] == objid, name+"_save_jd"].values[0] - save_times[objid]
         
             med_del_st = np.nanmedian(policy_cand[name+"_del_st"])
-            st_ax.hist(policy_cand[name+"_del_st"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name)
+            if plot_policy:
+                st_ax.hist(policy_cand[name+"_del_st"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name)
         else:
-            precision = recall = overall_precision = overall_recall = med_del_st = full_precision = -999.0
+            policy_precision = policy_recall = binned_precision = binned_recall = med_del_st = -999.0
 
         policy_performance[name] = {
-            "overall_precision": overall_precision,
-            "overall_recall": overall_recall,
-            "full_precision": full_precision,
-            "precision": precision,
-            "recall": recall,
+            "policy_precision": policy_precision,
+            "policy_recall": policy_recall,
+            "binned_precision": binned_precision,
+            "binned_recall": binned_recall,
             "peakmag_bins": bright_narrow_bins,
-            "med_del_st": med_del_st,
+            "med_del_st": med_del_st
         }
 
-        cp_ax.text(x=17.75, y=76.25, s=f"{name} prec{100*full_precision:.0f}%\nc,p({100*overall_recall:.0f}%,{100*overall_precision:.0f}%)", fontsize=20, fontweight='bold', c='#654690')
-        cp_ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
-        cp_ax.grid(True, linewidth=.3)
+        if plot_policy:
+            cp_ax.text(x=17.75, y=76.25, s=f"{name}\n({100*policy_recall:.0f}%,{100*policy_precision:.0f}%)", fontsize=20, fontweight='bold', c='#654690')
+            cp_ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
+            cp_ax.grid(True, linewidth=.3)
 
-        cp_ax.set_xlim([17.0,18.5])
-        cp_ax.set_ylim([75,100.5])
-        
-        cp_ax.xaxis.set_major_locator(mtick.MultipleLocator(0.5))
-        cp_ax.xaxis.set_minor_locator(mtick.MultipleLocator(0.25))
-        cp_ax.yaxis.set_major_locator(mtick.MultipleLocator(10))
-        cp_ax.yaxis.set_minor_locator(mtick.MultipleLocator(5))
+            cp_ax.set_xlim([17.0,18.5])
+            cp_ax.set_ylim([75,100.5])
+            
+            cp_ax.xaxis.set_major_locator(mtick.MultipleLocator(0.5))
+            cp_ax.xaxis.set_minor_locator(mtick.MultipleLocator(0.25))
+            cp_ax.yaxis.set_major_locator(mtick.MultipleLocator(10))
+            cp_ax.yaxis.set_minor_locator(mtick.MultipleLocator(5))
 
-        cp_ax.yaxis.set_major_formatter(mtick.PercentFormatter(decimals=0))
-        
-        cp_ax.tick_params(direction='in', axis='both', length=3, width=1.5, bottom=True, left=True, right=True, pad=10)
-        cp_ax.tick_params(which='minor', direction='in', axis='y', length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
+            cp_ax.yaxis.set_major_formatter(mtick.PercentFormatter(decimals=0))
+            
+            cp_ax.tick_params(direction='in', axis='both', length=3, width=1.5, bottom=True, left=True, right=True, pad=10)
+            cp_ax.tick_params(which='minor', direction='in', axis='y', length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
 
-        cp_ax.set_xlabel("Peak Magnitude", size=22)
-        cp_ax.set_ylabel("% of objects", size=18)
+            cp_ax.set_xlabel("Peak Magnitude", size=22)
+            cp_ax.set_ylabel("% of objects", size=18)
 
-        st_ax.axvline(med_del_st, linestyle='solid', c='k', linewidth=1.5, label=f"med:\n{med_del_st:.2f} d")
-        st_ax.axvline(0, linestyle='dashed', c='gray', linewidth=1)
+            st_ax.axvline(med_del_st, linestyle='solid', c='k', linewidth=1.5, label=f"med:\n{med_del_st:.2f} d")
+            st_ax.axvline(0, linestyle='dashed', c='gray', linewidth=1)
 
-        st_ax.set_xlim([-15,15])
-        st_ax.set_ylim([0,55])
-        
-        st_ax.legend(prop={'size': 20}, frameon=False)
-        st_ax.set_ylabel("# of sources", size=18)
-        st_ax.set_xlabel("Days after save by scanner", size=22)
+            st_ax.set_xlim([-15,15])
+            st_ax.set_ylim([0,55])
+            
+            st_ax.legend(prop={'size': 20}, frameon=False)
+            st_ax.set_ylabel("# of sources", size=18)
+            st_ax.set_xlabel("Days after save by scanner", size=22)
+
+        print(f"Finished policy {name} analysis")
 
     ax7.axhline(0, color='gray', linewidth=2, linestyle='dashed', label='Overall')
     ax7.legend(prop={'size': 14}, frameon=False, loc="lower left")
@@ -449,26 +461,37 @@ def run_val(output_dir):
         ax.tick_params(which='both', width=1.5)
 
     plt.savefig(output_dir+"/"+os.path.basename(os.path.normpath(output_dir))+val_cuts_str+".pdf", bbox_inches='tight')
-    plt.close()
+    
 
-    return {
+    print({
         "roc_auc": roc_auc, "bal_acc": bal_acc, "bts_acc": bts_acc, 
         "notbts_acc": notbts_acc, "alert_precision": alert_precision,
         "alert_recall": alert_recall, "policy_performance": policy_performance
+    })
+    return {
+        "roc_auc": roc_auc, "bal_acc": bal_acc, "bts_acc": bts_acc, "fig": fig,
+        "notbts_acc": notbts_acc, "alert_precision": alert_precision,
+        "alert_recall": alert_recall, "policy_performance": policy_performance
     }
+
+    plt.close()
 
 
 if __name__ == "__main__":
     run_val(sys.argv[1])
 
-    # run_val("models/mi_cnn_v7_N60/lunar-sweep-25/")
+    # run_val("models/mi_cnn_v7a_Np60n30/desert-sweep-37/")
 
     # import glob
 
-    # models = glob.glob("models/*v7*/*/")
+    # models = glob.glob("models/*v7a*/*/")
+    # results = []
 
     # print(models)
     # for model in models:
-    #     if len(glob.glob(model+"*.pdf")) == 0:
-    #         print(model)
-    #         run_val(model)
+    #     print(model)
+    #     res = run_val(model)
+    #     results.append({model: res})
+
+    # print(results)
+    # pass

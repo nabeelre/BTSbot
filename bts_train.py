@@ -344,15 +344,17 @@ def train(config, run_name : str = None, sweeping : bool = False):
     for policy_name in list(val_summary['policy_performance']):
         perf = val_summary['policy_performance'][policy_name]
 
-        wandb.summary[policy_name+"_overall_precision"] = perf['overall_precision']
-        wandb.summary[policy_name+"_overall_recall"] = perf['overall_recall']
-        wandb.summary[policy_name+"_full_precision"] = perf['full_precision']
-        wandb.summary[policy_name+"_precision"] = perf['precision']
-        wandb.summary[policy_name+"_recall"] = perf['recall']
+        wandb.summary[policy_name+"_policy_precision"] = perf['policy_precision']
+        wandb.summary[policy_name+"_policy_recall"] = perf['policy_recall']
+        wandb.summary[policy_name+"_binned_precision"] = perf['binned_precision']
+        wandb.summary[policy_name+"_binned_recall"] = perf['binned_recall']
+        wandb.summary[policy_name+"_peakmag_bins"] = perf['peakmag_bins']
 
         wandb.summary[policy_name+"_med_del_st"] = perf['med_del_st']
 
-        wandb.summary[policy_name+"_F1"] = (2 * perf['overall_precision'] * perf['overall_recall']) / (perf['overall_precision'] + perf['overall_recall'])
+        wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) / (perf['policy_precision'] + perf['policy_recall'])
+
+    wandb.log({"figure": fig})
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
