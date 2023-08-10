@@ -344,8 +344,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
     for policy_name in list(val_summary['policy_performance']):
         perf = val_summary['policy_performance'][policy_name]
 
-        wandb.summary[policy_name+"_policy_precision"] = perf['policy_precision']
-        wandb.summary[policy_name+"_policy_recall"] = perf['policy_recall']
+        wandb.summary[policy_name+"_precision"] = perf['policy_precision']
+        wandb.summary[policy_name+"_recall"] = perf['policy_recall']
         wandb.summary[policy_name+"_binned_precision"] = perf['binned_precision']
         wandb.summary[policy_name+"_binned_recall"] = perf['binned_recall']
         wandb.summary[policy_name+"_peakmag_bins"] = perf['peakmag_bins']
@@ -354,7 +354,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
         wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) / (perf['policy_precision'] + perf['policy_recall'])
 
-    wandb.log({"figure": fig})
+    wandb.log({"figure": val_summary['fig']})
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
