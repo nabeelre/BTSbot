@@ -281,16 +281,18 @@ def run_val(output_dir):
 
     def gt1(alerts):
         return np.sum(alerts['preds']) >= 1
-        
-    def gt2(alerts):
-        return np.sum(alerts['preds']) >= 2
-
-    def gt3(alerts):
-        return np.sum(alerts['preds']) >= 3
+    
+    def gt1b19(alerts):
+        valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
+        return len(valid) >= 1
 
     def bts_save(alerts):
         valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
         return len(valid) >= 2
+
+    def gt3b19(alerts):
+        valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
+        return len(valid) >= 3
 
     def bts_trigger(alerts):
         if np.min(alerts['magpsf']) <= 18.5:
@@ -298,8 +300,8 @@ def run_val(output_dir):
             return len(valid) >= 2
         return False
 
-    policy_names = ["gt1", "gt2", "bts_save", "bts_trigger", "gt3"]
-    policies = [gt1, gt2, bts_save, bts_trigger, gt3]
+    policy_names = ["gt1b19", "bts_save", "bts_trigger", "gt3b19"]
+    policies = [gt1b19, bts_save, bts_trigger, gt3b19]
     CP_axes = [ax7, ax8, ax9, None, None]
     ST_axes = [ax10, ax11, ax12, None, None]
 
@@ -468,13 +470,14 @@ def run_val(output_dir):
         "notbts_acc": notbts_acc, "alert_precision": alert_precision,
         "alert_recall": alert_recall, "policy_performance": policy_performance
     })
+
     return {
         "roc_auc": roc_auc, "bal_acc": bal_acc, "bts_acc": bts_acc, "fig": fig,
         "notbts_acc": notbts_acc, "alert_precision": alert_precision,
         "alert_recall": alert_recall, "policy_performance": policy_performance
     }
 
-    plt.close()
+    # plt.close()
 
 
 if __name__ == "__main__":
