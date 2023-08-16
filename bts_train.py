@@ -4,7 +4,7 @@ import wandb
 
 import CNN_models
 import bts_val
-from manage_data import create_subset
+from train_val_test_split import create_subset
 
 plt.rcParams.update({
     "font.family": "Times New Roman",

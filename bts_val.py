@@ -8,7 +8,7 @@ import matplotlib.ticker as mtick
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from manage_data import create_subset, create_cuts_str
+from train_val_test_split import create_subset, create_cuts_str
 
 plt.rcParams.update({
     "font.family": "Times New Roman",
