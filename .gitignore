@@ -165,3 +165,4 @@ figs/
 *.py~
 core*
 train_configs/
+training_data.ipynb

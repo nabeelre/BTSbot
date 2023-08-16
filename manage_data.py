@@ -1,4 +1,6 @@
-import os, numpy as np, pandas as pd
+import numpy as np
+import pandas as pd
+import os
 
 
 def only_pd_gr(trips, cand):
@@ -207,20 +209,12 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 
 
 if __name__ == "__main__":
-    # merge_data(set_names=["trues", "dims"], 
-    #            cuts=only_pd_gr_ps, version_name="v0", seed=2)
-
-    # merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects_nojunk"], 
-    #            cuts=only_pd_gr_ps, version_name="v7a", seed=2)
-    
-    # to do
-    merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects_nojunk", "junk"], 
-               cuts=only_pd_gr_ps, version_name="v7b", seed=2)
+    merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects"], 
+               cuts=only_pd_gr_ps, version_name="v8", seed=2)
     
     N_max_ps = [60, 30, 10]
     N_max_ns = [60, 30, 10]
 
     for N_max_p in N_max_ps:
         for N_max_n in N_max_ns:
-            # create_subset("train", version_name="v7a", N_max_p=N_max_p, N_max_n=N_max_n)
-            create_subset("train", version_name="v7b", N_max_p=N_max_p, N_max_n=N_max_n)
+            create_subset("train", version_name="v8", N_max_p=N_max_p, N_max_n=N_max_n)
