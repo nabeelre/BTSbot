@@ -166,3 +166,10 @@ figs/
 core*
 train_configs/
 training_data.ipynb
+supporting_models/*/
+sweep*/
+v*raw/
+manual_models/
+query*.sh
+configs/
+old_batches/
