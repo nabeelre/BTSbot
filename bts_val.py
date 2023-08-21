@@ -31,7 +31,7 @@ def run_val(output_dir):
     
     metadata = True if len(config['metadata_cols']) > 0 else False
 
-    val_cuts_str = create_cuts_str(0, 0,
+    val_cuts_str = create_cuts_str(config["N_max_p"], config["N_max_n"],
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
                                    bool(config['val_rise_only']))
@@ -41,7 +41,8 @@ def run_val(output_dir):
     if not (os.path.exists(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy") and 
             os.path.exists(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")):
         
-        create_subset("val", 0, config['val_sne_only'], 
+        create_subset("val", train_data_version, config["N_max_p"], 
+                      config["N_max_n"], config['val_sne_only'], 
                       config['val_keep_near_threshold'], config['val_rise_only'])
     else:
         print(f"{train_data_version}{val_cuts_str} validation data already present")
@@ -483,7 +484,7 @@ def run_val(output_dir):
 if __name__ == "__main__":
     run_val(sys.argv[1])
 
-    # run_val("models/mi_cnn_v7a_Np60n30/desert-sweep-37/")
+    # run_val("models/mi_cnn_v8_N60/trim-rain-321/")
 
     # import glob
 

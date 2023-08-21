@@ -157,7 +157,7 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 
     if not (os.path.exists(split_trip_path) and os.path.exists(split_cand_path)):
         print("Parent split files absent, creating them first")
-        merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects_nojunk"], 
+        merge_data(set_names=["trues", "dims", "vars", "rejects"], 
                    cuts=only_pd_gr_ps, version_name=version_name)
     
     trips = np.load(split_trip_path, mmap_mode='r')
@@ -174,22 +174,34 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 
         for objid in pd.unique(cand['objectId']):
             obj_alerts = cand.loc[cand['objectId'] == objid]
-            
-            if obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] == "trues":
-                mask[obj_alerts.index] = obj_alerts["N"] <= N_max_p
-            elif obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] == "dims":
+
+            source_set = obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")]
+            if source_set == "trues":
+                if split_name == "train":
+                    # source_set = "trues," take random N_max_p alerts (train only)
+                    mask[obj_alerts.index] = obj_alerts["N"] <= N_max_p
+                else:
+                    mask[obj_alerts.index] = 1
+            elif source_set in ["dims", "rejects"]:
+                # source_set = "dims" or "rejects," take random N_max_n alerts
                 mask[obj_alerts.index] = obj_alerts["N"] <= N_max_n
-            elif obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")] in ["vars", "rejects_nojunk", "junk", "rejects"]:
-                # source_set = "vars" and "rejects_nojunk", take latest N_max_n alerts
+            elif source_set in ["vars", "junk"]:
+                # source_set = "vars," take latest N_max_n alerts
                 N_max_n_latest_alerts = obj_alerts.sort_values(by='jd').iloc[-N_max_n:]
                 
                 mask[N_max_n_latest_alerts.index] = 1
-            else:  # extIas
+            elif source_set == "extIas":
                 p_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 1)]
-                n_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 0)]
+                if split_name == "train":
+                    mask[p_obj_alerts.index] = p_obj_alerts["N"] <= N_max_p
+                else:
+                    mask[p_obj_alerts.index] = 1
 
-                mask[p_obj_alerts.index] = p_obj_alerts["N"] <= N_max_p
+                n_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 0)]
                 mask[n_obj_alerts.index] = n_obj_alerts["N"] <= N_max_n
+            else:
+                print("Unknown source_set", source_set)
+                exit
 
         trips, cand = apply_cut(trips, cand, np.where(mask == 1)[0])
 
@@ -209,12 +221,20 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 
 
 if __name__ == "__main__":
-    merge_data(set_names=["trues", "dims", "vars", "extIas", "rejects"], 
-               cuts=only_pd_gr_ps, version_name="v8", seed=2)
-    
-    N_max_ps = [60, 30, 10]
-    N_max_ns = [60, 30, 10]
+    version = "v8b"
 
-    for N_max_p in N_max_ps:
-        for N_max_n in N_max_ns:
-            create_subset("train", version_name="v8", N_max_p=N_max_p, N_max_n=N_max_n)
+    merge_data(set_names=["trues", "dims", "vars", "rejects"], 
+               cuts=only_pd_gr_ps, version_name=version, seed=2)
+    
+    # N_max_ps = [60, 30, 10]
+    # N_max_ns = [60, 30, 10]
+
+    # for N_max_p in N_max_ps:
+    #     for N_max_n in N_max_ns:
+    #         create_subset("train", version_name=version, 
+    #                       N_max_p=N_max_p, N_max_n=N_max_n)
+    #         create_subset("val", version_name=version, 
+    #                       N_max_p=N_max_p, N_max_n=N_max_n)
+
+    # create_subset("train", version_name=version, N_max_p=60, N_max_n=60)
+    create_subset("val", version_name=version, N_max_p=60, N_max_n=60)

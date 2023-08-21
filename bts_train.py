@@ -81,7 +81,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
     if not (os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv') and 
             os.path.exists(f'data/train_triplets_{train_data_version}{N_str}.npy')):
         print(f"Couldn't find {train_data_version}{N_str} train subset, creating...")
-        create_subset("train", N_max_p=N_max_p, N_max_n=N_max_n)
+        create_subset("train", version_name=train_data_version, 
+                      N_max_p=N_max_p, N_max_n=N_max_n)
     else:
         print(f"{train_data_version} training data already present")
 
@@ -102,8 +103,16 @@ def train(config, run_name : str = None, sweeping : bool = False):
     #  LOAD VALIDATION DATA
     # /-----------------------------
 
-    val_cand = pd.read_csv(f'data/val_cand_{train_data_version}.csv')
-    val_triplets = np.load(f'data/val_triplets_{train_data_version}.npy', mmap_mode='r')
+    if not (os.path.exists(f'data/val_cand_{train_data_version}{N_str}.csv') and 
+            os.path.exists(f'data/val_triplets_{train_data_version}{N_str}.npy')):
+        print(f"Couldn't find {train_data_version}{N_str} val subset, creating...")
+        create_subset("val", version_name=train_data_version, 
+                      N_max_p=N_max_p, N_max_n=N_max_n)
+    else:
+        print(f"{train_data_version} val data already present")
+
+    val_cand = pd.read_csv(f'data/val_cand_{train_data_version}{N_str}.csv')
+    val_triplets = np.load(f'data/val_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
 
     # /----------------------------------
     #  MODEL INPUT AND SOME PARAMS PREP 
