@@ -357,7 +357,7 @@ def download_training_data(query_df, query_name, label,
     
 
 if __name__ == "__main__":
-    query_name = "extIas" #sys.argv[1]
+    query_name = sys.argv[1]
 
     # if file of query's ZTFIDs doesn't exist, run compile_ZTFIDs
     if not os.path.exists(f"data/base_data/{query_name}.csv"):

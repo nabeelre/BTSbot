@@ -231,6 +231,8 @@ def prep_alerts(alerts, label, new_drb):
     alert_df["days_since_peak"] = None
     alert_df["days_to_peak"] = None
 
+    alert_df["nnotdet"] = alert_df["ncovhist"] - alert_df["ndethist"]
+
     for objid in pd.unique(alert_df['objectId']):
         obj_alerts = alert_df.loc[alert_df["objectId"] == objid].sort_values(by="jd")
         
