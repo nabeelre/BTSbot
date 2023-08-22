@@ -49,11 +49,15 @@ def train(config, run_name : str = None, sweeping : bool = False):
     tf.keras.backend.clear_session()
     tf.keras.utils.set_random_seed(random_state)
 
-    N_max_p = config["N_max_p"]
-    if "N_max_n" in config:
-        N_max_n = config["N_max_n"]
+    if "N_maxs" in list(config):
+        N_max_p = config["N_maxs"][0]
+        N_max_n = config["N_maxs"][1]
     else:
-        N_max_n = N_max_p
+        N_max_p = config["N_max_p"]
+        if "N_max_n" in config:
+            N_max_n = config["N_max_n"]
+        else:
+            N_max_n = N_max_p
 
     if N_max_p == N_max_n:
         N_str = f"_N{N_max_p}"
@@ -61,7 +65,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         N_str = f"_Np{N_max_p}"
         if N_max_n:
             N_str += f"n{N_max_n}"
-            
+
     try: 
         model_type = getattr(CNN_models, config['model_name'].lower())
     except:
@@ -366,7 +370,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "i9315ibw"
-        wandb.agent(sweep_id, function=sweep_train, count=5, project="BTSbot")
+        sweep_id = "zmxue1ou"
+        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbot")
     else:
         classic_train(sys.argv[1])

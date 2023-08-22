@@ -35,7 +35,18 @@ def run_val(output_dir):
             config = json.load(f)
     
     metadata = True if len(config['metadata_cols']) > 0 else False
-    val_cuts_str = create_cuts_str(config["N_max_p"], config["N_max_n"],
+
+    if "N_maxs" in list(config):
+        N_max_p = config["N_maxs"][0]
+        N_max_n = config["N_maxs"][1]
+    else:
+        N_max_p = config["N_max_p"]
+        if "N_max_n" in config:
+            N_max_n = config["N_max_n"]
+        else:
+            N_max_n = N_max_p
+
+    val_cuts_str = create_cuts_str(N_max_p, N_max_n,
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
                                    bool(config['val_rise_only']))
@@ -44,9 +55,9 @@ def run_val(output_dir):
     if not (os.path.exists(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy") and 
             os.path.exists(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")):
         
-        create_subset("val", train_data_version, config["N_max_p"], 
-                      config["N_max_n"], config['val_sne_only'], 
-                      config['val_keep_near_threshold'], config['val_rise_only'])
+        create_subset("val", train_data_version, N_max_p, N_max_n, 
+                      config['val_sne_only'], config['val_keep_near_threshold'], 
+                      config['val_rise_only'])
     else:
         print(f"{train_data_version}{val_cuts_str} validation data already present")
 
