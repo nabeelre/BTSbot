@@ -49,10 +49,10 @@ def train(config, run_name : str = None, sweeping : bool = False):
     tf.keras.backend.clear_session()
     tf.keras.utils.set_random_seed(random_state)
 
-    if "N_maxs" in list(config):
+    try:
         N_max_p = config["N_maxs"][0]
         N_max_n = config["N_maxs"][1]
-    else:
+    except:
         N_max_p = config["N_max_p"]
         if "N_max_n" in config:
             N_max_n = config["N_max_n"]
