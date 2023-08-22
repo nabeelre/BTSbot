@@ -29,6 +29,11 @@ def classic_train(config_path):
 
 
 def train(config, run_name : str = None, sweeping : bool = False):
+    if sys.platform == "darwin":
+        # Disable GPUs if running on macOS
+        print("disabling GPUs")
+        tf.config.set_visible_devices([], 'GPU')
+
     loss = config['loss']
     optimizer = tf.keras.optimizers.Adam(
         learning_rate=config['learning_rate'], 
@@ -39,30 +44,24 @@ def train(config, run_name : str = None, sweeping : bool = False):
     epochs = config["epochs"]
     patience = config['patience']
     random_state = config['random_seed']
+    batch_size = config['batch_size']
 
     tf.keras.backend.clear_session()
     tf.keras.utils.set_random_seed(random_state)
-
-    if sys.platform == "darwin":
-        # Disable GPUs if running on macOS
-        print("disabling GPUs")
-        tf.config.set_visible_devices([], 'GPU')
 
     N_max_p = config["N_max_p"]
     if "N_max_n" in config:
         N_max_n = config["N_max_n"]
     else:
         N_max_n = N_max_p
-    
+
     if N_max_p == N_max_n:
         N_str = f"_N{N_max_p}"
     else:
         N_str = f"_Np{N_max_p}"
         if N_max_n:
             N_str += f"n{N_max_n}"
-
-    batch_size = config['batch_size']
-
+            
     try: 
         model_type = getattr(CNN_models, config['model_name'].lower())
     except:

@@ -20,6 +20,11 @@ random_state = 2
 def run_val(output_dir):
     print(f"*** Running validation on {output_dir} ***")
 
+    if sys.platform == "darwin":
+        # Disable GPUs if on darwin (macOS)
+        print("disabling GPUs")
+        tf.config.set_visible_devices([], 'GPU')
+
     try:
         with open(output_dir+"report.json", 'r') as f:
             report = json.load(f)
@@ -30,12 +35,10 @@ def run_val(output_dir):
             config = json.load(f)
     
     metadata = True if len(config['metadata_cols']) > 0 else False
-
     val_cuts_str = create_cuts_str(config["N_max_p"], config["N_max_n"],
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
                                    bool(config['val_rise_only']))
-    
     train_data_version = config['train_data_version']
 
     if not (os.path.exists(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy") and 
@@ -61,11 +64,6 @@ def run_val(output_dir):
         exit(0)
 
     tf.keras.backend.clear_session()
-
-    if sys.platform == "darwin":
-        # Disable GPUs if on darwin (macOS)
-        print("disabling GPUs")
-        tf.config.set_visible_devices([], 'GPU')
 
     try:
         model = tf.keras.models.load_model(output_dir + "best_model/")
@@ -280,9 +278,6 @@ def run_val(output_dir):
     ax11 = plt.Subplot(fig, main_grid[10])
     ax12 = plt.Subplot(fig, main_grid[11])
 
-    def gt1(alerts):
-        return np.sum(alerts['preds']) >= 1
-    
     def gt1b19(alerts):
         valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
         return len(valid) >= 1
@@ -484,8 +479,6 @@ def run_val(output_dir):
         "alert_recall": alert_recall, "policy_performance": policy_performance
     }
 
-    # plt.close()
-
 
 if __name__ == "__main__":
     run_val(sys.argv[1])
@@ -504,4 +497,4 @@ if __name__ == "__main__":
     #     results.append({model: res})
 
     # print(results)
-    # pass
+    
