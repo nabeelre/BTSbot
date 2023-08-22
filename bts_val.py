@@ -312,11 +312,17 @@ def run_val(output_dir):
     policy_cand = pd.DataFrame(columns=["objectId", "label", "peakmag"])
     # Iterate over all alerts in validation set
     for objid in pd.unique(cand['objectId']):
-        if objid not in np.concatenate((policy_cand['objectId'], RCFJunk['id'])):
-            if len(cand[cand['objectId'] == objid]) >= 5:
-                policy_cand.loc[len(policy_cand)] = (objid,
-                                                    cand.loc[cand['objectId'] == objid, "label"].iloc[0],
-                                                    cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0])
+        obj_alerts = cand[cand['objectId'] == objid]
+
+        already_seen = objid in policy_cand['objectId']
+        in_RCFJunk = objid in RCFJunk['id']
+        good_coverage = len(obj_alerts) >= 5  # improve, change to purity cut?
+        BTS_peak_thinned = (obj_alerts["label"].iloc[0] == 1) and np.min(obj_alerts["magpsf"]) > 18.5 
+
+        if (not already_seen) and (not in_RCFJunk) and (good_coverage) and (not BTS_peak_thinned):
+            policy_cand.loc[len(policy_cand)] = (objid,
+                                                 cand.loc[cand['objectId'] == objid, "label"].iloc[0],
+                                                 cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0])
 
     # For each policy
     for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes, ST_axes):
