@@ -1,84 +1,50 @@
+import tensorflow as tf
 from tensorflow import keras
-from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Concatenate, BatchNormalization, Activation
+from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Concatenate, BatchNormalization
 
-# /----- ----- ----- -----/ IMAGES AND METADATA /----- ----- ----- -----/ 
 
-def mi_cnn(config, image_shape=(63, 63, 3), metadata_shape=(16,)):
+def mi_cnn(config, image_shape, metadata_shape):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
-    # Convolution branch
-    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', input_shape=image_shape, name='conv1')(triplet_input)
-    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', name='conv2')(x_conv)
+    # --------------------------------------------------------------------------
+    # First convolutional block
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv1', input_shape=image_shape)(triplet_input)
+    
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv2')(x_conv)
+    
     x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
-    x_conv = Dropout(config['dropout_1'], name='drop1')(x_conv)
+    x_conv = Dropout(config['conv_dropout1'], name='conv_dropout1')(x_conv)
 
-    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv3')(x_conv)
-    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv4')(x_conv)
+    # --------------------------------------------------------------------------
+    # Second convolutional block
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv3')(x_conv)
+    
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv4')(x_conv)
+    
     x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
-    x_conv = Dropout(config['dropout_2'], name='drop2')(x_conv)
+    x_conv = Dropout(config['conv_dropout2'], name='conv_dropout2')(x_conv)
 
     x_conv = Flatten()(x_conv)
 
+    # --------------------------------------------------------------------------
     # Metadata branch
-    x_meta = Dense(16, activation='relu', name='metadata_fc_1')(meta_input)
-    x_meta = Dense(32, activation='relu', name='metadata_fc_2')(x_meta)
+    x_meta = BatchNormalization(input_shape=metadata_shape)(meta_input)
+    x_meta = Dense(config['meta_fc1_neurons'], activation='relu', name='meta_fc1')(x_meta)
+    x_meta = Dropout(config['meta_dropout1'], name='meta_dropout1')(x_meta)
+    x_meta = Dense(config['meta_fc2_neurons'], activation='relu', name='meta_fc2')(x_meta)
     
-    # Merged branch
+    # --------------------------------------------------------------------------
+    # Combined branch
     x = Concatenate(axis=1)([x_conv, x_meta])
-    x = Dense(16, activation='relu', name='comb_fc_2')(x)
-    x = Dropout(config['dropout_3'])(x)
+    x = Dense(config['comb_fc_neurons'], activation='relu', name='comb_fc')(x)
+    x = Dropout(config['comb_dropout1'], name='comb_dropout1')(x)
 
     output = Dense(1, activation='sigmoid', name='fc_out')(x)
 
     model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="mi_cnn")
-
-    return model
-
-# /----- ----- ----- -----/ METADATA ONLY /----- ----- ----- -----/  
-
-def fcnn(config, metadata_shape=(16,)):
-    meta_input = keras.Input(shape=metadata_shape, name="metadata")
-
-    x_meta = Dense(16, activation='relu', name='metadata_fc_1')(meta_input)
-    x_meta = Dropout(config['dropout_1'])(x_meta)
-    
-    x_meta = Dense(32, activation='relu', name='metadata_fc_2')(x_meta)
-    x_meta = Dropout(config['dropout_1'])(x_meta)
-    
-    x_meta = Dense(32, activation='relu', name='metadata_fc_3')(x_meta)
-    x_meta = Dropout(config['dropout_2'])(x_meta)
-    
-    x_meta = Dense(16, activation='relu', name='metadata_fc_4')(x_meta)
-    x_meta = Dropout(config['dropout_3'])(x_meta)
-
-    output = Dense(1, activation='sigmoid', name='fc_out')(x_meta)
-
-    model = keras.Model(inputs=meta_input, outputs=output, name="fcnn")
-
-    return model
-
-# /----- ----- ----- -----/ IMAGES ONLY /----- ----- ----- -----/ 
-
-def si_cnn(config, image_shape=(63, 63, 3)):
-    triplet_input = keras.Input(shape=image_shape, name="triplet")
-
-    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', input_shape=image_shape, name='conv1')(triplet_input)
-    x_conv = Conv2D(16, (3, 3), activation='relu', padding='same', name='conv2')(x_conv)
-    x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
-    x_conv = Dropout(config['dropout_1'], name='drop1')(x_conv)
-
-    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv3')(x_conv)
-    x_conv = Conv2D(32, (3, 3), activation='relu', padding='same', name='conv4')(x_conv)
-    x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
-    x_conv = Dropout(config['dropout_2'], name='drop2')(x_conv)
-
-    x_conv = Flatten()(x_conv)
-    x_conv = Dense(16, activation='relu', name='fc1')(x_conv)
-    x_conv = Dropout(config['dropout_3'], name='drop3')(x_conv)
-
-    output = Dense(1, activation='sigmoid', name='fc_out')(x_conv)
-    
-    model = keras.Model(inputs=triplet_input, outputs=output, name="si_cnn")
-
     return model
