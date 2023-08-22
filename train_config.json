@@ -1,16 +1,17 @@
 {
     "model_name": "mi_cnn",
-    "train_data_version": "v8",
-    "N_max_p": 60,
-    "N_max_n": 60,
-    "epochs": 1500,
-    "patience": 75,
+    "train_data_version": "v8b",
     "loss": "binary_crossentropy",
     "learning_rate": 1e-4,
     "beta_1": 0.9,
     "beta_2": 0.999,
-    "weight_classes": "alert",
-    "batch_size": 16,
+    "batch_size": 64,
+
+    "epochs": 1500,
+    "patience": 75,
+    "N_max_p": 60,
+    "N_max_n": 60,
+    
     "metadata_cols": [
       "sgscore1",
       "distpsnr1",
@@ -37,9 +38,21 @@
       "days_to_peak",
       "nnondet"
     ],
-    "dropout_1": 0.20,
-    "dropout_2": 0.35,
-    "dropout_3": 0.45,
+
+    "conv1_channels": 16,
+    "conv2_channels": 32,
+    "conv_kernel": 3,
+    "conv_dropout1": 0.20,
+    "conv_dropout2": 0.35,
+    
+    "meta_fc1_neurons": 64,
+    "meta_dropout": 0.40,
+    "meta_fc2_neurons": 32,
+    
+    "comb_fc_neurons": 16,
+    "comb_dropout": 0.45,
+
+    "weight_classes": "alert",
     "reduce_LR_factor": 0.4,
     "reduce_LR_minLR": 5e-10,
     "data_aug_h_flip": 1,

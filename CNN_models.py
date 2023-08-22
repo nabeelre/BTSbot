@@ -35,14 +35,14 @@ def mi_cnn(config, image_shape, metadata_shape):
     # Metadata branch
     x_meta = BatchNormalization(input_shape=metadata_shape)(meta_input)
     x_meta = Dense(config['meta_fc1_neurons'], activation='relu', name='meta_fc1')(x_meta)
-    x_meta = Dropout(config['meta_dropout1'], name='meta_dropout1')(x_meta)
+    x_meta = Dropout(config['meta_dropout'], name='meta_dropout')(x_meta)
     x_meta = Dense(config['meta_fc2_neurons'], activation='relu', name='meta_fc2')(x_meta)
     
     # --------------------------------------------------------------------------
     # Combined branch
     x = Concatenate(axis=1)([x_conv, x_meta])
     x = Dense(config['comb_fc_neurons'], activation='relu', name='comb_fc')(x)
-    x = Dropout(config['comb_dropout1'], name='comb_dropout1')(x)
+    x = Dropout(config['comb_dropout'], name='comb_dropout')(x)
 
     output = Dense(1, activation='sigmoid', name='fc_out')(x)
 
