@@ -222,10 +222,12 @@ def prep_alerts(alerts, label, new_drb):
     alert_df["peakmag"] = None
     # alert_df["peakmag_g"] = None
     # alert_df["peakmag_r"] = None
+    alert_df["maxmag"] = None
 
     alert_df["peakmag_so_far"] = None
     # alert_df["peakmag_g_so_far"] = None
     # alert_df["peakmag_r_so_far"] = None
+    alert_df["maxmag_so_far"] = None
 
     alert_df["age"] = None
     alert_df["days_since_peak"] = None
@@ -239,10 +241,12 @@ def prep_alerts(alerts, label, new_drb):
         # peakmag_g = np.min(obj_alerts.loc[obj_alerts['fid'] == 1, "magpsf"])
         # peakmag_r = np.min(obj_alerts.loc[obj_alerts['fid'] == 2, "magpsf"])
         peakmag = np.min(obj_alerts["magpsf"])
+        maxmag = np.max(obj_alerts["magpsf"])
 
         # alert_df.loc[alert_df['objectId'] == objid, "peakmag_g"] = peakmag_g
         # alert_df.loc[alert_df['objectId'] == objid, "peakmag_r"] = peakmag_r
         alert_df.loc[alert_df['objectId'] == objid, "peakmag"] = peakmag
+        alert_df.loc[alert_df['objectId'] == objid, "maxmag"] = maxmag
 
         jd_first_alert = np.min(obj_alerts["jd"])
 
@@ -253,10 +257,12 @@ def prep_alerts(alerts, label, new_drb):
             # peakmag_g_so_far = np.min(obj_alerts.loc[(idx_so_far) & (obj_alerts['fid'] == 1), "magpsf"])
             # peakmag_r_so_far = np.min(obj_alerts.loc[(idx_so_far) & (obj_alerts['fid'] == 2), "magpsf"])
             peakmag_so_far = np.min(obj_alerts.loc[idx_so_far, "magpsf"])
+            maxmag_so_far = np.max(obj_alerts.loc[idx_so_far, "magpsf"])
             
             # alert_df.loc[idx_cur, "peakmag_g_so_far"] = peakmag_g_so_far
             # alert_df.loc[idx_cur, "peakmag_r_so_far"] = peakmag_r_so_far
             alert_df.loc[idx_cur, "peakmag_so_far"] = peakmag_so_far
+            alert_df.loc[idx_cur, "maxmag_so_far"] = maxmag_so_far
 
             jd_peak_so_far = obj_alerts.loc[obj_alerts['magpsf'] == peakmag_so_far, "jd"].to_numpy()[0]
 
