@@ -33,8 +33,6 @@ def run_val(output_dir):
         with open(output_dir+"train_config.json", 'r') as f:
             report = None
             config = json.load(f)
-    
-    metadata = True if len(config['metadata_cols']) > 0 else False
 
     if "N_maxs" in list(config):
         N_max_p = config["N_maxs"][0]
@@ -45,6 +43,19 @@ def run_val(output_dir):
             N_max_n = config["N_max_n"]
         else:
             N_max_n = N_max_p
+
+    metadata_cols = config['metadata_cols']
+    try:
+        if config['extended_metadata1']:
+            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnondet", "maxmag"])
+        if config['extended_metadata2']:
+            metadata_cols = np.append(metadata_cols, ["chinr", "sharpnr"])
+        if config['extended_metadata3']:
+            metadata_cols = np.append(metadata_cols, ["scorr", "sky"])
+    except:
+        print("No extended metadata requested")
+
+    metadata = True if len(metadata_cols) > 0 else False
 
     val_cuts_str = create_cuts_str(N_max_p, N_max_n,
                                    bool(config['val_sne_only']),
@@ -67,7 +78,7 @@ def run_val(output_dir):
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    if cand[config['metadata_cols']].isnull().values.any():
+    if cand[metadata_cols].isnull().values.any():
         print("Null in cand")
         exit(0)
     if np.any(np.isnan(triplets)):
@@ -83,7 +94,7 @@ def run_val(output_dir):
         model = tf.keras.models.load_model(output_dir + "model/")
     
     if metadata:
-        raw_preds = model.predict([triplets, cand.loc[:,config["metadata_cols"]]], batch_size=config['batch_size'], verbose=1)
+        raw_preds = model.predict([triplets, cand.loc[:,metadata_cols]], batch_size=config['batch_size'], verbose=1)
     else:
         raw_preds = model.predict(triplets, batch_size=config['batch_size'], verbose=1)
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)

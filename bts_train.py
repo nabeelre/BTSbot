@@ -66,12 +66,23 @@ def train(config, run_name : str = None, sweeping : bool = False):
         if N_max_n:
             N_str += f"n{N_max_n}"
 
+    metadata_cols = config['metadata_cols']
+    try:
+        if config['extended_metadata1']:
+            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnondet", "maxmag"])
+        if config['extended_metadata2']:
+            metadata_cols = np.append(metadata_cols, ["chinr", "sharpnr"])
+        if config['extended_metadata3']:
+            metadata_cols = np.append(metadata_cols, ["scorr", "sky"])
+    except:
+        print("No extended metadata requested")
+
     try: 
         model_type = getattr(CNN_models, config['model_name'].lower())
     except:
         print("Could not find model of name", sys.argv[1].lower())
         exit(0)
-    metadata = True if len(config['metadata_cols']) > 0 else False
+    metadata = True if len(metadata_cols) > 0 else False
 
     print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}, N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
 
@@ -95,7 +106,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    if cand[config['metadata_cols']].isnull().values.any():
+    if cand[metadata_cols].isnull().values.any():
         print("Null in cand")
         exit(0)
     if np.any(np.isnan(triplets)):
@@ -121,7 +132,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     #  MODEL INPUT AND SOME PARAMS PREP 
     # /----------------------------------
 
-    gen_cols = np.append(config['metadata_cols'], ['label'])
+    gen_cols = np.append(metadata_cols, ['label'])
 
     x_train, y_train = triplets, cand['label']
     x_val, y_val = val_triplets, val_cand['label']
