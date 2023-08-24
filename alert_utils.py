@@ -248,7 +248,7 @@ def prep_alerts(alerts, label, new_drb):
         alert_df.loc[alert_df['objectId'] == objid, "peakmag"] = peakmag
         alert_df.loc[alert_df['objectId'] == objid, "maxmag"] = maxmag
 
-        jd_first_alert = np.min(obj_alerts["jd"])
+        jd_first_alert = np.min((alert_df.loc[idx_cur, "jdstarthist"], np.min(obj_alerts['jd'])))
 
         for i in range(len(obj_alerts)):
             idx_cur = obj_alerts.index[i]
