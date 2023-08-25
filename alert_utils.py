@@ -247,12 +247,12 @@ def prep_alerts(alerts, label, new_drb):
         # alert_df.loc[alert_df['objectId'] == objid, "peakmag_r"] = peakmag_r
         alert_df.loc[alert_df['objectId'] == objid, "peakmag"] = peakmag
         alert_df.loc[alert_df['objectId'] == objid, "maxmag"] = maxmag
-
-        jd_first_alert = np.min((alert_df.loc[idx_cur, "jdstarthist"], np.min(obj_alerts['jd'])))
-
+        
         for i in range(len(obj_alerts)):
             idx_cur = obj_alerts.index[i]
             idx_so_far = obj_alerts.index[0:i+1]
+
+            jd_first_alert = np.min((alert_df.loc[idx_cur, "jdstarthist"], np.min(obj_alerts['jd'])))
 
             # peakmag_g_so_far = np.min(obj_alerts.loc[(idx_so_far) & (obj_alerts['fid'] == 1), "magpsf"])
             # peakmag_r_so_far = np.min(obj_alerts.loc[(idx_so_far) & (obj_alerts['fid'] == 2), "magpsf"])

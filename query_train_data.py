@@ -8,7 +8,7 @@ from alert_utils import make_triplet, extract_triplets, rerun_braai, prep_alerts
 from compile_ZTFIDs import compile_ZTFIDs
 
 external_HDD = "/Volumes/NRExternal3/trainv8 data/"
-quest_raw_path = "v8raw/"
+quest_raw_path = "v9raw/"
 to_desktop = "/Users/nabeelr/Desktop/"
 
 if sys.platform == "darwin":

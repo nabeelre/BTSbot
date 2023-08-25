@@ -47,11 +47,13 @@ def run_val(output_dir):
     metadata_cols = config['metadata_cols']
     try:
         if config['extended_metadata1']:
-            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnondet", "maxmag"])
+            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnondet"])
         if config['extended_metadata2']:
             metadata_cols = np.append(metadata_cols, ["chinr", "sharpnr"])
         if config['extended_metadata3']:
             metadata_cols = np.append(metadata_cols, ["scorr", "sky"])
+        if config['extended_metadata4']:
+            metadata_cols = np.append(metadata_cols, ["maxmag_so_far"])
     except:
         print("No extended metadata requested")
 

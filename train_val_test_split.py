@@ -15,7 +15,7 @@ def only_pd_gr(trips, cand):
 def only_pd_gr_ps(trips, cand):
     cand['isdiffpos'] = [True if isdiffpos == 't' else False for isdiffpos in cand['isdiffpos']]
 
-    cand_pd_gr_ps = cand[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2)) & ((cand['sgscore1'] >=0) | (cand['sgscore2'] >=0))]
+    cand_pd_gr_ps =      cand[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2)) & ((cand['sgscore1'] >=0) | (cand['sgscore2'] >=0))]
     triplets_pd_gr_ps = trips[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2)) & ((cand['sgscore1'] >=0) | (cand['sgscore2'] >=0))]
 
     return triplets_pd_gr_ps, cand_pd_gr_ps
@@ -176,32 +176,33 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
             obj_alerts = cand.loc[cand['objectId'] == objid]
 
             source_set = obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")]
-            if source_set == "trues":
-                if split_name == "train":
-                    # source_set = "trues," take random N_max_p alerts (train only)
+            
+            if split_name == "train":
+                if source_set == "trues":
+                    # For trues, take random N_max_p alerts (train only)
                     mask[obj_alerts.index] = obj_alerts["N"] <= N_max_p
-                else:
-                    mask[obj_alerts.index] = 1
-            elif source_set in ["dims", "rejects"]:
-                # source_set = "dims" or "rejects," take random N_max_n alerts
-                mask[obj_alerts.index] = obj_alerts["N"] <= N_max_n
-            elif source_set in ["vars", "junk"]:
+                elif source_set in ["dims", "rejects"]:
+                    # For dims & rejects, take random N_max_n alerts (train only)
+                    mask[obj_alerts.index] = obj_alerts["N"] <= N_max_n
+            elif source_set in ["trues", "dims", "rejects"]:
+                # For val and test, take all alerts from trues, dims, and rejects
+                mask[obj_alerts.index] = 1
+
+            if source_set in ["vars", "junk"]:
                 # source_set = "vars," take latest N_max_n alerts
                 N_max_n_latest_alerts = obj_alerts.sort_values(by='jd').iloc[-N_max_n:]
                 
                 mask[N_max_n_latest_alerts.index] = 1
-            elif source_set == "extIas":
-                p_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 1)]
-                if split_name == "train":
-                    mask[p_obj_alerts.index] = p_obj_alerts["N"] <= N_max_p
-                else:
-                    mask[p_obj_alerts.index] = 1
+            
+            # elif source_set == "extIas":
+            #     p_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 1)]
+            #     if split_name == "train":
+            #         mask[p_obj_alerts.index] = p_obj_alerts["N"] <= N_max_p
+            #     else:
+            #         mask[p_obj_alerts.index] = 1
 
-                n_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 0)]
-                mask[n_obj_alerts.index] = n_obj_alerts["N"] <= N_max_n
-            else:
-                print("Unknown source_set", source_set)
-                exit
+            #     n_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 0)]
+            #     mask[n_obj_alerts.index] = n_obj_alerts["N"] <= N_max_n
 
         trips, cand = apply_cut(trips, cand, np.where(mask == 1)[0])
 
@@ -221,10 +222,10 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 
 
 if __name__ == "__main__":
-    version = "v8b"
+    version = "v9"
 
-    merge_data(set_names=["trues", "dims", "vars", "rejects"], 
-               cuts=only_pd_gr_ps, version_name=version, seed=2)
+    #merge_data(set_names=["trues", "dims", "vars", "rejects"], 
+    #           cuts=only_pd_gr_ps, version_name=version, seed=2)
     
     # N_max_ps = [60, 30, 10]
     # N_max_ns = [60, 30, 10]
@@ -236,5 +237,20 @@ if __name__ == "__main__":
     #         create_subset("val", version_name=version, 
     #                       N_max_p=N_max_p, N_max_n=N_max_n)
 
-    # create_subset("train", version_name=version, N_max_p=60, N_max_n=60)
-    create_subset("val", version_name=version, N_max_p=60, N_max_n=60)
+    #create_subset("train", version_name=version, N_max_p=60, N_max_n=60)
+    #create_subset("val", version_name=version, N_max_p=60, N_max_n=60)
+
+    #create_subset("train", version_name=version, N_max_p=60, N_max_n=30)
+    #create_subset("val", version_name=version, N_max_p=60, N_max_n=30)
+
+    #create_subset("train", version_name=version, N_max_p=60, N_max_n=10)
+    #create_subset("val", version_name=version, N_max_p=60, N_max_n=10)
+
+    #create_subset("train", version_name=version, N_max_p=30, N_max_n=30)
+    #create_subset("val", version_name=version, N_max_p=30, N_max_n=30)
+
+    create_subset("train", version_name=version, N_max_p=30, N_max_n=10)
+    create_subset("val", version_name=version, N_max_p=30, N_max_n=10)
+
+    create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
+    create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
