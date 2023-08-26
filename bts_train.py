@@ -69,7 +69,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     metadata_cols = config['metadata_cols']
     try:
         if config['extended_metadata1']:
-            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnondet"])
+            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnotdet"])
         if config['extended_metadata2']:
             metadata_cols = np.append(metadata_cols, ["chinr", "sharpnr"])
         if config['extended_metadata3']:
@@ -383,7 +383,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "zmxue1ou"
-        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbot")
+        sweep_id = "630ewf8v"
+        wandb.agent(sweep_id, function=sweep_train, count=15, project="BTSbot")
     else:
         classic_train(sys.argv[1])
