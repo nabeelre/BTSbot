@@ -16,9 +16,17 @@ plt.rcParams.update({
 })
 plt.rcParams['axes.linewidth'] = 1.5
 random_state = 2
+run_test = False
 
 def run_val(output_dir):
-    print(f"*** Running validation on {output_dir} ***")
+    if not run_test:
+        split_name = "validation"
+        split_name_short = "val"
+    else:
+        split_name = "test"
+        split_name_short = "test"
+    
+    print(f"*** Running {split_name} on {output_dir} ***")
 
     if sys.platform == "darwin":
         # Disable GPUs if on darwin (macOS)
@@ -65,17 +73,17 @@ def run_val(output_dir):
                                    bool(config['val_rise_only']))
     train_data_version = config['train_data_version']
 
-    if not (os.path.exists(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy") and 
-            os.path.exists(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")):
+    if not (os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy") and 
+            os.path.exists(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")):
         
-        create_subset("val", train_data_version, N_max_p, N_max_n, 
+        create_subset(split_name_short, train_data_version, N_max_p, N_max_n, 
                       config['val_sne_only'], config['val_keep_near_threshold'], 
                       config['val_rise_only'])
     else:
-        print(f"{train_data_version}{val_cuts_str} validation data already present")
+        print(f"{train_data_version}{val_cuts_str} {split_name} data already present")
 
-    cand = pd.read_csv(f"data/val_cand_{train_data_version}{val_cuts_str}.csv")
-    triplets = np.load(f"data/val_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
+    cand = pd.read_csv(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
+    triplets = np.load(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
@@ -106,7 +114,7 @@ def run_val(output_dir):
     cand["preds"] = preds
 
     results = preds == cand["label"].to_numpy()
-    print(f"Overall validation accuracy {100*np.sum(results) / len(results):.2f}%")
+    print(f"Overall {split_name} accuracy {100*np.sum(results) / len(results):.2f}%")
     
     fpr, tpr, thresholds = roc_curve(labels, raw_preds)
     roc_auc = auc(fpr, tpr)
@@ -328,20 +336,22 @@ def run_val(output_dir):
     policy_performance = dict.fromkeys(policy_names)
 
     # Get label and peakmag for each source (by taking all unique objectIds)
-    policy_cand = pd.DataFrame(columns=["objectId", "label", "peakmag"])
-    # Iterate over all alerts in validation set
+    policy_cand = pd.DataFrame(columns=["objectId", "label", "peakmag", 
+                                        "remaining_alert_peakmag"])
+    # Iterate over all alerts in validation/test set
     for objid in pd.unique(cand['objectId']):
         obj_alerts = cand[cand['objectId'] == objid]
 
-        already_seen = objid in policy_cand['objectId']
-        in_RCFJunk = objid in RCFJunk['id']
-        good_coverage = len(obj_alerts) >= 5  # improve, change to purity cut?
+        already_seen = objid in policy_cand['objectId'].to_numpy()
+        in_RCFJunk = objid in RCFJunk['id'].to_numpy()
+        good_coverage = len(obj_alerts) >= 2  # improve, change to quality cut?
         BTS_peak_thinned = (obj_alerts["label"].iloc[0] == 1) and np.min(obj_alerts["magpsf"]) > 18.5 
 
         if (not already_seen) and (not in_RCFJunk) and (good_coverage) and (not BTS_peak_thinned):
             policy_cand.loc[len(policy_cand)] = (objid,
                                                  cand.loc[cand['objectId'] == objid, "label"].iloc[0],
-                                                 cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0])
+                                                 cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0],
+                                                 np.min(cand.loc[cand['objectId'] == objid, "magpsf"]))
 
     # For each policy
     for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes, ST_axes):
@@ -394,10 +404,14 @@ def run_val(output_dir):
         FP_idxs_policy = [ii for ii, mi in enumerate(FP_mask_policy) if mi == 1]
         FN_idxs_policy = [ii for ii, mi in enumerate(FN_mask_policy) if mi == 1]
 
-        TP_count_policy_binned, _  = np.histogram(policy_cand.loc[TP_idxs_policy, "peakmag"], bins=bright_narrow_bins)
-        FP_count_policy_binned, _  = np.histogram(policy_cand.loc[FP_idxs_policy, "peakmag"], bins=bright_narrow_bins)
-        # TN_count_policy_binned, _  = np.histogram(policy_cand.loc[TN_idxs_policy, "peakmag"], bins=bright_narrow_bins)
-        FN_count_policy_binned, _  = np.histogram(policy_cand.loc[FN_idxs_policy, "peakmag"], bins=bright_narrow_bins)
+        TP_count_policy_binned, _  = np.histogram(policy_cand.loc[TP_idxs_policy, "remaining_alert_peakmag"], 
+                                                  bins=bright_narrow_bins)
+        FP_count_policy_binned, _  = np.histogram(policy_cand.loc[FP_idxs_policy, "remaining_alert_peakmag"], 
+                                                  bins=bright_narrow_bins)
+        # TN_count_policy_binned, _  = np.histogram(policy_cand.loc[TN_idxs_policy, "remaining_alert_peakmag"], 
+        #                                            bins=bright_narrow_bins)
+        FN_count_policy_binned, _  = np.histogram(policy_cand.loc[FN_idxs_policy, "remaining_alert_peakmag"], 
+                                                  bins=bright_narrow_bins)
 
         if all((len(TP_idxs_policy) > 0, len(TN_idxs_policy) > 0)):
             policy_precision = len(TP_idxs_policy) / (len(FP_idxs_policy) + len(TP_idxs_policy))
@@ -488,7 +502,7 @@ def run_val(output_dir):
     for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10, ax11, ax12, extend]:
         ax.tick_params(which='both', width=1.5)
 
-    plt.savefig(output_dir+"/"+os.path.basename(os.path.normpath(output_dir))+val_cuts_str+".pdf", bbox_inches='tight')
+    plt.savefig(f"{output_dir}/{os.path.basename(os.path.normpath(output_dir))}{val_cuts_str}{'_test' if run_test else ''}.pdf", bbox_inches="tight")
     
 
     print({
@@ -506,19 +520,4 @@ def run_val(output_dir):
 
 if __name__ == "__main__":
     run_val(sys.argv[1])
-
-    # run_val("models/mi_cnn_v8_N60/trim-rain-321/")
-
-    # import glob
-
-    # models = glob.glob("models/*v7a*/*/")
-    # results = []
-
-    # print(models)
-    # for model in models:
-    #     print(model)
-    #     res = run_val(model)
-    #     results.append({model: res})
-
-    # print(results)
     
