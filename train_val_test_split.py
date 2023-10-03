@@ -224,33 +224,9 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 if __name__ == "__main__":
     version = "v9"
 
-    #merge_data(set_names=["trues", "dims", "vars", "rejects"], 
-    #           cuts=only_pd_gr_ps, version_name=version, seed=2)
-    
-    # N_max_ps = [60, 30, 10]
-    # N_max_ns = [60, 30, 10]
-
-    # for N_max_p in N_max_ps:
-    #     for N_max_n in N_max_ns:
-    #         create_subset("train", version_name=version, 
-    #                       N_max_p=N_max_p, N_max_n=N_max_n)
-    #         create_subset("val", version_name=version, 
-    #                       N_max_p=N_max_p, N_max_n=N_max_n)
-
-    #create_subset("train", version_name=version, N_max_p=60, N_max_n=60)
-    #create_subset("val", version_name=version, N_max_p=60, N_max_n=60)
-
-    #create_subset("train", version_name=version, N_max_p=60, N_max_n=30)
-    #create_subset("val", version_name=version, N_max_p=60, N_max_n=30)
-
-    #create_subset("train", version_name=version, N_max_p=60, N_max_n=10)
-    #create_subset("val", version_name=version, N_max_p=60, N_max_n=10)
-
-    #create_subset("train", version_name=version, N_max_p=30, N_max_n=30)
-    #create_subset("val", version_name=version, N_max_p=30, N_max_n=30)
-
-    create_subset("train", version_name=version, N_max_p=30, N_max_n=10)
-    create_subset("val", version_name=version, N_max_p=30, N_max_n=10)
+    merge_data(set_names=["trues", "dims", "vars", "rejects"], 
+              cuts=only_pd_gr_ps, version_name=version, seed=2)
 
     create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
     create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
+    create_subset("test", version_name=version, N_max_p=100, N_max_n=100)
