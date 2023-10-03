@@ -173,3 +173,4 @@ manual_models/
 query*.sh
 configs/
 old_batches/
+autoscan/
