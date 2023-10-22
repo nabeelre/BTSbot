@@ -329,16 +329,15 @@ def download_training_data(query_df, query_name, label,
         label = np.asarray([1 if alert['objectId'] in true_objs else 0 for alert in alerts])
     else:
         print(f"Could not understand label: {label}")
-    
-    num_trues = np.sum(label == 1)
-    num_falses = np.sum(label == 0)
-    if num_trues + num_falses != len(label):
-        print(f"Invalid labels provided: {label}")
-    else:
-        print(f"{query_name} {len(label)} total alerts:",
-              f"{num_trues} trues, {num_falses} falses"
-        )
+        label = np.full((num_alerts), None)
 
+    if None not in label:
+        num_trues = np.sum(label == 1)
+        num_falses = np.sum(label == 0)
+        if num_trues + num_falses == len(label):
+            print(f"{query_name} {len(label)} total alerts:",
+                f"{num_trues} trues, {num_falses} falses")
+    
     # Rerun braai on all triplets and store their scores to be added to metadata
     new_drb = rerun_braai(triplets)
 
