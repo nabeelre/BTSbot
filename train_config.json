@@ -1,16 +1,16 @@
 {
     "model_name": "mi_cnn",
-    "train_data_version": "v8b",
+    "train_data_version": "v9",
     "loss": "binary_crossentropy",
     "learning_rate": 1e-4,
-    "beta_1": 0.9,
-    "beta_2": 0.999,
+    "beta_1": 0.99,
+    "beta_2": 0.99,
     "batch_size": 64,
 
     "epochs": 1000,
     "patience": 75,
-    "N_max_p": 60,
-    "N_max_n": 60,
+    "N_max_p": 100,
+    "N_max_n": 100,
     
     "metadata_cols": [
       "sgscore1",
@@ -30,25 +30,28 @@
       "days_since_peak",
       "days_to_peak",
       "peakmag_so_far",
-      "new_drb"
+      "new_drb",
+      "ncovhist",
+      "nnotdet",
+      "chinr",
+      "sharpnr",
+      "scorr",
+      "sky",
+      "maxmag_so_far"
     ],
 
-    "extended_metadata1": 0,
-    "extended_metadata2": 1,
-    "extended_metadata3": 1,
-
-    "conv1_channels": 16,
-    "conv2_channels": 32,
-    "conv_kernel": 3,
-    "conv_dropout1": 0.20,
-    "conv_dropout2": 0.35,
+    "conv1_channels": 32,
+    "conv2_channels": 64,
+    "conv_kernel": 5,
+    "conv_dropout1": 0.50,
+    "conv_dropout2": 0.55,
     
-    "meta_fc1_neurons": 64,
-    "meta_dropout": 0.40,
-    "meta_fc2_neurons": 32,
+    "meta_fc1_neurons": 128,
+    "meta_dropout": 0.25,
+    "meta_fc2_neurons": 128,
     
-    "comb_fc_neurons": 16,
-    "comb_dropout": 0.45,
+    "comb_fc_neurons": 8,
+    "comb_dropout": 0.20,
 
     "weight_classes": "alert",
     "reduce_LR_factor": 0.4,
