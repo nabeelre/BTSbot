@@ -53,18 +53,6 @@ def run_val(output_dir):
             N_max_n = N_max_p
 
     metadata_cols = config['metadata_cols']
-    try:
-        if config['extended_metadata1']:
-            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnotdet"])
-        if config['extended_metadata2']:
-            metadata_cols = np.append(metadata_cols, ["chinr", "sharpnr"])
-        if config['extended_metadata3']:
-            metadata_cols = np.append(metadata_cols, ["scorr", "sky"])
-        if config['extended_metadata4']:
-            metadata_cols = np.append(metadata_cols, ["maxmag_so_far"])
-    except:
-        print("No extended metadata requested")
-
     metadata = True if len(metadata_cols) > 0 else False
 
     val_cuts_str = create_cuts_str(N_max_p, N_max_n,
@@ -310,26 +298,26 @@ def run_val(output_dir):
     ax11 = plt.Subplot(fig, main_grid[10])
     ax12 = plt.Subplot(fig, main_grid[11])
 
-    def gt1b19(alerts):
-        valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
-        return len(valid) >= 1
+    # def gt1_b19(alerts):
+    #     valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
+    #     return len(valid) >= 1
 
-    def bts_save(alerts):
+    def bts_p1(alerts):
         valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
         return len(valid) >= 2
 
-    def gt3b19(alerts):
-        valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
-        return len(valid) >= 3
+    # def gt3b19(alerts):
+    #     valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
+    #     return len(valid) >= 3
 
-    def bts_trigger(alerts):
+    def bts_p2(alerts):
         if np.min(alerts['magpsf']) <= 18.5:
             valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
             return len(valid) >= 2
         return False
 
-    policy_names = ["gt1b19", "bts_save", "bts_trigger", "gt3b19"]
-    policies = [gt1b19, bts_save, bts_trigger, gt3b19]
+    policy_names = ["bts_p1", "bts_p2"]
+    policies = [bts_p1, bts_p2]
     CP_axes = [ax7, ax8, ax9, None, None]
     ST_axes = [ax10, ax11, ax12, None, None]
 

@@ -35,11 +35,19 @@ def train(config, run_name : str = None, sweeping : bool = False):
         tf.config.set_visible_devices([], 'GPU')
 
     loss = config['loss']
-    optimizer = tf.keras.optimizers.Adam(
-        learning_rate=config['learning_rate'], 
-        beta_1=config['beta_1'],
-        beta_2=config['beta_2']
-    )
+    if sys.platform == "darwin":
+        print("Using keras legacy Adam optimizer for M1-chip compatibility")
+        optimizer = tf.keras.optimizers.legacy.Adam(
+            learning_rate=config['learning_rate'], 
+            beta_1=config['beta_1'],
+            beta_2=config['beta_2']
+        )
+    else:    
+        optimizer = tf.keras.optimizers.Adam(
+            learning_rate=config['learning_rate'], 
+            beta_1=config['beta_1'],
+            beta_2=config['beta_2']
+        )
     weight_classes = config['weight_classes']
     epochs = config["epochs"]
     patience = config['patience']
@@ -67,17 +75,6 @@ def train(config, run_name : str = None, sweeping : bool = False):
             N_str += f"n{N_max_n}"
 
     metadata_cols = config['metadata_cols']
-    try:
-        if config['extended_metadata1']:
-            metadata_cols = np.append(metadata_cols, ["ncovhist", "nnotdet"])
-        if config['extended_metadata2']:
-            metadata_cols = np.append(metadata_cols, ["chinr", "sharpnr"])
-        if config['extended_metadata3']:
-            metadata_cols = np.append(metadata_cols, ["scorr", "sky"])
-        if config['extended_metadata4']:
-            metadata_cols = np.append(metadata_cols, ["maxmag_so_far"])
-    except:
-        print("No extended metadata requested")
 
     try: 
         model_type = getattr(CNN_models, config['model_name'].lower())

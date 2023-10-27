@@ -136,6 +136,9 @@ def query_BTS_save_times():
     print("  Finished querying for BTS save times")        
 
 
+# TODO add query_trigger_times()
+
+
 def query_BTSSE(query_name, overwrite : bool = False):
     """
     Execute query to internal BTS sample explorer to fetch sources on predefined
