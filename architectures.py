@@ -3,7 +3,7 @@ from tensorflow import keras
 from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Concatenate, BatchNormalization
 
 
-def mi_cnn(config, image_shape, metadata_shape):
+def mm_cnn(config, image_shape, metadata_shape):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 
@@ -46,10 +46,11 @@ def mi_cnn(config, image_shape, metadata_shape):
 
     output = Dense(1, activation='sigmoid', name='fc_out')(x)
 
-    model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="mi_cnn")
+    model = keras.Model(inputs=[triplet_input, meta_input], outputs=output, name="mm_cnn")
     return model
 
-def si_cnn(config, image_shape):
+
+def um_cnn(config, image_shape):
     triplet_input = keras.Input(shape=image_shape, name="triplet")
 
     # --------------------------------------------------------------------------
@@ -81,5 +82,22 @@ def si_cnn(config, image_shape):
 
     output = Dense(1, activation='sigmoid', name='fc_out')(x_conv)
 
-    model = keras.Model(inputs=triplet_input, outputs=output, name="si_cnn")
+    model = keras.Model(inputs=triplet_input, outputs=output, name="um_cnn")
+    return model
+
+
+def um_nn(config, metadata_shape):
+    meta_input = keras.Input(shape=metadata_shape, name="metadata")
+
+    x_meta = BatchNormalization(input_shape=metadata_shape)(meta_input)
+    x_meta = Dense(config['meta_fc1_neurons'], activation='relu', name='meta_fc1')(x_meta)
+    x_meta = Dropout(config['meta_dropout'], name='meta_dropout')(x_meta)
+    x_meta = Dense(config['meta_fc2_neurons'], activation='relu', name='meta_fc2')(x_meta)
+    
+    x_meta = Dense(config['head_neurons'], activation='relu', name='head_fc')(x_meta)
+    x_meta = Dropout(config['head_dropout'], name='head_dropout')(x_meta)
+
+    output = Dense(1, activation='sigmoid', name='fc_out')(x_meta)
+
+    model = keras.Model(inputs=meta_input, outputs=output, name="um_nn")
     return model

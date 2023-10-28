@@ -52,18 +52,19 @@ def run_val(output_dir):
         else:
             N_max_n = N_max_p
 
-    metadata_cols = config['metadata_cols']
-    metadata = True if len(metadata_cols) > 0 else False
-
     val_cuts_str = create_cuts_str(N_max_p, N_max_n,
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
                                    bool(config['val_rise_only']))
     train_data_version = config['train_data_version']
 
-    if not (os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy") and 
-            os.path.exists(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")):
-        
+    need_triplets = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_cnn']])
+    need_metadata = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_nn']])
+
+    triplets_present = os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy")
+    metadata_present = os.path.exists(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
+
+    if (need_triplets and (not triplets_present)) or (not metadata_present):
         create_subset(split_name_short, train_data_version, N_max_p, N_max_n, 
                       config['val_sne_only'], config['val_keep_near_threshold'], 
                       config['val_rise_only'])
@@ -71,15 +72,18 @@ def run_val(output_dir):
         print(f"{train_data_version}{val_cuts_str} {split_name} data already present")
 
     cand = pd.read_csv(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
-    triplets = np.load(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
+    if need_triplets:
+        triplets = np.load(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    if cand[metadata_cols].isnull().values.any():
-        print("Null in cand")
-        exit(0)
-    if np.any(np.isnan(triplets)):
+    if need_metadata:
+        metadata_cols = config['metadata_cols']
+        if cand[metadata_cols].isnull().values.any():
+            print("Null in cand")
+            exit(0)
+    if need_triplets and np.any(np.isnan(triplets)):
         print("Null in triplets")
         exit(0)
 
@@ -91,10 +95,13 @@ def run_val(output_dir):
         print("couldn't find best_model/ trying to find model/")
         model = tf.keras.models.load_model(output_dir + "model/")
     
-    if metadata:
+    if need_triplets and need_metadata:
         raw_preds = model.predict([triplets, cand.loc[:,metadata_cols]], batch_size=config['batch_size'], verbose=1)
-    else:
+    elif need_triplets:
         raw_preds = model.predict(triplets, batch_size=config['batch_size'], verbose=1)
+    elif need_metadata:
+        model.predict(cand.loc[:,metadata_cols], batch_size=config['batch_size'], verbose=1)
+    
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
     labels = cand["label"].to_numpy(dtype=int)
 
@@ -148,7 +155,7 @@ def run_val(output_dir):
     print("Starting figure")
     # Accuracy
 
-    fig = plt.figure(figsize=(20, 22), dpi=400)
+    fig = plt.figure(figsize=(20, 22), dpi=200)
     main_grid = gridspec.GridSpec(4, 3, wspace=0.3, hspace=0.3)
 
     plt.suptitle(output_dir, size=28, y=0.92)
@@ -298,17 +305,9 @@ def run_val(output_dir):
     ax11 = plt.Subplot(fig, main_grid[10])
     ax12 = plt.Subplot(fig, main_grid[11])
 
-    # def gt1_b19(alerts):
-    #     valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
-    #     return len(valid) >= 1
-
     def bts_p1(alerts):
         valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
         return len(valid) >= 2
-
-    # def gt3b19(alerts):
-    #     valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
-    #     return len(valid) >= 3
 
     def bts_p2(alerts):
         if np.min(alerts['magpsf']) <= 18.5:

@@ -2,7 +2,7 @@ import numpy as np, pandas as pd, tensorflow as tf, matplotlib.pyplot as plt
 import json, datetime, os, sys
 import wandb
 
-import CNN_models
+import architectures
 import bts_val
 from train_val_test_split import create_subset
 
@@ -74,14 +74,11 @@ def train(config, run_name : str = None, sweeping : bool = False):
         if N_max_n:
             N_str += f"n{N_max_n}"
 
-    metadata_cols = config['metadata_cols']
-
     try: 
-        model_type = getattr(CNN_models, config['model_name'].lower())
+        model_type = getattr(architectures, config['model_name'].lower())
     except:
-        print("Could not find model of name", sys.argv[1].lower())
+        print("Could not find model of name", config['model_name'].lower())
         exit(0)
-    metadata = True if len(metadata_cols) > 0 else False
 
     print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}, N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
 
@@ -91,24 +88,34 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     train_data_version = config['train_data_version']
 
-    if not (os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv') and 
-            os.path.exists(f'data/train_triplets_{train_data_version}{N_str}.npy')):
+    # enter new architectures and corresponding types here
+    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn']
+    need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn']
+
+    triplets_present = os.path.exists(f'data/train_triplets_{train_data_version}{N_str}.npy')
+    metadata_present = os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv')
+
+    if (need_triplets and (not triplets_present)) or (not metadata_present):
         print(f"Couldn't find {train_data_version}{N_str} train subset, creating...")
+        # to fix: create_subset requires images even if only using um_nn
         create_subset("train", version_name=train_data_version, 
-                      N_max_p=N_max_p, N_max_n=N_max_n)
+                      N_max_p=N_max_p, N_max_n=N_max_n)        
     else:
         print(f"{train_data_version} training data already present")
 
     cand = pd.read_csv(f'data/train_cand_{train_data_version}{N_str}.csv')
-    triplets = np.load(f'data/train_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
+    if need_triplets:
+        triplets = np.load(f'data/train_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
 
-    if cand[metadata_cols].isnull().values.any():
-        print("Null in cand")
-        exit(0)
-    if np.any(np.isnan(triplets)):
+    if need_metadata:
+        metadata_cols = config['metadata_cols']
+        if cand[metadata_cols].isnull().values.any():
+            print("Null in cand")
+            exit(0)
+    if need_triplets and np.any(np.isnan(triplets)):
         print("Null in triplets")
         exit(0)
 
@@ -116,8 +123,10 @@ def train(config, run_name : str = None, sweeping : bool = False):
     #  LOAD VALIDATION DATA
     # /-----------------------------
 
-    if not (os.path.exists(f'data/val_cand_{train_data_version}{N_str}.csv') and 
-            os.path.exists(f'data/val_triplets_{train_data_version}{N_str}.npy')):
+    val_triplets_present = os.path.exists(f'data/val_triplets_{train_data_version}{N_str}.npy')
+    val_metadata_present = os.path.exists(f'data/val_cand_{train_data_version}{N_str}.csv')
+
+    if (need_triplets and (not val_triplets_present)) or (not val_metadata_present):
         print(f"Couldn't find {train_data_version}{N_str} val subset, creating...")
         create_subset("val", version_name=train_data_version, 
                       N_max_p=N_max_p, N_max_n=N_max_n)
@@ -125,21 +134,22 @@ def train(config, run_name : str = None, sweeping : bool = False):
         print(f"{train_data_version} val data already present")
 
     val_cand = pd.read_csv(f'data/val_cand_{train_data_version}{N_str}.csv')
-    val_triplets = np.load(f'data/val_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
+    if need_triplets:
+        val_triplets = np.load(f'data/val_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
 
     # /----------------------------------
     #  MODEL INPUT AND SOME PARAMS PREP 
     # /----------------------------------
 
-    gen_cols = np.append(metadata_cols, ['label'])
+    if need_triplets:
+        x_train = triplets 
+        x_val = val_triplets
+    else:
+        x_train = cand[metadata_cols] 
+        x_val = val_cand[metadata_cols]
 
-    x_train, y_train = triplets, cand['label']
-    x_val, y_val = val_triplets, val_cand['label']
-
-    # train_df is a combination of the desired metadata cols and y_train (labels)
-    # we provide the model a custom generator function to separate these as necessary
-    train_df = cand[gen_cols]
-    val_df = val_cand[gen_cols]
+    y_train = cand['label']
+    y_val = val_cand['label']
 
     print(f"{len(pd.unique(cand['objectId']))} train objects")
     print(f"{len(x_train)} train alerts")
@@ -162,16 +172,21 @@ def train(config, run_name : str = None, sweeping : bool = False):
     class_weight = {i: w for i, w in enumerate(normalized_weight)}
 
     # image shape:
-    image_shape = x_train.shape[1:]
-    print('Input image shape:', image_shape)
+    if need_triplets:
+        image_shape = x_train.shape[1:]
+        print('Input image shape:', image_shape)
 
     # metadata shape (if necessary):
-    if metadata:
-        metadata_shape = np.shape(train_df.iloc[0][:-1])
+    if need_metadata:
+        metadata_shape = (len(metadata_cols),)
         print('Input metadata shape:', metadata_shape)
+
+    if need_triplets and need_metadata:    
         model = model_type(config, image_shape=image_shape, metadata_shape=metadata_shape)
-    else:
+    elif need_triplets:
         model = model_type(config, image_shape=image_shape)
+    elif need_metadata:
+        model = model_type(config,  metadata_shape=metadata_shape)
 
     run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = f"{model.name}_{train_data_version}{N_str}{'_CPU' if sys.platform == 'darwin' else ''}"
@@ -225,48 +240,61 @@ def train(config, run_name : str = None, sweeping : bool = False):
     def rotate_incs_90(img):
         return np.rot90(img, np.random.choice([-1, 0, 1, 2]))
 
-    train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
-        horizontal_flip=bool(config["data_aug_h_flip"]),
-        vertical_flip  =bool(config["data_aug_v_flip"]),
-        fill_mode      ='constant',
-        cval           =0,
-        preprocessing_function = rotate_incs_90 if bool(config["data_aug_rot"])  else None
-    )
+    if need_triplets:
+        train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+            horizontal_flip=bool(config["data_aug_h_flip"]),
+            vertical_flip  =bool(config["data_aug_v_flip"]),
+            fill_mode      ='constant',
+            cval           =0,
+            preprocessing_function = rotate_incs_90 if bool(config["data_aug_rot"])  else None
+        )
 
-    val_datagen = tf.keras.preprocessing.image.ImageDataGenerator()
+        val_datagen = tf.keras.preprocessing.image.ImageDataGenerator()
 
-    if metadata:
-        t_generator = train_datagen.flow(x_train, train_df, batch_size=batch_size, seed=random_state, shuffle=False)
-        v_generator = val_datagen.flow(x_val, val_df, batch_size=batch_size, seed=random_state, shuffle=False)
+        if need_metadata:
+            # train_df is a combination of the desired metadata cols and y_train (labels)
+            # we provide the model a custom generator function to separate these as necessary
+            gen_cols = np.append(metadata_cols, ['label'])
+            train_df = cand[gen_cols]
+            val_df = val_cand[gen_cols]
 
-        def multiinput_train_generator():
-            while True:
-                # get the data from the generator
-                # data is [[img], [metadata and labels]]
-                # yields batch_size number of entries
-                data = t_generator.next()
+            t_generator = train_datagen.flow(x_train, train_df, batch_size=batch_size, seed=random_state, shuffle=False)
+            v_generator = val_datagen.flow(x_val, val_df, batch_size=batch_size, seed=random_state, shuffle=False)
 
-                imgs = data[0]
-                cols = data[1][:,:-1]
-                targets = data[1][:,-1:]
+            def multiinput_train_generator():
+                while True:
+                    # get the data from the generator
+                    # data is [[img], [metadata and labels]]
+                    # yields batch_size number of entries
+                    data = t_generator.next()
 
-                yield [imgs, cols], targets
+                    imgs = data[0]
+                    cols = data[1][:,:-1]
+                    targets = data[1][:,-1:]
 
-        def multiinput_val_generator():
-            while True:
-                data = v_generator.next()
+                    yield [imgs, cols], targets
 
-                imgs = data[0]
-                cols = data[1][:,:-1]
-                targets = data[1][:,-1:]
+            def multiinput_val_generator():
+                while True:
+                    data = v_generator.next()
 
-                yield [imgs, cols], targets
+                    imgs = data[0]
+                    cols = data[1][:,:-1]
+                    targets = data[1][:,-1:]
 
-        training_generator = multiinput_train_generator()
-        validation_generator = multiinput_val_generator()
-    else:
-        training_generator = train_datagen.flow(x_train, y_train, batch_size=batch_size, seed=random_state, shuffle=False)
-        validation_generator = val_datagen.flow(x_val, y_val, batch_size=batch_size, seed=random_state, shuffle=False)
+                    yield [imgs, cols], targets
+
+            train_data = multiinput_train_generator()
+            val_data = multiinput_val_generator()
+        else:
+            train_data = train_datagen.flow(x_train, y_train, batch_size=batch_size, seed=random_state, shuffle=False)
+            val_data = val_datagen.flow(x_val, y_val, batch_size=batch_size, seed=random_state, shuffle=False)
+    else:  # um_nn
+        train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+        train_data = train_data.shuffle(len(x_train)).batch(batch_size).repeat()
+        
+        val_data = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+        val_data = val_data.shuffle(len(x_val)).batch(batch_size).repeat()
 
     # /-----------------------------
     #  COMPILE AND TRAIN MODEL
@@ -275,9 +303,9 @@ def train(config, run_name : str = None, sweeping : bool = False):
     model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
     h = model.fit(
-        training_generator,
+        train_data,
         steps_per_epoch=0.8*len(x_train) // batch_size,
-        validation_data=validation_generator,
+        validation_data=val_data,
         validation_steps=(0.8*len(x_val)) // batch_size,
         class_weight=class_weight,
         epochs=epochs,
@@ -290,11 +318,11 @@ def train(config, run_name : str = None, sweeping : bool = False):
     # /-----------------------------
 
     print('Evaluating on training set to check misclassified samples:')
-    if metadata:
+    if need_triplets and need_metadata:    
         labels_training_pred = model.predict([x_train, train_df.iloc[:,:-1]], batch_size=batch_size, verbose=2)
-    else:
+    else:  # um_cnn or um_nn
         labels_training_pred = model.predict(x_train, batch_size=batch_size, verbose=2)
-
+    
     # XOR will show misclassified samples
     misclassified_train_mask = np.array(list(map(int, cand.label))).flatten() ^ \
                             np.array(list(map(int, np.rint(labels_training_pred)))).flatten()
