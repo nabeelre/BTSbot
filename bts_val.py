@@ -100,7 +100,7 @@ def run_val(output_dir):
     elif need_triplets:
         raw_preds = model.predict(triplets, batch_size=config['batch_size'], verbose=1)
     elif need_metadata:
-        model.predict(cand.loc[:,metadata_cols], batch_size=config['batch_size'], verbose=1)
+        raw_preds = model.predict(cand.loc[:,metadata_cols], batch_size=config['batch_size'], verbose=1)
     
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
     labels = cand["label"].to_numpy(dtype=int)
