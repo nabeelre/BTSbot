@@ -295,6 +295,7 @@ def run_val(output_dir):
     # Per-object Precision and Recall
 
     save_times = pd.read_csv("data/base_data/trues.csv").set_index("ZTFID")['RCF_save_time'].to_dict()
+    trigger_times = pd.read_csv("data/base_data/trues.csv").set_index("ZTFID")['RCF_trigger_time'].to_dict()
     RCFJunk = pd.read_csv("data/base_data/RCFJunk_Jul25.csv", index_col=None)
 
     ax7 = plt.Subplot(fig, main_grid[6])
@@ -345,9 +346,10 @@ def run_val(output_dir):
         plot_policy = cp_ax != None
         # Initialize new columns
         policy_cand[name+"_pred"] = 0
-        policy_cand[name+"_save_jd"] = -1
-        policy_cand[name+"_save_mag"] = -1
-        policy_cand[name+"_del_st"] = np.nan
+        policy_cand[name+"_jd"] = -1
+        policy_cand[name+"_mag"] = -1
+        policy_cand[name+"_save_dt"] = np.nan
+        policy_cand[name+"_trigger_dt"] = np.nan
 
         # For each source
         for obj_id in policy_cand["objectId"]:
@@ -363,16 +365,16 @@ def run_val(output_dir):
                 idx_sofar = obj_alerts.index[0:i+1]
 
                 # Don't save before 19 mag
-                if np.min(obj_alerts.loc[obj_alerts.index[0:i+1], 'magpsf']) > 19:
-                    continue
+                # if np.min(obj_alerts.loc[obj_alerts.index[0:i+1], 'magpsf']) > 19:
+                #     continue
 
                 # Compute the prediction for this current policy
                 policy_pred = func(obj_alerts.loc[idx_sofar])
 
                 # If this is the first positive pred
                 if int(policy_pred) and not policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_pred"].values[0]:
-                    policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_save_jd"] = obj_alerts.loc[idx_cur, "jd"]
-                    policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_save_mag"] = obj_alerts.loc[idx_cur, "magpsf"]
+                    policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_jd"] = obj_alerts.loc[idx_cur, "jd"]
+                    policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_mag"] = obj_alerts.loc[idx_cur, "magpsf"]
 
                 # Store policy prediction
                 policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_pred"] = int(policy_pred)
@@ -423,13 +425,17 @@ def run_val(output_dir):
                 if objid in list(save_times):
                     # Some BTS trues don't have save times...
                     if save_times[objid] >= jan1_2021_jd:
-                        policy_cand.loc[policy_cand["objectId"] == objid, name+"_del_st"] = policy_cand.loc[policy_cand["objectId"] == objid, name+"_save_jd"].values[0] - save_times[objid]
-        
-            med_del_st = np.nanmedian(policy_cand[name+"_del_st"])
+                        policy_cand.loc[policy_cand["objectId"] == objid, name+f"_save_dt"]    = policy_cand.loc[policy_cand["objectId"] == objid, name+f"_jd"].values[0] - save_times[objid]
+                if objid in list(trigger_times):
+                    if trigger_times[objid] >= jan1_2021_jd:    
+                        policy_cand.loc[policy_cand["objectId"] == objid, name+f"_trigger_dt"] = policy_cand.loc[policy_cand["objectId"] == objid, name+f"_jd"].values[0] - trigger_times[objid]
+
+            med_save_dt = np.nanmedian(policy_cand[name+f"_save_dt"])
+            med_trigger_dt = np.nanmedian(policy_cand[name+f"_trigger_dt"])
             if plot_policy:
-                st_ax.hist(policy_cand[name+"_del_st"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name)
+                st_ax.hist(policy_cand[name+"_save_dt"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name+"_save")
         else:
-            policy_precision = policy_recall = binned_precision = binned_recall = med_del_st = -999.0
+            policy_precision = policy_recall = binned_precision = binned_recall = med_save_dt = med_trigger_dt = -999.0
 
         policy_performance[name] = {
             "policy_precision": policy_precision,
@@ -437,7 +443,8 @@ def run_val(output_dir):
             "binned_precision": binned_precision,
             "binned_recall": binned_recall,
             "peakmag_bins": bright_narrow_bins,
-            "med_del_st": med_del_st
+            "med_save_dt": med_save_dt,
+            "med_trigger_dt": med_trigger_dt
         }
 
         if plot_policy:
@@ -461,7 +468,7 @@ def run_val(output_dir):
             cp_ax.set_xlabel("Peak Magnitude", size=22)
             cp_ax.set_ylabel("% of objects", size=18)
 
-            st_ax.axvline(med_del_st, linestyle='solid', c='k', linewidth=1.5, label=f"med:\n{med_del_st:.2f} d")
+            st_ax.axvline(med_save_dt, linestyle='solid', c='k', linewidth=1.5, label=f"med:\n{med_save_dt:.2f} d")
             st_ax.axvline(0, linestyle='dashed', c='gray', linewidth=1)
 
             st_ax.set_xlim([-15,15])
