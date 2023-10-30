@@ -400,7 +400,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
         wandb.summary[policy_name+"_binned_recall"] = perf['binned_recall']
         wandb.summary[policy_name+"_peakmag_bins"] = perf['peakmag_bins']
 
-        wandb.summary[policy_name+"_med_del_st"] = perf['med_del_st']
+        wandb.summary[policy_name+"_save_dt"] = perf['med_save_dt']
+        wandb.summary[policy_name+"_trigger_dt"] = perf['med_trigger_dt']
 
         wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) / (perf['policy_precision'] + perf['policy_recall'])
 
