@@ -422,16 +422,18 @@ def run_val(output_dir):
             #     pre ~2021 sources have unreliable/unrealistic fritz save times because they were scanned on GROWTH, so exclude them
             jan1_2021_jd = 2459215.5
             for objid in policy_cand.loc[TP_idxs_policy, "objectId"].to_list():
+                policy_obj_jd = policy_cand.loc[policy_cand["objectId"] == objid, name+"_jd"].values[0]
                 if objid in list(save_times):
                     # Some BTS trues don't have save times...
-                    if save_times[objid] >= jan1_2021_jd:
+                    if (save_times[objid] >= jan1_2021_jd) and (policy_obj_jd > 0):
                         policy_cand.loc[policy_cand["objectId"] == objid, name+f"_save_dt"]    = policy_cand.loc[policy_cand["objectId"] == objid, name+f"_jd"].values[0] - save_times[objid]
                 if objid in list(trigger_times):
-                    if trigger_times[objid] >= jan1_2021_jd:    
+                    if (trigger_times[objid] >= jan1_2021_jd) and (trigger_times[objid] < 1e10) and (policy_obj_jd > 0):    
                         policy_cand.loc[policy_cand["objectId"] == objid, name+f"_trigger_dt"] = policy_cand.loc[policy_cand["objectId"] == objid, name+f"_jd"].values[0] - trigger_times[objid]
 
             med_save_dt = np.nanmedian(policy_cand[name+f"_save_dt"])
             med_trigger_dt = np.nanmedian(policy_cand[name+f"_trigger_dt"])
+            
             if plot_policy:
                 st_ax.hist(policy_cand[name+"_save_dt"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name+"_save")
         else:
