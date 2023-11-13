@@ -4,7 +4,8 @@ import json, sys, os
 
 from penquins import Kowalski
 
-from alert_utils import make_triplet, extract_triplets, rerun_braai, prep_alerts
+from alert_utils import (make_triplet, extract_triplets, rerun_braai, 
+                         prep_alerts, crop_triplets)
 from compile_ZTFIDs import compile_ZTFIDs
 
 external_HDD = "/Volumes/NRExternal3/trainv8 data/"
@@ -260,6 +261,7 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
 
 def download_training_data(query_df, query_name, label, 
                            normalize_cutouts : bool = True, 
+                           cutout_size = 63,
                            verbose : bool = False, 
                            save_raw = None, load_raw = None):
     """
@@ -314,6 +316,8 @@ def download_training_data(query_df, query_name, label,
                        save_raw=save_raw, load_raw=load_raw)
     )
 
+    # fetch_nondets()
+
     num_alerts = len(alerts)
     
     # Turn provided label into array of length num_alerts
@@ -341,8 +345,13 @@ def download_training_data(query_df, query_name, label,
     # Rerun braai on all triplets and store their scores to be added to metadata
     new_drb = rerun_braai(triplets)
 
+    # Optionally, crop and renormalize all cutouts
+    if cutout_size != 63:
+        triplets = crop_triplets(triplets, cutout_size)
+
     # Save triplets to disk and purge from memory
-    np.save(f"data/base_data/{query_name}_triplets.npy", triplets)
+    np.save(f"../../data/base_data/{query_name}_triplets" +
+            f"{cutout_size if cutout_size != 63 else ''}.npy", triplets)
     del triplets
     print("Saved and purged triplets\n")
 
@@ -350,7 +359,7 @@ def download_training_data(query_df, query_name, label,
     cand_data = prep_alerts(alerts, label, new_drb)
 
     # Save metadata to disk and purge from memory
-    cand_data.to_csv(f'data/base_data/{query_name}_candidates.csv', index=False)
+    cand_data.to_csv(f'../../data/base_data/{query_name}_candidates.csv', index=False)
     del cand_data
     print("Saved and purged candidate data")
     
@@ -375,6 +384,6 @@ if __name__ == "__main__":
         exit()
 
     download_training_data(query_df, query_name, label=label, 
-                           normalize_cutouts=True, verbose=True, 
+                           normalize_cutouts=True, verbose=True,
                            save_raw=quest_raw_path+query_name, 
                            load_raw=quest_raw_path+query_name)

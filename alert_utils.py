@@ -30,6 +30,62 @@ def plot_triplet(trip):
     return fig
 
 
+def crop_norm_cutout(cutout, crop_to_size):
+    """
+    Crop 63x63 cutout to crop_to_size x crop_to_size pixels and normalize with 
+    L2-norm
+
+    Parameters
+    ----------
+    cutout: array
+        63x63 pixel array representing image cutout
+    
+    crop_to_size: int
+        Integer representing desired image length/width
+
+    Returns
+    -------
+    cutout: array
+        image cutout cropped to crop_to_size x crop_to_size pixels and normalized
+    """
+
+    margin = (63 - crop_to_size) // 2
+
+    cutout = cutout[margin:margin+crop_to_size, margin:margin+crop_to_size]
+    cutout /= np.linalg.norm(cutout)
+
+    return cutout
+
+
+def crop_triplets(triplets, crop_to_size):
+    """
+    Crop all cutouts in array of triplets to crop_to_size x crop_to_size
+    and renormalize with L2-norm
+
+    Parameters
+    ----------
+    triplets: array
+        Array of triplets whose cutouts are to be cropped
+
+    crop_to_size: int
+        Integer representing desired image length/width
+
+    Returns
+    -------
+    triplets: array
+        Array of triplets each cutout has been cropped and renormalized   
+    """
+
+    cropped_triplets = np.zeros((len(triplets), crop_to_size, crop_to_size, 3))
+
+    for trip_i in range(len(triplets)):
+        for cut_i in range(3):
+            cropped_triplets[trip_i,:,:,cut_i] = crop_norm_cutout(triplets[trip_i,:,:,cut_i], 
+                                                                  crop_to_size)
+
+    return cropped_triplets
+
+
 def make_triplet(alert, normalize: bool = True):
     """
     Unpack binary fits files containing cutouts from kowalski and preprocess

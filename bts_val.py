@@ -52,6 +52,15 @@ def run_val(output_dir):
         else:
             N_max_n = N_max_p
 
+    try:
+        crop_cutout_size = config['crop_cutout_size']
+        if crop_cutout_size == 63:
+            crop_cutout_str = ""
+        else:
+            crop_cutout_str = f"_c{crop_cutout_size}"
+    except:
+        crop_cutout_str = ""
+
     val_cuts_str = create_cuts_str(N_max_p, N_max_n,
                                    bool(config['val_sne_only']),
                                    bool(config['val_keep_near_threshold']), 
@@ -61,7 +70,7 @@ def run_val(output_dir):
     need_triplets = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_cnn']])
     need_metadata = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_nn']])
 
-    triplets_present = os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy")
+    triplets_present = os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy")
     metadata_present = os.path.exists(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
 
     if (need_triplets and (not triplets_present)) or (not metadata_present):
@@ -73,7 +82,7 @@ def run_val(output_dir):
 
     cand = pd.read_csv(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
     if need_triplets:
-        triplets = np.load(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}.npy", mmap_mode='r')
+        triplets = np.load(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy", mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')

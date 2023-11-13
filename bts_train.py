@@ -74,6 +74,15 @@ def train(config, run_name : str = None, sweeping : bool = False):
         if N_max_n:
             N_str += f"n{N_max_n}"
 
+    try:
+        crop_cutout_size = config['crop_cutout_size']
+        if crop_cutout_size == 63:
+            crop_cutout_str = ""
+        else:
+            crop_cutout_str = f"_c{crop_cutout_size}"
+    except:
+        crop_cutout_str = ""
+
     try: 
         model_type = getattr(architectures, config['model_name'].lower())
     except:
@@ -92,7 +101,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn']
     need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn']
 
-    triplets_present = os.path.exists(f'data/train_triplets_{train_data_version}{N_str}.npy')
+    triplets_present = os.path.exists(f'data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
     metadata_present = os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv')
 
     if (need_triplets and (not triplets_present)) or (not metadata_present):
@@ -105,7 +114,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     cand = pd.read_csv(f'data/train_cand_{train_data_version}{N_str}.csv')
     if need_triplets:
-        triplets = np.load(f'data/train_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
+        triplets = np.load(f'data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy', mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
@@ -123,7 +132,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     #  LOAD VALIDATION DATA
     # /-----------------------------
 
-    val_triplets_present = os.path.exists(f'data/val_triplets_{train_data_version}{N_str}.npy')
+    val_triplets_present = os.path.exists(f'data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
     val_metadata_present = os.path.exists(f'data/val_cand_{train_data_version}{N_str}.csv')
 
     if (need_triplets and (not val_triplets_present)) or (not val_metadata_present):
@@ -135,7 +144,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     val_cand = pd.read_csv(f'data/val_cand_{train_data_version}{N_str}.csv')
     if need_triplets:
-        val_triplets = np.load(f'data/val_triplets_{train_data_version}{N_str}.npy', mmap_mode='r')
+        val_triplets = np.load(f'data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy', mmap_mode='r')
 
     # /----------------------------------
     #  MODEL INPUT AND SOME PARAMS PREP 
