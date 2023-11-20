@@ -111,6 +111,11 @@ def merge_data(set_names, cuts, version_name, seed=2):
             SN_objectIds = dims.loc[~dims['type'].isin(non_SN_types), "ZTFID"].to_numpy()
 
             set_cand.loc[set_cand['objectId'].isin(SN_objectIds), 'is_SN'] = True
+
+            # remove bright sources in dims (peaked < 18.5 only in partnership data)
+            # this is a bandaid fix to label noise identified after revealing the test split
+            only_dim = set_cand['peakmag'] > 18.5
+            set_trips, set_cand = apply_cut(set_trips, set_cand, only_dim)
         
         is_train = set_cand[set_cand['split'] == "train"].index
         train_triplets = np.concatenate((train_triplets, set_trips[is_train]))
@@ -222,11 +227,11 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 
 
 if __name__ == "__main__":
-    version = "v9"
+    version = "v10"
 
     merge_data(set_names=["trues", "dims", "vars", "rejects"], 
               cuts=only_pd_gr_ps, version_name=version, seed=2)
 
     create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
     create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
-    create_subset("test", version_name=version, N_max_p=100, N_max_n=100)
+    create_subset("test", version_name=version, N_max_p=30, N_max_n=30)
