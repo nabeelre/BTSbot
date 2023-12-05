@@ -1,11 +1,22 @@
 import numpy as np
 import pandas as pd
-import gzip, io, sys
+import gzip, io, sys, json
 import tensorflow as tf
 from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from bson.json_util import loads, dumps
+from penquins import Kowalski
+
+if sys.platform == "darwin":
+    with open('/Users/nabeelr/credentials.json', 'r') as f:
+        creds = json.load(f)
+else:
+    with open('misc/credentials.json', 'r') as f:
+        creds = json.load(f)
+
+k = Kowalski(username=creds['kowalski_username'], 
+             password=creds['kowalski_password'])
 
 
 def plot_triplet(trip):
@@ -234,6 +245,63 @@ def rerun_braai(triplets):
     return np.transpose(new_drb)[0]
 
 
+def query_nondet(objid, first_alert_jd):
+    """
+    Query for last non-detection before first detection
+
+    Parameters
+    ----------
+    objid: str
+        ZTFID objectId of source in question
+
+    first_alert_jd: float
+        jd of source's first detection
+
+    Returns
+    -------
+    last_nondet_jd: float
+        jd of last non-detection before first detection
+        NaN if no leading non-detection found
+
+    last_nondet_diffmaglim: float
+        limiting magnitude of last non-detection before first detection
+        NaN if no leading non-detection found
+    """
+
+    query = {
+        "query_type": "find",
+        "query": {
+            "catalog": "ZTF_alerts_aux",
+            "filter": {
+                '_id': objid,
+            },
+            "projection": {
+                "_id": 0,
+                "prv_candidates.jd": 1,
+                "prv_candidates.diffmaglim": 1,
+                "prv_candidates.magpsf": 1,
+                # "prv_candidates.fid": 1
+            }
+        }
+    }
+
+    r = k.query(query)
+
+    # elements of prv_candidates 
+    prv = pd.DataFrame(r['data'][0]['prv_candidates'])
+
+    # non-detections before first detection
+    leading_nondets = prv[np.isnan(prv['magpsf']) & (prv['jd'] < first_alert_jd)]
+
+    if len(leading_nondets) == 0:
+        return np.nan, np.nan
+
+    # last non-detection before first detection
+    last_nondet = leading_nondets.sort_values('jd', ascending=False).iloc[0]
+
+    return last_nondet['jd'], last_nondet['diffmaglim']
+
+
 def prep_alerts(alerts, label, new_drb):
     """
     Reorganizes dict structure, adds values for custom features, and reruns 
@@ -276,31 +344,28 @@ def prep_alerts(alerts, label, new_drb):
 
     # Custom features to add to metadata
     alert_df["peakmag"] = None
-    # alert_df["peakmag_g"] = None
-    # alert_df["peakmag_r"] = None
     alert_df["maxmag"] = None
 
     alert_df["peakmag_so_far"] = None
-    # alert_df["peakmag_g_so_far"] = None
-    # alert_df["peakmag_r_so_far"] = None
     alert_df["maxmag_so_far"] = None
 
     alert_df["age"] = None
     alert_df["days_since_peak"] = None
     alert_df["days_to_peak"] = None
 
+    # alert_df["last_nondet_jd"] = None
+    # alert_df["last_nondet_diffmaglim"] = None
+    # alert_df["first_det_dm"] = None
+    # alert_df["first_det_dmdt"] = None
+
     alert_df["nnotdet"] = alert_df["ncovhist"] - alert_df["ndethist"]
 
     for objid in pd.unique(alert_df['objectId']):
         obj_alerts = alert_df.loc[alert_df["objectId"] == objid].sort_values(by="jd")
         
-        # peakmag_g = np.min(obj_alerts.loc[obj_alerts['fid'] == 1, "magpsf"])
-        # peakmag_r = np.min(obj_alerts.loc[obj_alerts['fid'] == 2, "magpsf"])
         peakmag = np.min(obj_alerts["magpsf"])
         maxmag = np.max(obj_alerts["magpsf"])
 
-        # alert_df.loc[alert_df['objectId'] == objid, "peakmag_g"] = peakmag_g
-        # alert_df.loc[alert_df['objectId'] == objid, "peakmag_r"] = peakmag_r
         alert_df.loc[alert_df['objectId'] == objid, "peakmag"] = peakmag
         alert_df.loc[alert_df['objectId'] == objid, "maxmag"] = maxmag
         
@@ -310,13 +375,9 @@ def prep_alerts(alerts, label, new_drb):
 
             jd_first_alert = np.min((alert_df.loc[idx_cur, "jdstarthist"], np.min(obj_alerts['jd'])))
 
-            # peakmag_g_so_far = np.min(obj_alerts.loc[(idx_so_far) & (obj_alerts['fid'] == 1), "magpsf"])
-            # peakmag_r_so_far = np.min(obj_alerts.loc[(idx_so_far) & (obj_alerts['fid'] == 2), "magpsf"])
             peakmag_so_far = np.min(obj_alerts.loc[idx_so_far, "magpsf"])
             maxmag_so_far = np.max(obj_alerts.loc[idx_so_far, "magpsf"])
             
-            # alert_df.loc[idx_cur, "peakmag_g_so_far"] = peakmag_g_so_far
-            # alert_df.loc[idx_cur, "peakmag_r_so_far"] = peakmag_r_so_far
             alert_df.loc[idx_cur, "peakmag_so_far"] = peakmag_so_far
             alert_df.loc[idx_cur, "maxmag_so_far"] = maxmag_so_far
 
@@ -325,6 +386,25 @@ def prep_alerts(alerts, label, new_drb):
             alert_df.loc[idx_cur, "age"] = alert_df.loc[idx_cur, "jd"] - jd_first_alert
             alert_df.loc[idx_cur, "days_since_peak"] = alert_df.loc[idx_cur, "jd"] - jd_peak_so_far
             alert_df.loc[idx_cur, "days_to_peak"] = jd_peak_so_far - jd_first_alert
+
+        # nondet_jd, nondet_diffmaglim = query_nondet(objid, np.min(obj_alerts['jd']))
+
+        # alert_df.loc[alert_df['objectId'] == objid, "last_nondet_jd"] = nondet_jd
+        # alert_df.loc[alert_df['objectId'] == objid, "last_nondet_diffmaglim"] = nondet_diffmaglim
+
+        # first_det_mag = obj_alerts.sort_values("jd", ascending=True).iloc[0]['magpsf']
+
+        # if np.isnan(nondet_jd):
+        #     # In this case, no leading non-detection found, so make basic
+        #     # assumption of rise-time.
+        #     dm = first_det_mag - 20.5  # 20.5 is roughly ZTF 30 s exposure depth 
+        #     dt = 2  # BTS is 2-day cadence
+        # else:
+        #     dm = first_det_mag - nondet_diffmaglim
+        #     dt = np.min(obj_alerts['jd']) - nondet_jd
+
+        # alert_df.loc[alert_df['objectId'] == objid, "first_det_dm"] = dm
+        # alert_df.loc[alert_df['objectId'] == objid, "first_det_dmdt"] = dm/dt
 
     print("Arranged candidate data, inserted labels and custom cols")
     return alert_df

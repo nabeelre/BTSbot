@@ -1,6 +1,6 @@
 {
-    "model_name": "mi_cnn",
-    "train_data_version": "v9",
+    "model_name": "mm_cnn",
+    "train_data_version": "v10",
     "loss": "binary_crossentropy",
     "learning_rate": 1e-4,
     "beta_1": 0.99,

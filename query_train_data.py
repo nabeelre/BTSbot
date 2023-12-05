@@ -316,8 +316,6 @@ def download_training_data(query_df, query_name, label,
                        save_raw=save_raw, load_raw=load_raw)
     )
 
-    # fetch_nondets()
-
     num_alerts = len(alerts)
     
     # Turn provided label into array of length num_alerts
@@ -357,6 +355,9 @@ def download_training_data(query_df, query_name, label,
 
     # augment alerts with custom features and add in labels
     cand_data = prep_alerts(alerts, label, new_drb)
+
+    # fetch_nondets()
+    
 
     # Save metadata to disk and purge from memory
     cand_data.to_csv(f'../../data/base_data/{query_name}_candidates.csv', index=False)
