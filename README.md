@@ -24,9 +24,6 @@ Fig. 7 from Rehemtulla et al. 2024 (in prep)
 
 ## Citing `BTSbot`
 
-If you use or reference `BTSbot` please cite [Rehemtulla et al. 2023](https://arxiv.org/abs/2307.07618)
+If you use or reference `BTSbot` please cite [Rehemtulla et al. 2023](https://arxiv.org/abs/2307.07618) ([ADS](https://ui.adsabs.harvard.edu/abs/2023arXiv230707618R/abstract))
 
 Rehemtulla et al. 2024 (in prep)
-
-## Requirements
-
