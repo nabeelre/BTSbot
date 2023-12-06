@@ -8,7 +8,11 @@ Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2
 
 ## A multi-modal convolutional neural network
 
-![model](https://github.com/nabeelre/BTSbot/assets/33795390/c4abf8f2-85fe-4eb8-a00a-fa7690ee574f)
+![model](https://github.com/nabeelre/BTSbot/assets/33795390/c33431eb-2a0d-4ed1-8b30-11a5810699c4)
+
+Fig. 5 from Rehemtulla et al. 2024 (in prep)
+
+## Usage
 
 ## Performance
 
@@ -16,17 +20,13 @@ Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2
 
 ![test_performance](https://github.com/nabeelre/BTSbot/assets/33795390/c9d1b930-c980-4e59-95d1-074bf7e11618)
 
-## Usage
+Fig. 7 from Rehemtulla et al. 2024 (in prep)
 
-
-
-#### Citing `BTSbot`
+## Citing `BTSbot`
 
 If you use or reference `BTSbot` please cite [Rehemtulla et al. 2023](https://arxiv.org/abs/2307.07618)
 
 Rehemtulla et al. 2024 (in prep)
-
-
 
 ## Requirements
 
