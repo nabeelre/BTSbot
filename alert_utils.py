@@ -134,7 +134,7 @@ def make_triplet(alert, normalize: bool = True):
             with fits.open(io.BytesIO(f.read())) as hdu:
                 data = hdu[0].data
 
-                # Compute median value of image to fill nans
+                # Compute median value to detect corrupted cutouts
                 median = np.nanmedian(data.flatten())
                 
                 # check if image is corrupted
