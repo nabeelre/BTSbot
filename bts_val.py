@@ -67,7 +67,7 @@ def run_val(output_dir):
                                    bool(config['val_rise_only']))
     train_data_version = config['train_data_version']
 
-    need_triplets = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_cnn']])
+    need_triplets = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_cnn', 'um_cnn_small']])
     need_metadata = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_nn']])
 
     triplets_present = os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy")
@@ -93,8 +93,14 @@ def run_val(output_dir):
             print("Null in cand")
             exit(0)
     if need_triplets and np.any(np.isnan(triplets)):
-        print("Null in triplets")
-        exit(0)
+        nan_trip_idxs = np.isnan(triplets).any(axis=(1,2,3))
+        triplets = triplets[~nan_trip_idxs]
+
+        cand = cand.drop(cand.index[nan_trip_idxs])
+        cand.reset_index(inplace=True, drop=True)
+
+        print("**** Null in triplets ****")
+        print(f"Removed {np.sum(nan_trip_idxs)} alert(s)")
 
     tf.keras.backend.clear_session()
 

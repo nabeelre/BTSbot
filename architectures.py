@@ -86,6 +86,42 @@ def um_cnn(config, image_shape):
     return model
 
 
+def um_cnn_small(config, image_shape):
+    triplet_input = keras.Input(shape=image_shape, name="triplet")
+
+    # --------------------------------------------------------------------------
+    # First convolutional block
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv1', input_shape=image_shape)(triplet_input)
+    
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv2')(x_conv)
+    
+    # x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
+    x_conv = Dropout(config['conv_dropout1'], name='conv_dropout1')(x_conv)
+
+    # --------------------------------------------------------------------------
+    # Second convolutional block
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv3')(x_conv)
+    
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+                    activation='relu', padding='same', name='conv4')(x_conv)
+    
+    # x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
+    x_conv = Dropout(config['conv_dropout2'], name='conv_dropout2')(x_conv)
+
+    x_conv = Flatten()(x_conv)
+ 
+    x_conv = Dense(config['head_neurons'], activation='relu', name='head_fc')(x_conv)
+    x_conv = Dropout(config['head_dropout'], name='head_dropout')(x_conv)
+
+    output = Dense(1, activation='sigmoid', name='fc_out')(x_conv)
+
+    model = keras.Model(inputs=triplet_input, outputs=output, name="um_cnn_small")
+    return model
+
+
 def um_nn(config, metadata_shape):
     meta_input = keras.Input(shape=metadata_shape, name="metadata")
 

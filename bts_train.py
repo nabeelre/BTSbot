@@ -98,7 +98,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     train_data_version = config['train_data_version']
 
     # enter new architectures and corresponding types here
-    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn']
+    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn', 'um_cnn_small']
     need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn']
 
     triplets_present = os.path.exists(f'data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
@@ -125,8 +125,14 @@ def train(config, run_name : str = None, sweeping : bool = False):
             print("Null in cand")
             exit(0)
     if need_triplets and np.any(np.isnan(triplets)):
-        print("Null in triplets")
-        exit(0)
+        nan_trip_idxs = np.isnan(triplets).any(axis=(1,2,3))
+        triplets = triplets[~nan_trip_idxs]
+
+        cand = cand.drop(cand.index[nan_trip_idxs])
+        cand.reset_index(inplace=True, drop=True)
+
+        print("**** Null in triplets ****")
+        print(f"Removed {np.sum(nan_trip_idxs)} alert(s)")
 
     # /-----------------------------
     #  LOAD VALIDATION DATA
