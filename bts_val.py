@@ -67,8 +67,8 @@ def run_val(output_dir):
                                    bool(config['val_rise_only']))
     train_data_version = config['train_data_version']
 
-    need_triplets = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_cnn', 'um_cnn_small']])
-    need_metadata = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_nn']])
+    need_triplets = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small']])
+    need_metadata = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_nn', 'mm_cnn_small']])
 
     triplets_present = os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy")
     metadata_present = os.path.exists(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")

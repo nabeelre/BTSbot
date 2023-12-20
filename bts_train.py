@@ -98,8 +98,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
     train_data_version = config['train_data_version']
 
     # enter new architectures and corresponding types here
-    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn', 'um_cnn_small']
-    need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn']
+    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small']
+    need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn', 'mm_cnn_small']
 
     triplets_present = os.path.exists(f'data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
     metadata_present = os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv')
@@ -424,7 +424,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "630ewf8v"
+        sweep_id = "gtpkgpkv"
         wandb.agent(sweep_id, function=sweep_train, count=15, project="BTSbot")
     else:
         classic_train(sys.argv[1])
