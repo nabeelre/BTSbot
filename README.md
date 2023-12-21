@@ -64,7 +64,7 @@ Rearrange the scores and compare with the scores I get. You should get a number 
 
 ```python
 raw_preds = np.transpose(raw_preds)[0]
-print(np.median(cand['expected_scores'] - raw_preds))
+print(np.median(np.abs(cand['expected_scores'] - raw_preds)))
 ```
 
 Now `BTSbot` is up and running! If you have access to `Kowalski` you can query for new sources to run `BTSbot` on using `download_training_data()`; if not, see `alert_utils()` for functions to process raw triplets and compute metadata features as `BTSbot` expects them.
