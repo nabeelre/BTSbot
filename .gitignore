@@ -164,7 +164,6 @@ sweep models/
 figs/
 *.py~
 core*
-train_configs/
 training_data.ipynb
 supporting_models/*/
 sweep*/
@@ -174,3 +173,4 @@ query*.sh
 configs/
 old_batches/
 autoscan/
+!example_data/
