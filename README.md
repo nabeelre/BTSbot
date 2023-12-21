@@ -48,7 +48,7 @@ metadata_cols = [
 ]
 ```
 
-Unzip `BTSbot` at `production_models/v1.0.1.tar.gz` and then proceed with loading it.
+First, unzip `BTSbot` at `production_models/v1.0.1.tar.gz` and then proceed with loading it.
 
 ```python
 BTSbot = tf.keras.models.load_model("production_models/best_model/")
@@ -57,7 +57,7 @@ BTSbot = tf.keras.models.load_model("production_models/best_model/")
 Now run `BTSbot` on the example alerts!
 
 ```python
-raw_preds = BTSbot.predict([trips, cand.loc[:,metadata_cols]], verbose=1)
+raw_preds = BTSbot.predict([trips, cand[metadata_cols]], verbose=1)
 ```
 
 Rearrange the scores and compare with the scores I get. You should get a number very close to zero - some minor deviation of scores is normal.
