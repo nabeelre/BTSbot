@@ -1,0 +1,35 @@
+{
+    "model_name": "um_nn",
+    "train_data_version": "v10",
+    "loss": "binary_crossentropy",
+    "learning_rate": 1e-4,
+    "beta_1": 0.999,
+    "beta_2": 0.999,
+    "batch_size": 128,
+
+    "epochs": 1000,
+    "patience": 75,
+    "N_max_p": 30,
+    "N_max_n": 30,
+
+    "meta_fc1_neurons": 64,
+    "meta_dropout": 0.40,
+    "meta_fc2_neurons": 64,
+
+    "head_neurons": 64,
+    "head_dropout": 0.70,
+
+    "weight_classes": "alert",
+    "reduce_LR_factor": 0.4,
+    "reduce_LR_minLR": 5e-10,
+    "data_aug_h_flip": 1,
+    "data_aug_v_flip": 1,
+    "data_aug_rot": 1,
+
+    "val_sne_only": 0,
+    "val_keep_near_threshold": 1,
+    "val_rise_only": 0,
+    
+    "random_seed": 2
+  }
+  

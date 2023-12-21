@@ -348,7 +348,7 @@ def download_training_data(query_df, query_name, label,
         triplets = crop_triplets(triplets, cutout_size)
 
     # Save triplets to disk and purge from memory
-    np.save(f"../../data/base_data/{query_name}_triplets" +
+    np.save(f"data/base_data/{query_name}_triplets" +
             f"{cutout_size if cutout_size != 63 else ''}.npy", triplets)
     del triplets
     print("Saved and purged triplets\n")
@@ -358,9 +358,8 @@ def download_training_data(query_df, query_name, label,
 
     # fetch_nondets()
     
-
     # Save metadata to disk and purge from memory
-    cand_data.to_csv(f'../../data/base_data/{query_name}_candidates.csv', index=False)
+    cand_data.to_csv(f'data/base_data/{query_name}_candidates.csv', index=False)
     del cand_data
     print("Saved and purged candidate data")
     
