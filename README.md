@@ -10,7 +10,7 @@ Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2
 
 ![model](https://github.com/nabeelre/BTSbot/assets/33795390/c33431eb-2a0d-4ed1-8b30-11a5810699c4)
 
-Fig. 5 from Rehemtulla et al. 2024 (in prep)
+Fig. 5 from [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167)
 
 ## Usage
 
@@ -75,10 +75,8 @@ Now `BTSbot` is up and running! If you have access to `Kowalski` you can query f
 
 ![test_performance](https://github.com/nabeelre/BTSbot/assets/33795390/c9d1b930-c980-4e59-95d1-074bf7e11618)
 
-Fig. 7 from Rehemtulla et al. 2024 (in prep)
+Fig. 7 from [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167)
 
 ## Citing `BTSbot`
 
-If you use or reference `BTSbot` please cite [Rehemtulla et al. 2023](https://arxiv.org/abs/2307.07618) ([ADS](https://ui.adsabs.harvard.edu/abs/2023arXiv230707618R/abstract))
-
-Rehemtulla et al. 2024 (in prep)
+If you use or reference `BTSbot` please cite [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167) ([ADS](https://ui.adsabs.harvard.edu/abs/2024arXiv240115167R/abstract))
