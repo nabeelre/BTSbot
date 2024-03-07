@@ -1,4 +1,10 @@
-# `BTSbot`
+<p align="center">
+  <img
+    src="https://github.com/nabeelre/BTSbot/assets/33795390/1b8586b1-5a89-4b84-a971-bf85fe722696"
+    alt="BTSbot Logo"
+    width="250px"
+  />
+</p>
 
 `BTSbot` is a machine learning tool to automate source identification and follow-up for the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). ZTF is a robotic observatory that looks for changes in the night sky by repeatedly taking new images and comparing them with historical ones. ZTF finds thousands of supernovae (SNe; the explosive deaths of stars) each year, and BTS endeavors to classify them with follow-up observations and build a large, complete sample of SNe. `BTSbot` automatically looks through ZTF data to find the SNe of interest to BTS and send follow-up observation requests for them. [Fritz](https://github.com/fritz-marshal/fritz)/[SkyPortal](https://github.com/skyportal/skyportal) and [Kowalski](https://github.com/skyportal/kowalski) aid in coordinating between ZTF's data stream and `BTSbot`
 
