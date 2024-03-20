@@ -12,6 +12,8 @@ Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2
 
 `BTSbot` contributed to the first SN to be fully automatically discovered, confirmed, classified, and shared. ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2023-265), [press release](https://news.northwestern.edu/stories/2023/10/first-supernova-detected-confirmed-classified-and-shared-by-ai/))
 
+The training set for the production model is available [here](https://nuwildcat.sharepoint.com/:f:/s/WNB-MillerAstro/EnYj8QeyvM5BoMbBp2YK5TgBRIwz4F8nHLsUZkSwnGDk0A), but this only includes public alerts (i.e. those with programid=1).
+
 ## A multi-modal convolutional neural network
 
 ![model](https://github.com/nabeelre/BTSbot/assets/33795390/c33431eb-2a0d-4ed1-8b30-11a5810699c4)
