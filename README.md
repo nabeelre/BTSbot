@@ -6,13 +6,16 @@
   />
 </p>
 
+[![DOI](https://zenodo.org/badge/517923027.svg)](https://zenodo.org/doi/10.5281/zenodo.10839684)
+
 `BTSbot` is a machine learning tool to automate source identification and follow-up for the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). ZTF is a robotic observatory that looks for changes in the night sky by repeatedly taking new images and comparing them with historical ones. ZTF finds thousands of supernovae (SNe; the explosive deaths of stars) each year, and BTS endeavors to classify them with follow-up observations and build a large, complete sample of SNe. `BTSbot` automatically looks through ZTF data to find the SNe of interest to BTS and send follow-up observation requests for them. [Fritz](https://github.com/fritz-marshal/fritz)/[SkyPortal](https://github.com/skyportal/skyportal) and [Kowalski](https://github.com/skyportal/kowalski) aid in coordinating between ZTF's data stream and `BTSbot`
 
 Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2023/) at [ICML 2023](https://icml.cc/Conferences/2023) ([Extended abstract](https://arxiv.org/abs/2307.07618))
 
 `BTSbot` contributed to the first SN to be fully automatically discovered, confirmed, classified, and shared. ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2023-265), [press release](https://news.northwestern.edu/stories/2023/10/first-supernova-detected-confirmed-classified-and-shared-by-ai/))
 
-The training set for the production model is available [here](https://nuwildcat.sharepoint.com/:f:/s/WNB-MillerAstro/EnYj8QeyvM5BoMbBp2YK5TgBRIwz4F8nHLsUZkSwnGDk0A), but this only includes public alerts (i.e. those with programid=1).
+The training set for the production model is available on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10839690).
+
 
 ## A multi-modal convolutional neural network
 
