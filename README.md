@@ -16,6 +16,7 @@ Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2
 
 The training set for the production model is available on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10839690).
 
+Also see this [animated walkthrough](https://www.youtube.com/watch?v=qUwlQflDdEo) of the fully-automated BTS workflow
 
 ## A multi-modal convolutional neural network
 
