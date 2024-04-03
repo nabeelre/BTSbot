@@ -203,13 +203,13 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
             # Execute query
             r = kowalski.query(query)
             
-            if r['data'] == []:
+            if r['kowalski']['data'] == []:
                 # No alerts recieved - possibly due to connection or permissions
                 print(f"  No programid={programid} data for", ZTFID)
                 continue
             else:
                 # returned data is list of dicts, each dict is an alert packet
-                object_alerts = r['data']   
+                object_alerts = r['kowalski']['data']   
 
         # Only try to save raw data if preloaded data couldn't be found
         if load_path is None:
@@ -297,9 +297,19 @@ def download_training_data(query_df, query_name, label,
     if verbose:
         print(f"Querying kowalski for {len(query_df)} objects of {query_name}")
         
-    k = Kowalski(username=creds['kowalski_username'], 
-                 password=creds['kowalski_password'])
-    if k.ping():
+    instances = {
+        'kowalski': {
+            'protocol': 'https',
+            'port': 443,
+            'host': f'kowalski.caltech.edu',
+            'username': creds['kowalski_username'],
+            'password': creds['kowalski_password']
+        }
+    }
+
+    k = Kowalski(instances=instances)
+
+    if k.ping('kowalski'):
         print("Connected to Kowalski")
     else:
         print("Unable to connect to Kowalski")
