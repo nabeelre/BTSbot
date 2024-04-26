@@ -7,12 +7,14 @@
 </p>
 
 [![DOI](https://zenodo.org/badge/517923027.svg)](https://zenodo.org/doi/10.5281/zenodo.10839684)
+[![arXiv](https://img.shields.io/badge/Publication-2401.15167-b31b1b.svg)](https://arxiv.org/abs/2401.15167)
+[![arXiv](https://img.shields.io/badge/ICML-2307.07618-b31b1b.svg)](https://arxiv.org/abs/2307.07618)
 
-`BTSbot` is a machine learning tool to automate source identification and follow-up for the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). ZTF is a robotic observatory that looks for changes in the night sky by repeatedly taking new images and comparing them with historical ones. ZTF finds thousands of supernovae (SNe; the explosive deaths of stars) each year, and BTS endeavors to classify them with follow-up observations and build a large, complete sample of SNe. `BTSbot` automatically looks through ZTF data to find the SNe of interest to BTS and send follow-up observation requests for them. [Fritz](https://github.com/fritz-marshal/fritz)/[SkyPortal](https://github.com/skyportal/skyportal) and [Kowalski](https://github.com/skyportal/kowalski) aid in coordinating between ZTF's data stream and `BTSbot`
-
-Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2023/) at [ICML 2023](https://icml.cc/Conferences/2023) ([Extended abstract](https://arxiv.org/abs/2307.07618))
+`BTSbot` is a multi-modal deep learning model to automate supernova identification and follow-up for the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). 
 
 `BTSbot` contributed to the first SN to be fully automatically discovered, confirmed, classified, and shared. ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2023-265), [press release](https://news.northwestern.edu/stories/2023/10/first-supernova-detected-confirmed-classified-and-shared-by-ai/))
+
+Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2023/) at [ICML 2023](https://icml.cc/Conferences/2023) ([Extended abstract](https://arxiv.org/abs/2307.07618))
 
 The training set for the production model is available on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10839690).
 
@@ -85,7 +87,7 @@ Now `BTSbot` is up and running! If you have access to `Kowalski` you can query f
 
 `BTSbot` finds nearly all SNe of interest from the input data stream (~100% completeness) with little contamination from uninteresting phenomena (93% purity) and does so as quickly as humans typically do.
 
-![test_performance](https://github.com/nabeelre/BTSbot/assets/33795390/c9d1b930-c980-4e59-95d1-074bf7e11618)
+![test_performance.pdf](https://github.com/nabeelre/BTSbot/files/15135081/test_performance.pdf)
 
 Fig. 7 from [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167)
 
