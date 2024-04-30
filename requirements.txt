@@ -2,12 +2,12 @@ astropy==6.0.1
 keras==2.13.1
 matplotlib==3.7.1
 numpy==1.24.3
-pandas==2.2.1
+pandas==2.2.2
 penquins==2.4.0
 prettytable==3.10.0
-pymongo==4.3.2
+pymongo==4.7.0
 Requests==2.31.0
-scikit_learn==1.2.2
-sendgrid==6.11.0
+scikit_learn==1.4.2
 tensorflow==2.13.0
+tensorflow_macos==2.13.0
 tqdm==4.65.0
