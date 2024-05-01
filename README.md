@@ -9,10 +9,11 @@
 [![DOI](https://zenodo.org/badge/517923027.svg)](https://zenodo.org/doi/10.5281/zenodo.10839684)
 [![arXiv](https://img.shields.io/badge/Publication-2401.15167-b31b1b.svg)](https://arxiv.org/abs/2401.15167)
 [![arXiv](https://img.shields.io/badge/ICML-2307.07618-b31b1b.svg)](https://arxiv.org/abs/2307.07618)
+<a href="https://ascl.net/2403.004"><img src="https://img.shields.io/badge/ascl-2403.004-blue.svg?colorB=262255" alt="ascl:2403.004" /></a>
 
-`BTSbot` is a multi-modal deep learning model to automate supernova identification and follow-up for the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). 
+`BTSbot` is a multi-modal convolutional neural network for automating supernova identification and follow-up in the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). 
 
-`BTSbot` contributed to the first SN to be fully automatically discovered, confirmed, classified, and shared. ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2023-265), [press release](https://news.northwestern.edu/stories/2023/10/first-supernova-detected-confirmed-classified-and-shared-by-ai/))
+`BTSbot` contributed to the first supernova to be fully automatically discovered, confirmed, classified, and shared. ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2023-265), [press release](https://news.northwestern.edu/stories/2023/10/first-supernova-detected-confirmed-classified-and-shared-by-ai/))
 
 Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2023/) at [ICML 2023](https://icml.cc/Conferences/2023) ([Extended abstract](https://arxiv.org/abs/2307.07618))
 
