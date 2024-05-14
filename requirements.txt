@@ -10,4 +10,4 @@ Requests==2.31.0
 scikit_learn==1.4.2
 tensorflow==2.13.0
 tensorflow_macos==2.13.0
-tqdm==4.65.0
+tqdm==4.66.4
