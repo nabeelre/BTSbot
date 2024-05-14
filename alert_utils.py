@@ -15,8 +15,17 @@ else:
     with open('misc/credentials.json', 'r') as f:
         creds = json.load(f)
 
-k = Kowalski(username=creds['kowalski_username'], 
-             password=creds['kowalski_password'])
+instances = {
+    'kowalski': {
+        'protocol': 'https',
+        'port': 443,
+        'host': f'kowalski.caltech.edu',
+        'username': creds['kowalski_username'],
+        'password': creds['kowalski_password']
+    }
+}
+
+k = Kowalski(instances=instances)
 
 
 def plot_triplet(trip):
