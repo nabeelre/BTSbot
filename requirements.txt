@@ -6,7 +6,7 @@ pandas==2.2.2
 penquins==2.4.0
 prettytable==3.10.0
 pymongo==4.7.0
-Requests==2.31.0
+Requests==2.32.3
 scikit_learn==1.4.2
 tensorflow==2.13.0
 tensorflow_macos==2.13.0
