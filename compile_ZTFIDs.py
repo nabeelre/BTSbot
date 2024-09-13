@@ -1,8 +1,12 @@
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
-import json, requests, os, time, sys
 from astropy import time as astrotime
+from tqdm import tqdm
+import pandas as pd
+import numpy as np
+import requests
+import json
+import time
+import sys
+import os
 
 btsse_query_urls = {
     "trues": "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=trans&classstring=&classexclude=&refok=y&purity=y&ps1img=y&lcfig=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=18.5&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
@@ -36,7 +40,7 @@ def query_rejects():
     Nothing
     """
     print("Querying for BTS rejects")
-    # BTS filter last changed 2020-10-29 
+    # BTS filter last changed 2020-10-29
     # Round start_date to 2021-01-01
     start_date = "2021-01-01"
     end_date = "2023-01-01"
@@ -53,7 +57,7 @@ def query_rejects():
     while True:
         print(f"  Page {page_num} of rejects queries")
         found_new = False
-        
+
         params = {
             "savedStatus": "notSavedToAnySelected",
             "startDate": start_date,
@@ -63,16 +67,16 @@ def query_rejects():
             "pageNumber": page_num
         }
         r = requests.get(endpoint, headers=headers, params=params)
-        
+
         if "out of range" in r.text:
             if num_per_page == 1:
                 break
             num_per_page = int(num_per_page / 2)
             # print("  halving num_per_page to", num_per_page)
             continue
-        
+
         candidates = r.json()['data']['candidates']
-        
+
         new_objids = [candidates[i]['id'] for i in range(len(candidates))]
         for new_objid in new_objids:
             if new_objid not in objids:
@@ -81,14 +85,14 @@ def query_rejects():
             else:
                 # print("repeated source:", new_objid)
                 pass
-                
+
         if not found_new:
             # print("  no new sources")
             break
-        
-        page_num += 1        
+
+        page_num += 1
         # print("  total", len(objids), objids[-3:-1], "\n")
-        
+
         time.sleep(2)
 
     print("  Done querying for BTS rejects")
@@ -116,7 +120,7 @@ def query_BTS_save_times():
 
     for i in tqdm(trues.index):
         objid = trues.loc[i, "ZTFID"]
-        
+
         if trues.loc[i, "RCF_save_time"] > 0:
             continue
 
@@ -126,23 +130,23 @@ def query_BTS_save_times():
 
         if not r.ok:
             continue
-        
+
         for group in data['groups']:
             if group['name'] == "Redshift Completeness Factor":
                 trues.loc[i, "RCF_save_time"] = astrotime.Time(group['saved_at']).jd
         time.sleep(0.2)
 
     trues.to_csv("data/base_data/trues.csv", index=None)
-    print("  Finished querying for BTS save times")        
+    print("  Finished querying for BTS save times")
 
 
 # TODO add query_trigger_times()
 
 
-def query_BTSSE(query_name, overwrite : bool = False):
+def query_BTSSE(query_name, overwrite: bool = False):
     """
     Execute query to internal BTS sample explorer to fetch sources on predefined
-    query. 
+    query.
 
     Parameters
     ----------
@@ -158,8 +162,8 @@ def query_BTSSE(query_name, overwrite : bool = False):
     """
     if not (os.path.exists(f"data/base_data/{query_name}.csv") and not overwrite):
         with open(f"data/base_data/{query_name}.csv", "w") as f:
-            f.write(requests.get(btsse_query_urls[query_name], 
-                                 auth=(creds["btsse_username"], 
+            f.write(requests.get(btsse_query_urls[query_name],
+                                 auth=(creds["btsse_username"],
                                        creds["btsse_password"])).text)
             print("Queried and wrote", query_name)
     else:
@@ -169,7 +173,7 @@ def query_BTSSE(query_name, overwrite : bool = False):
         query_BTS_save_times()
 
 
-def compile_from_BTSSE(query_name, all_ZTFIDs, overwrite : bool = False):
+def compile_from_BTSSE(query_name, all_ZTFIDs, overwrite: bool = False):
     """
     Query ZTFIDs from BTS sample explorer and remove repeats from previous data
 
@@ -180,7 +184,7 @@ def compile_from_BTSSE(query_name, all_ZTFIDs, overwrite : bool = False):
 
     all_ZTFIDs : array
         running list of ZTFIDs already present in data
-    
+
     overwrite : bool (optional)
         whether or not to replace existing {query_name}.csv file
 
@@ -222,7 +226,7 @@ def compile_extIas(all_ZTFIDs):
     all_ZTFIDs : array
         updated list of ZTFIDs present in data
     """
-    
+
     extIas = pd.read_csv('data/base_data/external_Ias_full.csv')
     extIas.rename(columns={"ztfname": "ZTFID"}, inplace=True)
 
@@ -238,16 +242,16 @@ def compile_extIas(all_ZTFIDs):
     return extIas, all_ZTFIDs
 
 
-def compile_rejects(all_ZTFIDs, overwrite : bool = False):
+def compile_rejects(all_ZTFIDs, overwrite: bool = False):
     """
-    Query ZTFIDs of unsaved BTS candidates from Fritz and remove repeats from 
+    Query ZTFIDs of unsaved BTS candidates from Fritz and remove repeats from
     previous data
 
     Parameters
     ----------
     all_ZTFIDs : array
         running list of ZTFIDs already present in data
-    
+
     overwrite : bool (optional)
         whether or not to replace existing rejects.csv file
 
@@ -259,12 +263,12 @@ def compile_rejects(all_ZTFIDs, overwrite : bool = False):
     all_ZTFIDs : array
         updated list of ZTFIDs present in data
     """
-    if not (os.path.exists(f"data/base_data/rejects.csv") and not overwrite):
+    if not (os.path.exists("data/base_data/rejects.csv") and not overwrite):
         query_rejects()
     else:
         print("  rejects list already present")
 
-    rejects = pd.read_csv(f"data/base_data/rejects.csv", index_col=None)
+    rejects = pd.read_csv("data/base_data/rejects.csv", index_col=None)
 
     rejects = rejects[~rejects['ZTFID'].isin(all_ZTFIDs)]
 
@@ -302,12 +306,12 @@ def compile_ZTFIDs(overwrite: bool = False):
 
     # Objects to exclude, usually having mixed label or transient in reference
     objs_to_remove = [
-        "ZTF18abdiasx", "ZTF21abyazip", "ZTF18aaadqua", "ZTF18aarrwmi", 
-        "ZTF18aazijke", "ZTF18abncsdn", "ZTF18aaslhxt", "ZTF18aamigmk", 
+        "ZTF18abdiasx", "ZTF21abyazip", "ZTF18aaadqua", "ZTF18aarrwmi",
+        "ZTF18aazijke", "ZTF18abncsdn", "ZTF18aaslhxt", "ZTF18aamigmk",
         "ZTF18abdpvnd", "ZTF18aaqffyp"
     ]
 
-    for query, query_name in zip([trues, vars, dims, extIas, rejects], 
+    for query, query_name in zip([trues, vars, dims, extIas, rejects],
                                  ["trues", "vars", "dims", "extIas", "rejects"]):
         query = query[~query["ZTFID"].isin(objs_to_remove)]
         query.to_csv(f"data/base_data/{query_name}.csv", index=None)

@@ -1,6 +1,9 @@
 import tensorflow as tf
 from tensorflow import keras
-from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, Concatenate, BatchNormalization
+from keras.layers import (
+    Dense, Conv2D, MaxPooling2D, Flatten,
+    Dropout, Concatenate, BatchNormalization
+)
 
 
 def mm_cnn(config, image_shape, metadata_shape):
@@ -9,23 +12,25 @@ def mm_cnn(config, image_shape, metadata_shape):
 
     # --------------------------------------------------------------------------
     # First convolutional block
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
-                    activation='relu', padding='same', name='conv1', input_shape=image_shape)(triplet_input)
-    
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(
+        config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
+        activation='relu', padding='same', name='conv1', input_shape=image_shape
+    )(triplet_input)
+
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv2')(x_conv)
-    
+
     x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
     x_conv = Dropout(config['conv_dropout1'], name='conv_dropout1')(x_conv)
 
     # --------------------------------------------------------------------------
     # Second convolutional block
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv3')(x_conv)
-    
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv4')(x_conv)
-    
+
     x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
     x_conv = Dropout(config['conv_dropout2'], name='conv_dropout2')(x_conv)
 
@@ -37,7 +42,7 @@ def mm_cnn(config, image_shape, metadata_shape):
     x_meta = Dense(config['meta_fc1_neurons'], activation='relu', name='meta_fc1')(x_meta)
     x_meta = Dropout(config['meta_dropout'], name='meta_dropout')(x_meta)
     x_meta = Dense(config['meta_fc2_neurons'], activation='relu', name='meta_fc2')(x_meta)
-    
+
     # --------------------------------------------------------------------------
     # Combined branch
     x = Concatenate(axis=1)([x_conv, x_meta])
@@ -56,22 +61,24 @@ def mm_cnn_small(config, image_shape, metadata_shape):
 
     # --------------------------------------------------------------------------
     # First convolutional block
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
-                    activation='relu', padding='same', name='conv1', input_shape=image_shape)(triplet_input)
-    
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(
+        config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
+        activation='relu', padding='same', name='conv1', input_shape=image_shape
+    )(triplet_input)
+
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv2')(x_conv)
-    
+
     x_conv = Dropout(config['conv_dropout1'], name='conv_dropout1')(x_conv)
 
     # --------------------------------------------------------------------------
     # Second convolutional block
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv3')(x_conv)
-    
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv4')(x_conv)
-    
+
     x_conv = Dropout(config['conv_dropout2'], name='conv_dropout2')(x_conv)
 
     x_conv = Flatten()(x_conv)
@@ -82,7 +89,7 @@ def mm_cnn_small(config, image_shape, metadata_shape):
     x_meta = Dense(config['meta_fc1_neurons'], activation='relu', name='meta_fc1')(x_meta)
     x_meta = Dropout(config['meta_dropout'], name='meta_dropout')(x_meta)
     x_meta = Dense(config['meta_fc2_neurons'], activation='relu', name='meta_fc2')(x_meta)
-    
+
     # --------------------------------------------------------------------------
     # Combined branch
     x = Concatenate(axis=1)([x_conv, x_meta])
@@ -100,28 +107,30 @@ def um_cnn(config, image_shape):
 
     # --------------------------------------------------------------------------
     # First convolutional block
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
-                    activation='relu', padding='same', name='conv1', input_shape=image_shape)(triplet_input)
-    
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(
+        config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
+        activation='relu', padding='same', name='conv1', input_shape=image_shape
+    )(triplet_input)
+
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv2')(x_conv)
-    
+
     x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
     x_conv = Dropout(config['conv_dropout1'], name='conv_dropout1')(x_conv)
 
     # --------------------------------------------------------------------------
     # Second convolutional block
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv3')(x_conv)
-    
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv4')(x_conv)
-    
+
     x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
     x_conv = Dropout(config['conv_dropout2'], name='conv_dropout2')(x_conv)
 
     x_conv = Flatten()(x_conv)
- 
+
     x_conv = Dense(config['head_neurons'], activation='relu', name='head_fc')(x_conv)
     x_conv = Dropout(config['head_dropout'], name='head_dropout')(x_conv)
 
@@ -136,28 +145,30 @@ def um_cnn_small(config, image_shape):
 
     # --------------------------------------------------------------------------
     # First convolutional block
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
-                    activation='relu', padding='same', name='conv1', input_shape=image_shape)(triplet_input)
-    
-    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(
+        config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
+        activation='relu', padding='same', name='conv1', input_shape=image_shape
+    )(triplet_input)
+
+    x_conv = Conv2D(config['conv1_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv2')(x_conv)
-    
+
     # x_conv = MaxPooling2D(pool_size=(2, 2), name='pool1')(x_conv)
     x_conv = Dropout(config['conv_dropout1'], name='conv_dropout1')(x_conv)
 
     # --------------------------------------------------------------------------
     # Second convolutional block
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv3')(x_conv)
-    
-    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']), 
+
+    x_conv = Conv2D(config['conv2_channels'], (config['conv_kernel'], config['conv_kernel']),
                     activation='relu', padding='same', name='conv4')(x_conv)
-    
+
     # x_conv = MaxPooling2D(pool_size=(4, 4), name='pool2')(x_conv)
     x_conv = Dropout(config['conv_dropout2'], name='conv_dropout2')(x_conv)
 
     x_conv = Flatten()(x_conv)
- 
+
     x_conv = Dense(config['head_neurons'], activation='relu', name='head_fc')(x_conv)
     x_conv = Dropout(config['head_dropout'], name='head_dropout')(x_conv)
 
@@ -174,7 +185,7 @@ def um_nn(config, metadata_shape):
     x_meta = Dense(config['meta_fc1_neurons'], activation='relu', name='meta_fc1')(x_meta)
     x_meta = Dropout(config['meta_dropout'], name='meta_dropout')(x_meta)
     x_meta = Dense(config['meta_fc2_neurons'], activation='relu', name='meta_fc2')(x_meta)
-    
+
     x_meta = Dense(config['head_neurons'], activation='relu', name='head_fc')(x_meta)
     x_meta = Dropout(config['head_dropout'], name='head_dropout')(x_meta)
 

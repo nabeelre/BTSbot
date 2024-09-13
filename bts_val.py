@@ -18,6 +18,7 @@ plt.rcParams['axes.linewidth'] = 1.5
 random_state = 2
 run_test = False
 
+
 def run_val(output_dir):
     if not run_test:
         split_name = "validation"
@@ -25,7 +26,7 @@ def run_val(output_dir):
     else:
         split_name = "test"
         split_name_short = "test"
-    
+
     print(f"*** Running {split_name} on {output_dir} ***")
 
     if sys.platform == "darwin":
@@ -42,6 +43,7 @@ def run_val(output_dir):
             report = None
             config = json.load(f)
 
+    data_base_dir = config.get('data_base_dir', '')
     if "N_maxs" in list(config):
         N_max_p = config["N_maxs"][0]
         N_max_n = config["N_maxs"][1]
@@ -63,26 +65,26 @@ def run_val(output_dir):
 
     val_cuts_str = create_cuts_str(N_max_p, N_max_n,
                                    bool(config['val_sne_only']),
-                                   bool(config['val_keep_near_threshold']), 
+                                   bool(config['val_keep_near_threshold']),
                                    bool(config['val_rise_only']))
     train_data_version = config['train_data_version']
 
     need_triplets = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small']])
     need_metadata = any([arch_type in output_dir for arch_type in ['mm_cnn', 'um_nn', 'mm_cnn_small']])
 
-    triplets_present = os.path.exists(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy")
-    metadata_present = os.path.exists(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
+    triplets_present = os.path.exists(f"{data_base_dir}data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy")
+    metadata_present = os.path.exists(f"{data_base_dir}data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
 
     if (need_triplets and (not triplets_present)) or (not metadata_present):
-        create_subset(split_name_short, train_data_version, N_max_p, N_max_n, 
-                      config['val_sne_only'], config['val_keep_near_threshold'], 
+        create_subset(split_name_short, train_data_version, N_max_p, N_max_n,
+                      config['val_sne_only'], config['val_keep_near_threshold'],
                       config['val_rise_only'])
     else:
         print(f"{train_data_version}{val_cuts_str} {split_name} data already present")
 
-    cand = pd.read_csv(f"data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
+    cand = pd.read_csv(f"{data_base_dir}data/{split_name_short}_cand_{train_data_version}{val_cuts_str}.csv")
     if need_triplets:
-        triplets = np.load(f"data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy", mmap_mode='r')
+        triplets = np.load(f"{data_base_dir}data/{split_name_short}_triplets_{train_data_version}{val_cuts_str}{crop_cutout_str}.npy", mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
@@ -93,7 +95,7 @@ def run_val(output_dir):
             print("Null in cand")
             exit(0)
     if need_triplets and np.any(np.isnan(triplets)):
-        nan_trip_idxs = np.isnan(triplets).any(axis=(1,2,3))
+        nan_trip_idxs = np.isnan(triplets).any(axis=(1, 2, 3))
         triplets = triplets[~nan_trip_idxs]
 
         cand = cand.drop(cand.index[nan_trip_idxs])
@@ -109,14 +111,16 @@ def run_val(output_dir):
     except:
         print("couldn't find best_model/ trying to find model/")
         model = tf.keras.models.load_model(output_dir + "model/")
-    
+
     if need_triplets and need_metadata:
-        raw_preds = model.predict([triplets, cand.loc[:,metadata_cols]], batch_size=config['batch_size'], verbose=1)
+        raw_preds = model.predict([triplets, cand.loc[:, metadata_cols]],
+                                  batch_size=config['batch_size'], verbose=1)
     elif need_triplets:
         raw_preds = model.predict(triplets, batch_size=config['batch_size'], verbose=1)
     elif need_metadata:
-        raw_preds = model.predict(cand.loc[:,metadata_cols], batch_size=config['batch_size'], verbose=1)
-    
+        raw_preds = model.predict(cand.loc[:, metadata_cols],
+                                  batch_size=config['batch_size'], verbose=1)
+
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
     labels = cand["label"].to_numpy(dtype=int)
 
@@ -125,10 +129,10 @@ def run_val(output_dir):
 
     results = preds == cand["label"].to_numpy()
     print(f"Overall {split_name} accuracy {100*np.sum(results) / len(results):.2f}%")
-    
+
     fpr, tpr, thresholds = roc_curve(labels, raw_preds)
     roc_auc = auc(fpr, tpr)
- 
+
     TP_mask = np.bitwise_and(labels, preds)
     TN_mask = 1-(np.bitwise_or(labels, preds))
     FP_mask = np.bitwise_and(1-labels, preds)
@@ -139,12 +143,12 @@ def run_val(output_dir):
     FP_idxs = [ii for ii, mi in enumerate(FP_mask) if mi == 1]
     FN_idxs = [ii for ii, mi in enumerate(FN_mask) if mi == 1]
 
-    bins = np.arange(15,21.5,0.5)
+    bins = np.arange(15, 21.5, 0.5)
     # all_count, _ = np.histogram(cand['magpsf']                    , bins=bins)
-    TP_count, _  = np.histogram(cand['magpsf'].to_numpy()[TP_idxs], bins=bins)
-    FP_count, _  = np.histogram(cand['magpsf'].to_numpy()[FP_idxs], bins=bins)
-    TN_count, _  = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=bins)
-    FN_count, _  = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=bins)
+    TP_count, _ = np.histogram(cand['magpsf'].to_numpy()[TP_idxs], bins=bins)
+    FP_count, _ = np.histogram(cand['magpsf'].to_numpy()[FP_idxs], bins=bins)
+    TN_count, _ = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=bins)
+    FN_count, _ = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=bins)
 
     # narrow_bins = np.arange(17,21.00,0.25)
     # all_count_nb, _ = np.histogram(cand['magpsf']                    , bins=narrow_bins)
@@ -174,7 +178,7 @@ def run_val(output_dir):
     main_grid = gridspec.GridSpec(4, 3, wspace=0.3, hspace=0.3)
 
     plt.suptitle(output_dir, size=28, y=0.92)
-    
+
     ax1 = plt.Subplot(fig, main_grid[0])
     if report:
         ax1.plot(report["Training history"]["accuracy"], label='Training', linewidth=2)
@@ -241,7 +245,7 @@ def run_val(output_dir):
     # colorbar
     divider = make_axes_locatable(ax4)
     extend = divider.append_axes("right", "5%", pad=0.2)
-    cb = plt.colorbar(hist[3], cax=extend)
+    _ = plt.colorbar(hist[3], cax=extend)
     extend.set_ylabel('# of alerts', size=18)
 
     # mag marginal hist
@@ -252,7 +256,8 @@ def run_val(output_dir):
     ax4_histx.set_aspect(0.00017, anchor='W')
 
     # score marginal hist
-    ax4_histy.hist(raw_preds[:,0], orientation='horizontal', bins=28, range=[0, 1], facecolor='#37125E')
+    ax4_histy.hist(raw_preds[:, 0], orientation='horizontal',
+                   bins=28, range=[0, 1], facecolor='#37125E')
     ax4_histy.set_ylabel("Bright transient score", size=22)
     ax4_histy.tick_params(direction='out', axis='y', length=2, width=1, bottom=True, pad=10)
     ax4_histy.tick_params(axis='x', bottom=False)
@@ -274,12 +279,12 @@ def run_val(output_dir):
     # Confusion Matrix
 
     ax5 = plt.Subplot(fig, main_grid[4])
-    ConfusionMatrixDisplay.from_predictions(labels, preds, normalize='true', 
-                                            display_labels=["notBTS", "BTS"], 
+    ConfusionMatrixDisplay.from_predictions(labels, preds, normalize='true',
+                                            display_labels=["notBTS", "BTS"],
                                             cmap=plt.cm.Blues, colorbar=False, ax=ax5)
 
     for im in plt.gca().get_images():
-        im.set_clim(vmin=0,vmax=1)
+        im.set_clim(vmin=0, vmax=1)
     fig.add_subplot(ax5)
 
     # /===================================================================/
@@ -288,10 +293,22 @@ def run_val(output_dir):
     ax6 = plt.Subplot(fig, main_grid[5])
     colors = ['#26547C', '#A9BCD0', '#BA5A31', '#E59F71']
 
-    ax6.bar(bins[:-1], TP_count,                                    align='edge', width=bins[1]-bins[0], color=colors[0], label='TP', linewidth=0.1, edgecolor='k')
-    ax6.bar(bins[:-1], FP_count, bottom=TP_count,                   align='edge', width=bins[1]-bins[0], color=colors[1], label='FP', linewidth=0.1, edgecolor='k')
-    ax6.bar(bins[:-1], TN_count, bottom=TP_count+FP_count,          align='edge', width=bins[1]-bins[0], color=colors[2], label='TN', linewidth=0.1, edgecolor='k')
-    ax6.bar(bins[:-1], FN_count, bottom=TP_count+FP_count+TN_count, align='edge', width=bins[1]-bins[0], color=colors[3], label='FN', linewidth=0.1, edgecolor='k')
+    ax6.bar(bins[:-1], TP_count,
+            align='edge', width=bins[1]-bins[0],
+            color=colors[0], label='TP',
+            linewidth=0.1, edgecolor='k')
+    ax6.bar(bins[:-1], FP_count, bottom=TP_count,
+            align='edge', width=bins[1]-bins[0],
+            color=colors[1], label='FP',
+            linewidth=0.1, edgecolor='k')
+    ax6.bar(bins[:-1], TN_count, bottom=TP_count+FP_count,
+            align='edge', width=bins[1]-bins[0],
+            color=colors[2], label='TN',
+            linewidth=0.1, edgecolor='k')
+    ax6.bar(bins[:-1], FN_count, bottom=TP_count+FP_count+TN_count,
+            align='edge', width=bins[1]-bins[0],
+            color=colors[3], label='FN',
+            linewidth=0.1, edgecolor='k')
 
     ax6.axvspan(10, 18.5, color='gold', alpha=0.2, lw=0)
     ax6.legend(ncol=2, frameon=False)
@@ -309,8 +326,12 @@ def run_val(output_dir):
     # /===================================================================/
     # Per-object Precision and Recall
 
-    save_times = pd.read_csv("data/base_data/trues.csv").set_index("ZTFID")['RCF_save_time'].to_dict()
-    trigger_times = pd.read_csv("data/base_data/trues.csv").set_index("ZTFID")['RCF_trigger_time'].to_dict()
+    save_times = pd.read_csv(
+        "data/base_data/trues.csv"
+    ).set_index("ZTFID")['RCF_save_time'].to_dict()
+    trigger_times = pd.read_csv(
+        "data/base_data/trues.csv"
+    ).set_index("ZTFID")['RCF_trigger_time'].to_dict()
     RCFJunk = pd.read_csv("data/base_data/RCFJunk_Jul25.csv", index_col=None)
 
     ax7 = plt.Subplot(fig, main_grid[6])
@@ -339,7 +360,7 @@ def run_val(output_dir):
     policy_performance = dict.fromkeys(policy_names)
 
     # Get label and peakmag for each source (by taking all unique objectIds)
-    policy_cand = pd.DataFrame(columns=["objectId", "label", "peakmag", 
+    policy_cand = pd.DataFrame(columns=["objectId", "label", "peakmag",
                                         "remaining_alert_peakmag"])
     # Iterate over all alerts in validation/test set
     for objid in pd.unique(cand['objectId']):
@@ -351,14 +372,16 @@ def run_val(output_dir):
         BTS_peak_thinned = (obj_alerts["label"].iloc[0] == 1) and np.min(obj_alerts["magpsf"]) > 18.5 
 
         if (not already_seen) and (not in_RCFJunk) and (good_coverage) and (not BTS_peak_thinned):
-            policy_cand.loc[len(policy_cand)] = (objid,
-                                                 cand.loc[cand['objectId'] == objid, "label"].iloc[0],
-                                                 cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0],
-                                                 np.min(cand.loc[cand['objectId'] == objid, "magpsf"]))
+            policy_cand.loc[len(policy_cand)] = (
+                objid,
+                cand.loc[cand['objectId'] == objid, "label"].iloc[0],
+                cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0],
+                np.min(cand.loc[cand['objectId'] == objid, "magpsf"])
+            )
 
     # For each policy
     for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes, ST_axes):
-        plot_policy = cp_ax != None
+        plot_policy = cp_ax is not None
         # Initialize new columns
         policy_cand[name+"_pred"] = 0
         policy_cand[name+"_jd"] = -1
@@ -393,9 +416,9 @@ def run_val(output_dir):
 
                 # Store policy prediction
                 policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_pred"] = int(policy_pred)
-                
+
         policy_labels = policy_cand["label"].to_numpy()
-        policy_preds  = policy_cand[name+"_pred"].to_numpy()
+        policy_preds = policy_cand[name+"_pred"].to_numpy()
         bright_narrow_bins = np.arange(17.00, 18.50+0.25, 0.25)
 
         TP_mask_policy = np.bitwise_and(policy_labels, policy_preds)
@@ -408,14 +431,18 @@ def run_val(output_dir):
         FP_idxs_policy = [ii for ii, mi in enumerate(FP_mask_policy) if mi == 1]
         FN_idxs_policy = [ii for ii, mi in enumerate(FN_mask_policy) if mi == 1]
 
-        TP_count_policy_binned, _  = np.histogram(policy_cand.loc[TP_idxs_policy, "remaining_alert_peakmag"], 
-                                                  bins=bright_narrow_bins)
-        FP_count_policy_binned, _  = np.histogram(policy_cand.loc[FP_idxs_policy, "remaining_alert_peakmag"], 
-                                                  bins=bright_narrow_bins)
-        # TN_count_policy_binned, _  = np.histogram(policy_cand.loc[TN_idxs_policy, "remaining_alert_peakmag"], 
-        #                                            bins=bright_narrow_bins)
-        FN_count_policy_binned, _  = np.histogram(policy_cand.loc[FN_idxs_policy, "remaining_alert_peakmag"], 
-                                                  bins=bright_narrow_bins)
+        TP_count_policy_binned, _ = np.histogram(
+            policy_cand.loc[TP_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
+        )
+        FP_count_policy_binned, _ = np.histogram(
+            policy_cand.loc[FP_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
+        )
+        # TN_count_policy_binned, _ = np.histogram(
+        #     policy_cand.loc[TN_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
+        # )
+        FN_count_policy_binned, _ = np.histogram(
+            policy_cand.loc[FN_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
+        )
 
         if all((len(TP_idxs_policy) > 0, len(TN_idxs_policy) > 0)):
             policy_precision = len(TP_idxs_policy) / (len(FP_idxs_policy) + len(TP_idxs_policy))
@@ -427,7 +454,7 @@ def run_val(output_dir):
             if plot_policy:
                 cp_ax.step(bright_narrow_bins, 100*np.append(binned_recall[0], binned_recall), color='#263D65', label='Completeness', linewidth=3)
                 cp_ax.step(bright_narrow_bins, 100*np.append(binned_precision[0], binned_precision), color='#FE7F2D', label='Purity', linewidth=3)
-                
+
                 cp_ax.axhline(100*policy_precision, color='#FE7F2D', linewidth=2, linestyle='dashed')
                 cp_ax.axhline(100*policy_recall, color='#263D65', linewidth=2, linestyle='dashed')
 
@@ -446,9 +473,9 @@ def run_val(output_dir):
                     if (trigger_times[objid] >= jan1_2021_jd) and (trigger_times[objid] < 1e10) and (policy_obj_jd > 0):    
                         policy_cand.loc[policy_cand["objectId"] == objid, name+f"_trigger_dt"] = policy_cand.loc[policy_cand["objectId"] == objid, name+f"_jd"].values[0] - trigger_times[objid]
 
-            med_save_dt = np.nanmedian(policy_cand[name+f"_save_dt"])
-            med_trigger_dt = np.nanmedian(policy_cand[name+f"_trigger_dt"])
-            
+            med_save_dt = np.nanmedian(policy_cand[name+"_save_dt"])
+            med_trigger_dt = np.nanmedian(policy_cand[name+"_trigger_dt"])
+
             if plot_policy:
                 st_ax.hist(policy_cand[name+"_save_dt"], bins=50, histtype='step', edgecolor='#654690', linewidth=3, label=name+"_save")
         else:
@@ -469,16 +496,16 @@ def run_val(output_dir):
             cp_ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
             cp_ax.grid(True, linewidth=.3)
 
-            cp_ax.set_xlim([17.0,18.5])
-            cp_ax.set_ylim([75,100.5])
-            
+            cp_ax.set_xlim([17.0, 18.5])
+            cp_ax.set_ylim([75, 100.5])
+
             cp_ax.xaxis.set_major_locator(mtick.MultipleLocator(0.5))
             cp_ax.xaxis.set_minor_locator(mtick.MultipleLocator(0.25))
             cp_ax.yaxis.set_major_locator(mtick.MultipleLocator(10))
             cp_ax.yaxis.set_minor_locator(mtick.MultipleLocator(5))
 
             cp_ax.yaxis.set_major_formatter(mtick.PercentFormatter(decimals=0))
-            
+
             cp_ax.tick_params(direction='in', axis='both', length=3, width=1.5, bottom=True, left=True, right=True, pad=10)
             cp_ax.tick_params(which='minor', direction='in', axis='y', length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
 
@@ -488,9 +515,9 @@ def run_val(output_dir):
             st_ax.axvline(med_save_dt, linestyle='solid', c='k', linewidth=1.5, label=f"med:\n{med_save_dt:.2f} d")
             st_ax.axvline(0, linestyle='dashed', c='gray', linewidth=1)
 
-            st_ax.set_xlim([-15,15])
-            st_ax.set_ylim([0,55])
-            
+            st_ax.set_xlim([-15, 15])
+            st_ax.set_ylim([0, 55])
+
             st_ax.legend(prop={'size': 20}, frameon=False)
             st_ax.set_ylabel("# of sources", size=18)
             st_ax.set_xlabel("Days after save by scanner", size=22)
@@ -514,10 +541,9 @@ def run_val(output_dir):
         ax.tick_params(which='both', width=1.5)
 
     plt.savefig(f"{output_dir}/{os.path.basename(os.path.normpath(output_dir))}{val_cuts_str}{'_test' if run_test else ''}.pdf", bbox_inches="tight")
-    
 
     print({
-        "roc_auc": roc_auc, "bal_acc": bal_acc, "bts_acc": bts_acc, 
+        "roc_auc": roc_auc, "bal_acc": bal_acc, "bts_acc": bts_acc,
         "notbts_acc": notbts_acc, "alert_precision": alert_precision,
         "alert_recall": alert_recall, "policy_performance": policy_performance
     })
@@ -531,4 +557,3 @@ def run_val(output_dir):
 
 if __name__ == "__main__":
     run_val(sys.argv[1])
-    

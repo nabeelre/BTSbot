@@ -1,10 +1,16 @@
-import numpy as np, pandas as pd, tensorflow as tf, matplotlib.pyplot as plt
-import json, datetime, os, sys
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import pandas as pd
+import numpy as np
+import datetime
 import wandb
+import json
+import sys
+import os
 
+from train_val_test_split import create_subset
 import architectures
 import bts_val
-from train_val_test_split import create_subset
 
 plt.rcParams.update({
     "font.family": "Times New Roman",
@@ -17,10 +23,11 @@ random_state = 2
 #  HYPERPARAMETERS
 # /-----------------------------
 
+
 def sweep_train(config=None):
     with wandb.init(config=config) as run:
         train(run.config, run_name=run.name, sweeping=True)
-    
+
 
 def classic_train(config_path):
     with open(config_path, 'r') as f:
@@ -28,7 +35,7 @@ def classic_train(config_path):
     train(config)
 
 
-def train(config, run_name : str = None, sweeping : bool = False):
+def train(config, run_name: str = None, sweeping: bool = False):
     if sys.platform == "darwin":
         # Disable GPUs if running on macOS
         print("disabling GPUs")
@@ -38,13 +45,13 @@ def train(config, run_name : str = None, sweeping : bool = False):
     if sys.platform == "darwin":
         print("Using keras legacy Adam optimizer for M1-chip compatibility")
         optimizer = tf.keras.optimizers.legacy.Adam(
-            learning_rate=config['learning_rate'], 
+            learning_rate=config['learning_rate'],
             beta_1=config['beta_1'],
             beta_2=config['beta_2']
         )
-    else:    
+    else:
         optimizer = tf.keras.optimizers.Adam(
-            learning_rate=config['learning_rate'], 
+            learning_rate=config['learning_rate'],
             beta_1=config['beta_1'],
             beta_2=config['beta_2']
         )
@@ -53,6 +60,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
     patience = config['patience']
     random_state = config['random_seed']
     batch_size = config['batch_size']
+    data_base_dir = config.get('data_base_dir', '')
 
     tf.keras.backend.clear_session()
     tf.keras.utils.set_random_seed(random_state)
@@ -83,13 +91,14 @@ def train(config, run_name : str = None, sweeping : bool = False):
     except:
         crop_cutout_str = ""
 
-    try: 
+    try:
         model_type = getattr(architectures, config['model_name'].lower())
     except:
         print("Could not find model of name", config['model_name'].lower())
         exit(0)
 
-    print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}, N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
+    print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}," +
+          f"N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
 
     # /-----------------------------
     #  LOAD TRAINING DATA
@@ -101,20 +110,21 @@ def train(config, run_name : str = None, sweeping : bool = False):
     need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small']
     need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn', 'mm_cnn_small']
 
-    triplets_present = os.path.exists(f'data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
-    metadata_present = os.path.exists(f'data/train_cand_{train_data_version}{N_str}.csv')
+    triplets_present = os.path.exists(f'{data_base_dir}data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
+    metadata_present = os.path.exists(f'{data_base_dir}data/train_cand_{train_data_version}{N_str}.csv')
 
     if (need_triplets and (not triplets_present)) or (not metadata_present):
         print(f"Couldn't find {train_data_version}{N_str} train subset, creating...")
         # to fix: create_subset requires images even if only using um_nn
-        create_subset("train", version_name=train_data_version, 
-                      N_max_p=N_max_p, N_max_n=N_max_n)        
+        create_subset("train", version_name=train_data_version,
+                      N_max_p=N_max_p, N_max_n=N_max_n)
     else:
         print(f"{train_data_version} training data already present")
 
-    cand = pd.read_csv(f'data/train_cand_{train_data_version}{N_str}.csv')
+    cand = pd.read_csv(f'{data_base_dir}data/train_cand_{train_data_version}{N_str}.csv')
     if need_triplets:
-        triplets = np.load(f'data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy', mmap_mode='r')
+        triplets = np.load(f'{data_base_dir}data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy',
+                           mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
@@ -125,7 +135,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
             print("Null in cand")
             exit(0)
     if need_triplets and np.any(np.isnan(triplets)):
-        nan_trip_idxs = np.isnan(triplets).any(axis=(1,2,3))
+        nan_trip_idxs = np.isnan(triplets).any(axis=(1, 2, 3))
         triplets = triplets[~nan_trip_idxs]
 
         cand = cand.drop(cand.index[nan_trip_idxs])
@@ -138,29 +148,29 @@ def train(config, run_name : str = None, sweeping : bool = False):
     #  LOAD VALIDATION DATA
     # /-----------------------------
 
-    val_triplets_present = os.path.exists(f'data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
-    val_metadata_present = os.path.exists(f'data/val_cand_{train_data_version}{N_str}.csv')
+    val_triplets_present = os.path.exists(f'{data_base_dir}data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
+    val_metadata_present = os.path.exists(f'{data_base_dir}data/val_cand_{train_data_version}{N_str}.csv')
 
     if (need_triplets and (not val_triplets_present)) or (not val_metadata_present):
         print(f"Couldn't find {train_data_version}{N_str} val subset, creating...")
-        create_subset("val", version_name=train_data_version, 
+        create_subset("val", version_name=train_data_version,
                       N_max_p=N_max_p, N_max_n=N_max_n)
     else:
         print(f"{train_data_version} val data already present")
 
-    val_cand = pd.read_csv(f'data/val_cand_{train_data_version}{N_str}.csv')
+    val_cand = pd.read_csv(f'{data_base_dir}data/val_cand_{train_data_version}{N_str}.csv')
     if need_triplets:
-        val_triplets = np.load(f'data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy', mmap_mode='r')
+        val_triplets = np.load(f'{data_base_dir}data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy', mmap_mode='r')
 
     # /----------------------------------
-    #  MODEL INPUT AND SOME PARAMS PREP 
+    #  MODEL INPUT AND SOME PARAMS PREP
     # /----------------------------------
 
     if need_triplets:
-        x_train = triplets 
+        x_train = triplets
         x_val = val_triplets
     else:
-        x_train = cand[metadata_cols] 
+        x_train = cand[metadata_cols]
         x_val = val_cand[metadata_cols]
 
     y_train = cand['label']
@@ -174,11 +184,13 @@ def train(config, run_name : str = None, sweeping : bool = False):
         num_training_examples_per_class = np.array([np.sum(cand['label'] == 0), np.sum(cand['label'] == 1)])
     elif "source" in weight_classes:
         # weight data on number of SOURCES per class
-        num_training_examples_per_class = np.array([len(pd.unique(cand.loc[cand['label'] == 0, 'objectId'])),
-                                                    len(pd.unique(cand.loc[cand['label'] == 1, 'objectId']))])
+        num_training_examples_per_class = np.array([
+            len(pd.unique(cand.loc[cand['label'] == 0, 'objectId'])),
+            len(pd.unique(cand.loc[cand['label'] == 1, 'objectId']))
+        ])
     else:
         # even weighting / no weighting
-        num_training_examples_per_class = np.array([1,1])
+        num_training_examples_per_class = np.array([1, 1])
 
     # fewer examples -> larger weight
     weights = (1 / num_training_examples_per_class) / np.linalg.norm((1 / num_training_examples_per_class))
@@ -196,7 +208,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         metadata_shape = (len(metadata_cols),)
         print('Input metadata shape:', metadata_shape)
 
-    if need_triplets and need_metadata:    
+    if need_triplets and need_metadata:
         model = model_type(config, image_shape=image_shape, metadata_shape=metadata_shape)
     elif need_triplets:
         model = model_type(config, image_shape=image_shape)
@@ -215,13 +227,13 @@ def train(config, run_name : str = None, sweeping : bool = False):
     # halt training if no improvement in validation loss over patience epochs
     early_stopping = tf.keras.callbacks.EarlyStopping(
         monitor='val_loss',
-        verbose=1, 
+        verbose=1,
         patience=patience
     )
 
     # reduce learning rate if no improvement in validation loss over patience epochs
     LR_plateau = tf.keras.callbacks.ReduceLROnPlateau(
-        monitor="val_loss", 
+        monitor="val_loss",
         patience=20,
         factor=config['reduce_LR_factor'],
         min_lr=config['reduce_LR_minLR'],
@@ -245,7 +257,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     # Save new model whenever there's an improvement in val_loss
     checkpointing = tf.keras.callbacks.ModelCheckpoint(model_dir, verbose=1,
-                                                       monitor="val_loss", 
+                                                       monitor="val_loss",
                                                        save_best_only=True)
 
     # /-----------------------------
@@ -258,10 +270,10 @@ def train(config, run_name : str = None, sweeping : bool = False):
     if need_triplets:
         train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
             horizontal_flip=bool(config["data_aug_h_flip"]),
-            vertical_flip  =bool(config["data_aug_v_flip"]),
-            fill_mode      ='constant',
-            cval           =0,
-            preprocessing_function = rotate_incs_90 if bool(config["data_aug_rot"])  else None
+            vertical_flip=bool(config["data_aug_v_flip"]),
+            fill_mode='constant',
+            cval=0,
+            preprocessing_function=rotate_incs_90 if bool(config["data_aug_rot"]) else None
         )
 
         val_datagen = tf.keras.preprocessing.image.ImageDataGenerator()
@@ -273,8 +285,14 @@ def train(config, run_name : str = None, sweeping : bool = False):
             train_df = cand[gen_cols]
             val_df = val_cand[gen_cols]
 
-            t_generator = train_datagen.flow(x_train, train_df, batch_size=batch_size, seed=random_state, shuffle=False)
-            v_generator = val_datagen.flow(x_val, val_df, batch_size=batch_size, seed=random_state, shuffle=False)
+            t_generator = train_datagen.flow(
+                x_train, train_df, batch_size=batch_size,
+                seed=random_state, shuffle=False
+            )
+            v_generator = val_datagen.flow(
+                x_val, val_df, batch_size=batch_size,
+                seed=random_state, shuffle=False
+            )
 
             def multiinput_train_generator():
                 while True:
@@ -284,8 +302,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
                     data = t_generator.next()
 
                     imgs = data[0]
-                    cols = data[1][:,:-1]
-                    targets = data[1][:,-1:]
+                    cols = data[1][:, :-1]
+                    targets = data[1][:, -1:]
 
                     yield [imgs, cols], targets
 
@@ -294,20 +312,26 @@ def train(config, run_name : str = None, sweeping : bool = False):
                     data = v_generator.next()
 
                     imgs = data[0]
-                    cols = data[1][:,:-1]
-                    targets = data[1][:,-1:]
+                    cols = data[1][:, :-1]
+                    targets = data[1][:, -1:]
 
                     yield [imgs, cols], targets
 
             train_data = multiinput_train_generator()
             val_data = multiinput_val_generator()
         else:
-            train_data = train_datagen.flow(x_train, y_train, batch_size=batch_size, seed=random_state, shuffle=False)
-            val_data = val_datagen.flow(x_val, y_val, batch_size=batch_size, seed=random_state, shuffle=False)
+            train_data = train_datagen.flow(
+                x_train, y_train, batch_size=batch_size,
+                seed=random_state, shuffle=False
+            )
+            val_data = val_datagen.flow(
+                x_val, y_val, batch_size=batch_size,
+                seed=random_state, shuffle=False
+            )
     else:  # um_nn
         train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
         train_data = train_data.shuffle(len(x_train)).batch(batch_size).repeat()
-        
+
         val_data = tf.data.Dataset.from_tensor_slices((x_val, y_val))
         val_data = val_data.shuffle(len(x_val)).batch(batch_size).repeat()
 
@@ -324,7 +348,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         validation_steps=(0.8*len(x_val)) // batch_size,
         class_weight=class_weight,
         epochs=epochs,
-        verbose=2, callbacks=[early_stopping, LR_plateau, WandBLogger, 
+        verbose=2, callbacks=[early_stopping, LR_plateau, WandBLogger,
                               checkpointing]
     )
 
@@ -333,21 +357,22 @@ def train(config, run_name : str = None, sweeping : bool = False):
     # /-----------------------------
 
     print('Evaluating on training set to check misclassified samples:')
-    if need_triplets and need_metadata:    
-        labels_training_pred = model.predict([x_train, train_df.iloc[:,:-1]], batch_size=batch_size, verbose=2)
+    if need_triplets and need_metadata:
+        labels_training_pred = model.predict([x_train, train_df.iloc[:, :-1]],
+                                             batch_size=batch_size, verbose=2)
     else:  # um_cnn or um_nn
         labels_training_pred = model.predict(x_train, batch_size=batch_size, verbose=2)
-    
+
     # XOR will show misclassified samples
     misclassified_train_mask = np.array(list(map(int, cand.label))).flatten() ^ \
-                            np.array(list(map(int, np.rint(labels_training_pred)))).flatten()
+        np.array(list(map(int, np.rint(labels_training_pred)))).flatten()
 
     misclassified_train_mask = [ii for ii, mi in enumerate(misclassified_train_mask) if mi == 1]
 
     misclassifications_train = {int(c): [int(l), float(p)]
                                 for c, l, p in zip(cand.candid.values[misclassified_train_mask],
-                                                cand.label.values[misclassified_train_mask],
-                                                labels_training_pred[misclassified_train_mask])}
+                                                   cand.label.values[misclassified_train_mask],
+                                                   labels_training_pred[misclassified_train_mask])}
 
     # /-----------------------------
     #  SAVE REPORT AND MODEL TO DISK
@@ -355,7 +380,8 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     # generate training report in json format
     print('Generating report...')
-    report = {'Run time stamp': run_t_stamp,
+    report = {
+        'Run time stamp': run_t_stamp,
         'Model name': model_name,
         'Run name': run_name,
         'Model trained': model_type.__name__,
@@ -375,11 +401,11 @@ def train(config, run_name : str = None, sweeping : bool = False):
         'Validation candids': list(cand.candid),
         'Training misclassifications': misclassifications_train,
         'Training history': h.history
-        }
+    }
     for k in report['Training history'].keys():
         report['Training history'][k] = np.array(report['Training history'][k]).tolist()
 
-    f_name = os.path.join(report_dir, f'report.json')
+    f_name = os.path.join(report_dir, 'report.json')
     with open(f_name, 'w') as f:
         json.dump(report, f, indent=2)
 
@@ -389,17 +415,17 @@ def train(config, run_name : str = None, sweeping : bool = False):
 
     model.save(final_model_dir)
     try:
-        tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf", 
-                                  show_shapes=True, show_layer_names=False, 
+        tf.keras.utils.plot_model(model, report_dir+"model_architecture.pdf",
+                                  show_shapes=True, show_layer_names=False,
                                   show_layer_activations=True)
     except Exception as e:
         print(e)
 
     val_summary = bts_val.run_val(report_dir)
 
-    wandb.summary['ROC_AUC']    = val_summary['roc_auc']
-    wandb.summary['bal_acc']    = val_summary['bal_acc']
-    wandb.summary['bts_acc']    = val_summary['bts_acc']
+    wandb.summary['ROC_AUC'] = val_summary['roc_auc']
+    wandb.summary['bal_acc'] = val_summary['bal_acc']
+    wandb.summary['bts_acc'] = val_summary['bts_acc']
     wandb.summary['notbts_acc'] = val_summary['notbts_acc']
 
     wandb.summary['alert_precision'] = val_summary['alert_precision']
@@ -421,6 +447,7 @@ def train(config, run_name : str = None, sweeping : bool = False):
         wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) / (perf['policy_precision'] + perf['policy_recall'])
 
     wandb.log({"figure": val_summary['fig']})
+
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":

@@ -15,14 +15,23 @@ def only_pd_gr(trips, cand):
 def only_pd_gr_ps(trips, cand):
     cand['isdiffpos'] = [True if isdiffpos == 't' else False for isdiffpos in cand['isdiffpos']]
 
-    cand_pd_gr_ps =      cand[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2)) & ((cand['sgscore1'] >=0) | (cand['sgscore2'] >=0))]
-    triplets_pd_gr_ps = trips[(cand['isdiffpos']) & ((cand['fid'] == 1) | (cand['fid'] == 2)) & ((cand['sgscore1'] >=0) | (cand['sgscore2'] >=0))]
+    cand_pd_gr_ps = cand[
+        (cand['isdiffpos']) &
+        ((cand['fid'] == 1) | (cand['fid'] == 2)) &
+        ((cand['sgscore1'] >= 0) | (cand['sgscore2'] >= 0))
+    ]
+
+    triplets_pd_gr_ps = trips[
+        (cand['isdiffpos']) &
+        ((cand['fid'] == 1) | (cand['fid'] == 2)) &
+        ((cand['sgscore1'] >= 0) | (cand['sgscore2'] >= 0))
+    ]
 
     return triplets_pd_gr_ps, cand_pd_gr_ps
 
 
-def create_cuts_str(N_max_p : int, N_max_n : int, sne_only : bool, 
-                  keep_near_threshold : bool, rise_only : bool):
+def create_cuts_str(N_max_p: int, N_max_n: int, sne_only: bool,
+                    keep_near_threshold: bool, rise_only: bool):
     cuts_str = ""
     if N_max_p:
         if N_max_p == N_max_n:
@@ -42,13 +51,13 @@ def create_cuts_str(N_max_p : int, N_max_n : int, sne_only : bool,
 
 
 def merge_data(set_names, cuts, version_name, seed=2):
-    train_triplets = np.empty((0,63,63,3))
+    train_triplets = np.empty((0, 63, 63, 3))
     train_cand = pd.DataFrame()
 
-    val_triplets = np.empty((0,63,63,3))
+    val_triplets = np.empty((0, 63, 63, 3))
     val_cand = pd.DataFrame()
 
-    test_triplets = np.empty((0,63,63,3))
+    test_triplets = np.empty((0, 63, 63, 3))
     test_cand = pd.DataFrame()
 
     for set_name in set_names:
@@ -60,7 +69,7 @@ def merge_data(set_names, cuts, version_name, seed=2):
 
         print(f"  {len(pd.unique(set_cand['objectId']))} sources initially in {set_name}")
         print(f"  Median of {int(np.median(set_cand['objectId'].value_counts()))} detections per object")
-        
+
         # run other optional cuts (ex: take only positive differences in g or r band)
         set_trips, set_cand = cuts(set_trips, set_cand)
         set_cand.reset_index(inplace=True, drop=True)
@@ -72,40 +81,44 @@ def merge_data(set_names, cuts, version_name, seed=2):
         set_cand['split'] = None
 
         set_cand['is_SN'] = False
-        set_cand['near_threshold'] = np.bitwise_and(set_cand['peakmag'] > 18.4, set_cand['peakmag'] < 18.6)
+        set_cand['near_threshold'] = np.bitwise_and(set_cand['peakmag'] > 18.4,
+                                                    set_cand['peakmag'] < 18.6)
         set_cand['is_rise'] = False
-        
+
         np.random.seed(seed)
-        splits = np.random.choice(["train","val","test"], size=(len(pd.unique(set_cand['objectId'])),), p=[0.81,0.09,0.10])
+        splits = np.random.choice(["train", "val", "test"],
+                                  size=(len(pd.unique(set_cand['objectId'])),),
+                                  p=[0.81, 0.09, 0.10])
 
         for i, objid in enumerate(pd.unique(set_cand['objectId'])):
             obj_cand = set_cand[set_cand['objectId'] == objid]
-            
+
             # Label rise alerts
             jd_peak = obj_cand.iloc[np.argmin(obj_cand['magpsf']), obj_cand.columns.get_loc("jd")]
-            
-            set_cand.loc[np.bitwise_and(set_cand['objectId'] == objid, set_cand['jd'] <= jd_peak), "is_rise"] = True
-            
+
+            set_cand.loc[np.bitwise_and(set_cand['objectId'] == objid,
+                                        set_cand['jd'] <= jd_peak), "is_rise"] = True
+
             # Label alerts with N
             N_tot = len(obj_cand)
             np.random.seed(seed)
-            N_labels = np.random.choice(np.arange(1,N_tot+1), size=(N_tot,), replace=False)
-            
+            N_labels = np.random.choice(np.arange(1, N_tot+1), size=(N_tot,), replace=False)
+
             set_cand.loc[set_cand['objectId'] == objid, "N"] = N_labels
-            
+
             # Train/Val/Test split
             set_cand.loc[set_cand['objectId'] == objid, "split"] = splits[i]
-            
+
         # Label as SN or not
         if set_name in ["trues", "extIas"]:
             set_cand['is_SN'] = True
-            
+
         if set_name == "dims":
             # froms dims, remove things classified with non-SN types - keep unclassifieds
-            dims = pd.read_csv(f"data/base_data/dims.csv")
+            dims = pd.read_csv("data/base_data/dims.csv")
 
-            non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate", 
-                            "nova", "rock", "star", "varstar", "QSO", "CV", "CV?", 
+            non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate",
+                            "nova", "rock", "star", "varstar", "QSO", "CV", "CV?",
                             "CLAGN", "Blazar"]
 
             SN_objectIds = dims.loc[~dims['type'].isin(non_SN_types), "ZTFID"].to_numpy()
@@ -116,7 +129,7 @@ def merge_data(set_names, cuts, version_name, seed=2):
             # this is a bandaid fix to label noise identified after revealing the test split
             only_dim = set_cand['peakmag'] > 18.5
             set_trips, set_cand = apply_cut(set_trips, set_cand, only_dim)
-        
+
         is_train = set_cand[set_cand['split'] == "train"].index
         train_triplets = np.concatenate((train_triplets, set_trips[is_train]))
         train_cand = pd.concat((train_cand, set_cand.loc[is_train]))
@@ -133,8 +146,8 @@ def merge_data(set_names, cuts, version_name, seed=2):
         test_cand.reset_index(inplace=True, drop=True)
         print(f"  Merged {set_name}")
 
-    for split_name, cand, trips in zip(["train", "val", "test"], 
-                                       [train_cand, val_cand, test_cand], 
+    for split_name, cand, trips in zip(["train", "val", "test"],
+                                       [train_cand, val_cand, test_cand],
                                        [train_triplets, val_triplets, test_triplets]):
         np.random.seed(seed)
         shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
@@ -149,25 +162,25 @@ def apply_cut(trips, cand, keep_idxs):
     trips = trips[keep_idxs]
     cand = cand.loc[keep_idxs]
     cand.reset_index(inplace=True, drop=True)
-    
+
     return trips, cand
 
 
-def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0, 
-                  sne_only : bool = False, keep_near_threshold : bool = True, 
-                  rise_only : bool = False):
+def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
+                  sne_only: bool = False, keep_near_threshold: bool = True,
+                  rise_only: bool = False):
 
     split_trip_path = f"data/{split_name}_triplets_{version_name}.npy"
     split_cand_path = f"data/{split_name}_cand_{version_name}.csv"
 
     if not (os.path.exists(split_trip_path) and os.path.exists(split_cand_path)):
         print("Parent split files absent, creating them first")
-        merge_data(set_names=["trues", "dims", "vars", "rejects"], 
+        merge_data(set_names=["trues", "dims", "vars", "rejects"],
                    cuts=only_pd_gr_ps, version_name=version_name)
-    
+
     trips = np.load(split_trip_path, mmap_mode='r')
     cand = pd.read_csv(split_cand_path, index_col=False)
-    
+
     print(f"Read {split_name}")
     if N_max_p and not N_max_n:
         N_max_n = N_max_p
@@ -181,7 +194,7 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
             obj_alerts = cand.loc[cand['objectId'] == objid]
 
             source_set = obj_alerts.iloc[0, obj_alerts.columns.get_loc("source_set")]
-            
+
             if split_name == "train":
                 if source_set == "trues":
                     # For trues, take random N_max_p alerts (train only)
@@ -196,9 +209,9 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
             if source_set in ["vars", "junk"]:
                 # source_set = "vars," take latest N_max_n alerts
                 N_max_n_latest_alerts = obj_alerts.sort_values(by='jd').iloc[-N_max_n:]
-                
+
                 mask[N_max_n_latest_alerts.index] = 1
-            
+
             # elif source_set == "extIas":
             #     p_obj_alerts = cand.loc[(cand['objectId'] == objid) & (cand['label'] == 1)]
             #     if split_name == "train":
@@ -229,9 +242,9 @@ def create_subset(split_name, version_name, N_max_p : int, N_max_n : int = 0,
 if __name__ == "__main__":
     version = "v10"
 
-    merge_data(set_names=["trues", "dims", "vars", "rejects"], 
-              cuts=only_pd_gr_ps, version_name=version, seed=2)
+    # merge_data(set_names=["trues", "dims", "vars", "rejects"],
+    #           cuts=only_pd_gr_ps, version_name=version, seed=2)
 
-    create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
-    create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
+    # create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
+    # create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
     create_subset("test", version_name=version, N_max_p=30, N_max_n=30)

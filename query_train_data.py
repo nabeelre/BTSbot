@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
-import json, sys, os
+import json
+import sys
+import os
 
 from penquins import Kowalski
 
-from alert_utils import (make_triplet, extract_triplets, rerun_braai, 
+from alert_utils import (make_triplet, extract_triplets, rerun_braai,
                          prep_alerts, crop_triplets)
 from compile_ZTFIDs import compile_ZTFIDs
 
@@ -20,8 +22,8 @@ else:
         creds = json.load(f)
 
 
-def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True, 
-                   verbose : bool = False, save_raw = None, load_raw = None):
+def query_kowalski(ZTFID, kowalski, programid, normalize: bool = True,
+                   verbose: bool = False, save_raw=None, load_raw=None):
     """
     Query kowalski for alerts with cutouts for a (list of) ZTFID(s)
 
@@ -29,52 +31,52 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
     ----------
     ZTFID: string or list
         Object IDs to query for (e.g. ZTF22abwqedu)
-    
+
     kowalski:
         a kowalski api object created with the kowalski library
-        
+
     normalize (optional): bool
         normalize cutouts by the Frobenius norm (L2)
-        
+
     programid:
         which program to pull alerts from (1=public, 2=collab, 3=caltech mode)
-        
+
     verbose (optional): bool
         print diagnostics after each query
-        
+
     save_raw (optional): str
-        if provided, all query results will be individually saved to disk at 
+        if provided, all query results will be individually saved to disk at
         this path before any processsing is done
-        
+
     load_raw (optional): str
-        if provided, check for existing file at this path before querying, load 
+        if provided, check for existing file at this path before querying, load
         file and continue processing as if just queried
 
     Returns
     -------
     alerts: list of dicts
         each dict represents alert
-        alert columns include jd, ra, dec, candid, acai and braii scores, 
+        alert columns include jd, ra, dec, candid, acai and braii scores,
         magpsf, cutouts, etc.
-        
+
     Adapted from: https://github.com/growth-astro/ztfrest/
     See here for ZTF alert packet feature definitions:
         https://zwickytransientfacility.github.io/ztf-avro-alert/schema.html
 
     This can also be done by querying from Fritz instead of Kowalski.
     """
-    
+
     # Deal with input being a single ZTF object (string) and multiple (list)
-    if type(ZTFID) == str:
+    if isinstance(ZTFID, str):
         list_ZTFID = [ZTFID]
-    elif type(ZTFID) == list:
+    elif isinstance(ZTFID, list):
         list_ZTFID = ZTFID
     else:
         print(f"{ZTFID} must be a list or a string")
         return None
 
     alerts = []
-    
+
     # For each object requested ...
     for ZTFID in list_ZTFID:
         # Set up query
@@ -88,11 +90,11 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
                     # take only alerts with specified programid
                     "candidate.programid": programid,
                 },
-                # what quantities to recieve 
+                # what quantities to recieve
                 "projection": {
                     "_id": 0,
                     "objectId": 1,
-                    
+
                     "candidate.candid": 1,
                     "candidate.programid": 1,
                     "candidate.fid": 1,
@@ -109,12 +111,12 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
                     "candidate.dsnrms": 1,
                     "candidate.ssnrms": 1,
                     "candidate.exptime": 1,
-                    
+
                     "candidate.field": 1,
                     "candidate.jd": 1,
                     "candidate.ra": 1,
                     "candidate.dec": 1,
-                    
+
                     "candidate.magpsf": 1,
                     "candidate.sigmapsf": 1,
                     "candidate.diffmaglim": 1,
@@ -126,18 +128,18 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
                     "candidate.magzpsci": 1,
                     "candidate.magzpsciunc": 1,
                     "candidate.magzpscirms": 1,
-                    
+
                     "candidate.distnr": 1,
                     "candidate.magnr": 1,
                     "candidate.sigmanr": 1,
                     "candidate.chinr": 1,
                     "candidate.sharpnr": 1,
-                    
+
                     "candidate.neargaia": 1,
                     "candidate.neargaiabright": 1,
                     "candidate.maggaia": 1,
-                    "candidate.maggaiabright": 1,    
-                    
+                    "candidate.maggaiabright": 1,
+
                     "candidate.drb": 1,
                     "candidate.classtar": 1,
                     "candidate.sgscore1": 1,
@@ -146,10 +148,10 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
                     "candidate.distpsnr2": 1,
                     "candidate.sgscore3": 1,
                     "candidate.distpsnr3": 1,
-                    
+
                     "candidate.jdstarthist": 1,
                     "candidate.jdstartref": 1,
-                
+
                     "candidate.sgmag1": 1,
                     "candidate.srmag1": 1,
                     "candidate.simag1": 1,
@@ -169,27 +171,27 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
                     "candidate.clrcoeff": 1,
                     "candidate.clrcounc": 1,
                     "candidate.chipsf": 1,
-                                        
+
                     "classifications.acai_h": 1,
                     "classifications.acai_v": 1,
                     "classifications.acai_o": 1,
                     "classifications.acai_n": 1,
                     "classifications.acai_b": 1,
-                    
+
                     "cutoutScience": 1,
                     "cutoutTemplate": 1,
                     "cutoutDifference": 1,
                 }
             }
         }
-        
+
         object_alerts = None
         load_path = None
-        
+
         # Check if file path is provided for locating preloaded data
-        if type(load_raw) == str:
+        if isinstance(load_raw, str):
             load_path = os.path.join(load_raw, f"{ZTFID}_prog{programid}.npy")
-            
+
             if os.path.exists(load_path):
                 # Read existing data
                 object_alerts = np.load(load_path, allow_pickle=True)
@@ -197,28 +199,27 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
             else:
                 print(f"Could not find existing data for {ZTFID}")
                 load_path = None
-        
+
         # if not use preloaded data or preloaded data couldn't be found
         if object_alerts is None:
             # Execute query
             r = kowalski.query(query)
-            
+
             if r['kowalski']['data'] == []:
                 # No alerts recieved - possibly due to connection or permissions
                 print(f"  No programid={programid} data for", ZTFID)
                 continue
             else:
                 # returned data is list of dicts, each dict is an alert packet
-                object_alerts = r['kowalski']['data']   
+                object_alerts = r['kowalski']['data']
 
         # Only try to save raw data if preloaded data couldn't be found
         if load_path is None:
-            if type(save_raw) == str:
+            if isinstance(save_raw, str):
                 if not os.path.exists(save_raw):
                     os.makedirs(save_raw)
-                np.save(os.path.join(save_raw, 
-                                     f"{ZTFID}_prog{programid}"), 
-                                     object_alerts)
+                np.save(os.path.join(save_raw, f"{ZTFID}_prog{programid}"),
+                        object_alerts)
             elif save_raw is not None:
                 print(f"Could not find save directory: {save_raw}")
                 print("No queries will be saved")
@@ -234,7 +235,7 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
             # Unzip fits files of cutouts
             triplets[i], drop = make_triplet(alert, normalize=normalize)
 
-            # Note the index where a cutout was found to be corrupted 
+            # Note the index where a cutout was found to be corrupted
             if drop:
                 to_drop = np.append(to_drop, int(i))
 
@@ -251,24 +252,24 @@ def query_kowalski(ZTFID, kowalski, programid, normalize : bool = True,
 
         if verbose:
             print(f"  Finished {'loading' if load_path else 'querying'}", ZTFID)
-    
+
     if verbose:
         print(f"\nFinished all programid={programid} queries",
               f"got {len(alerts)} alerts\n\n")
-    
+
     return alerts
 
 
-def download_training_data(query_df, query_name, label, 
-                           normalize_cutouts : bool = True, 
-                           cutout_size = 63,
-                           verbose : bool = False, 
-                           save_raw = None, load_raw = None):
+def download_training_data(query_df, query_name, label,
+                           normalize_cutouts: bool = True,
+                           cutout_size=63,
+                           verbose: bool = False,
+                           save_raw=None, load_raw=None):
     """
     Downloads alerts with cutouts from kowalski for query with query_name and
     list of ZTFIDs stored in query_df
     Saves triplets in a .npy and alert metadata in a .csv
-    
+
     Parameters
     ----------
     query_df: DataFrame
@@ -276,32 +277,32 @@ def download_training_data(query_df, query_name, label,
 
     query_name: str
         name of query
-        
+
     label: int, array_like, or "compute"
         BTS / not BTS label to assign to each alert in saved csv
         if int (must be 0 or 1) assign all alerts provided label
         if array_like (length must match number of alerts) assign from array in order
         if "compute" assign all objects with any alert with magpsf < 18.5 label=1, otherwise 0
-        
+
     normalize_cutouts (optional) - see query_kowalski()
-        
+
     verbose (optional): bool
-        
+
     save_raw, load_raw (optional) - see query_kowalski()
 
     Returns
     -------
     Nothing
     """
-    
+
     if verbose:
         print(f"Querying kowalski for {len(query_df)} objects of {query_name}")
-        
+
     instances = {
         'kowalski': {
             'protocol': 'https',
             'port': 443,
-            'host': f'kowalski.caltech.edu',
+            'host': 'kowalski.caltech.edu',
             'username': creds['kowalski_username'],
             'password': creds['kowalski_password']
         }
@@ -318,24 +319,24 @@ def download_training_data(query_df, query_name, label,
     # Query programid=1 and 2 alerts from kowalski for all ZTFIDs and separate
     # their triplets from the rest of their alert packets
     alerts, triplets = extract_triplets(
-        query_kowalski(query_df['ZTFID'].to_list(), k, 1, 
-                       normalize=normalize_cutouts, verbose=verbose, 
-                       save_raw=save_raw, load_raw=load_raw) + 
-        query_kowalski(query_df['ZTFID'].to_list(), k, 2, 
-                       normalize=normalize_cutouts, verbose=verbose, 
+        query_kowalski(query_df['ZTFID'].to_list(), k, 1,
+                       normalize=normalize_cutouts, verbose=verbose,
+                       save_raw=save_raw, load_raw=load_raw) +
+        query_kowalski(query_df['ZTFID'].to_list(), k, 2,
+                       normalize=normalize_cutouts, verbose=verbose,
                        save_raw=save_raw, load_raw=load_raw)
     )
 
     num_alerts = len(alerts)
-    
+
     # Turn provided label into array of length num_alerts
-    if type(label) == int:
+    if isinstance(label, int):
         label = np.full((num_alerts), label, dtype=int)
-    elif type(label) == list or type(label) == np.ndarray:
+    elif isinstance(label, int) or isinstance(label, np.ndarray):
         label = label
     elif label == "compute":
         true_objs = set()
-        for alert in alerts: 
+        for alert in alerts:
             if alert['candidate']['magpsf'] < 18.5:
                 true_objs.add(alert['objectId'])
         label = np.asarray([1 if alert['objectId'] in true_objs else 0 for alert in alerts])
@@ -348,8 +349,8 @@ def download_training_data(query_df, query_name, label,
         num_falses = np.sum(label == 0)
         if num_trues + num_falses == len(label):
             print(f"{query_name} {len(label)} total alerts:",
-                f"{num_trues} trues, {num_falses} falses")
-    
+                  f"{num_trues} trues, {num_falses} falses")
+
     # Rerun braai on all triplets and store their scores to be added to metadata
     new_drb = rerun_braai(triplets)
 
@@ -367,12 +368,12 @@ def download_training_data(query_df, query_name, label,
     cand_data = prep_alerts(alerts, label, new_drb)
 
     # fetch_nondets()
-    
+
     # Save metadata to disk and purge from memory
     cand_data.to_csv(f'data/base_data/{query_name}_candidates.csv', index=False)
     del cand_data
     print("Saved and purged candidate data")
-    
+
 
 if __name__ == "__main__":
     query_name = sys.argv[1]
@@ -382,7 +383,7 @@ if __name__ == "__main__":
         compile_ZTFIDs()
 
     query_df = pd.read_csv(f"data/base_data/{query_name}.csv", index_col=None)
-    
+
     if query_name == "trues":
         label = 1
     elif query_name in ["dims", "vars", "rejects", "junk"]:
@@ -393,7 +394,7 @@ if __name__ == "__main__":
         print(query_name, "not known")
         exit()
 
-    download_training_data(query_df, query_name, label=label, 
+    download_training_data(query_df, query_name, label=label,
                            normalize_cutouts=True, verbose=True,
-                           save_raw=quest_raw_path+query_name, 
+                           save_raw=quest_raw_path+query_name,
                            load_raw=quest_raw_path+query_name)
