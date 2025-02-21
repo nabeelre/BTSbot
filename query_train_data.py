@@ -11,7 +11,7 @@ from alert_utils import (make_triplet, extract_triplets, rerun_braai,
 from compile_ZTFIDs import compile_ZTFIDs
 
 external_HDD = "/Volumes/NRExternal3/trainv8 data/"
-quest_raw_path = "v9raw/"
+quest_raw_path = "v11raw/"
 to_desktop = "/Users/nabeelr/Desktop/"
 
 if sys.platform == "darwin":
@@ -308,7 +308,9 @@ def download_training_data(query_df, query_name, label,
         }
     }
 
-    k = Kowalski(instances=instances)
+    k = Kowalski(instances=instances,
+                 username=creds['kowalski_username'],
+                 password=creds['kowalski_password'])
 
     if k.ping('kowalski'):
         print("Connected to Kowalski")

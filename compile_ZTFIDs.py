@@ -9,9 +9,9 @@ import sys
 import os
 
 btsse_query_urls = {
-    "trues": "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=trans&classstring=&classexclude=&refok=y&purity=y&ps1img=y&lcfig=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=18.5&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
-    "vars":  "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=var&classstring=&classexclude=&refok=y&lcfig=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
-    "dims":  "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=all&classstring=&classexclude=&covok=y&refok=y&purity=y&lcfig=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=18.5&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
+    "trues": "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=trans&classstring=&classexclude=&refok=y&purity=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=18.5&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
+    "vars":  "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=var&classstring=&classexclude=&refok=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
+    "dims":  "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=all&classstring=&classexclude=&covok=y&refok=y&purity=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=18.5&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
 }
 
 if sys.platform == "darwin":
@@ -301,7 +301,7 @@ def compile_ZTFIDs(overwrite: bool = False):
     trues, all_ZTFIDs = compile_from_BTSSE("trues", all_ZTFIDs, overwrite)
     vars, all_ZTFIDs = compile_from_BTSSE("vars", all_ZTFIDs, overwrite)
     dims, all_ZTFIDs = compile_from_BTSSE("dims", all_ZTFIDs, overwrite)
-    extIas, all_ZTFIDs = compile_extIas(all_ZTFIDs)
+    # extIas, all_ZTFIDs = compile_extIas(all_ZTFIDs)
     rejects, all_ZTFIDs = compile_rejects(all_ZTFIDs, overwrite)
 
     # Objects to exclude, usually having mixed label or transient in reference
@@ -311,8 +311,8 @@ def compile_ZTFIDs(overwrite: bool = False):
         "ZTF18abdpvnd", "ZTF18aaqffyp"
     ]
 
-    for query, query_name in zip([trues, vars, dims, extIas, rejects],
-                                 ["trues", "vars", "dims", "extIas", "rejects"]):
+    for query, query_name in zip([trues, vars, dims, rejects],
+                                 ["trues", "vars", "dims", "rejects"]):
         query = query[~query["ZTFID"].isin(objs_to_remove)]
         query.to_csv(f"data/base_data/{query_name}.csv", index=None)
 
