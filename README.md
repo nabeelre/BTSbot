@@ -6,8 +6,7 @@
   />
 </p>
 
-[![DOI](https://zenodo.org/badge/517923027.svg)](https://zenodo.org/doi/10.5281/zenodo.10839684)
-[![arXiv](https://img.shields.io/badge/Publication-2401.15167-b31b1b.svg)](https://arxiv.org/abs/2401.15167)
+[![arXiv](https://img.shields.io/badge/Publication-2401.15167-b31b1b.svg)](https://iopscience.iop.org/article/10.3847/1538-4357/ad5666)
 [![arXiv](https://img.shields.io/badge/ICML-2307.07618-b31b1b.svg)](https://arxiv.org/abs/2307.07618)
 <a href="https://ascl.net/2403.004"><img src="https://img.shields.io/badge/ascl-2403.004-blue.svg?colorB=262255" alt="ascl:2403.004" /></a>
 
@@ -94,4 +93,27 @@ Fig. 7 from [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167)
 
 ## Citing `BTSbot`
 
-If you use or reference `BTSbot` please cite [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167) ([ADS](https://ui.adsabs.harvard.edu/abs/2024arXiv240115167R/abstract))
+If you use or reference `BTSbot` please cite [Rehemtulla et al. 2024](https://iopscience.iop.org/article/10.3847/1538-4357/ad5666) ([ADS](https://ui.adsabs.harvard.edu/abs/2024ApJ...972....7R/abstract)).
+
+BibTeX entry for the `BTSbot` paper:
+```
+@ARTICLE{Rehemtulla+2024,
+       author = {{Rehemtulla}, Nabeel and {Miller}, Adam A. and {Jegou Du Laz}, Theophile and {Coughlin}, Michael W. and {Fremling}, Christoffer and {Perley}, Daniel A. and {Qin}, Yu-Jing and {Sollerman}, Jesper and {Mahabal}, Ashish A. and {Laher}, Russ R. and {Riddle}, Reed and {Rusholme}, Ben and {Kulkarni}, Shrinivas R.},
+        title = "{The Zwicky Transient Facility Bright Transient Survey. III. BTSbot: Automated Identification and Follow-up of Bright Transients with Deep Learning}",
+      journal = {\apj},
+     keywords = {Time domain astronomy, Sky surveys, Supernovae, Convolutional neural networks, 2109, 1464, 1668, 1938, Astrophysics - Instrumentation and Methods for Astrophysics},
+         year = 2024,
+        month = sep,
+       volume = {972},
+       number = {1},
+          eid = {7},
+        pages = {7},
+          doi = {10.3847/1538-4357/ad5666},
+archivePrefix = {arXiv},
+       eprint = {2401.15167},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2024ApJ...972....7R},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+```
+
