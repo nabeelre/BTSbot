@@ -332,7 +332,7 @@ def run_val(output_dir):
     trigger_times = pd.read_csv(
         "data/base_data/trues.csv"
     ).set_index("ZTFID")['RCF_trigger_time'].to_dict()
-    RCFJunk = pd.read_csv("data/base_data/RCFJunk_Jul25.csv", index_col=None)
+    RCFJunk = pd.read_csv("data/base_data/RCFJunk_Feb21_2025.csv", index_col=None)
 
     ax7 = plt.Subplot(fig, main_grid[6])
     ax8 = plt.Subplot(fig, main_grid[7])

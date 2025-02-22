@@ -240,11 +240,11 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
 
 
 if __name__ == "__main__":
-    version = "v10"
+    version = "v11"
 
-    # merge_data(set_names=["trues", "dims", "vars", "rejects"],
-    #           cuts=only_pd_gr_ps, version_name=version, seed=2)
+    merge_data(set_names=["trues", "dims", "vars", "rejects"],
+               cuts=only_pd_gr_ps, version_name=version, seed=2)
 
-    # create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
-    # create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
-    create_subset("test", version_name=version, N_max_p=30, N_max_n=30)
+    create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
+    create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
+    create_subset("test", version_name=version, N_max_p=100, N_max_n=100)
