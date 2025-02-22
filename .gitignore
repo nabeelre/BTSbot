@@ -174,3 +174,6 @@ configs/
 old_batches/
 autoscan/
 !example_data/
+non-PS1*
+BTSbot\ beta.xlsx
+
