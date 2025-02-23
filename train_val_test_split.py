@@ -165,7 +165,7 @@ def cut_set_and_assign_splits(set_name, cuts, version_name, seed=2):
         np.save(f"data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy", trips)
         cand.to_csv(f"data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
                     index=False)
-        print(f"Wrote merged and shuffled {set_name} {split_name} triplets and candidate data")
+        print(f"Wrote {set_name} {split_name} triplets and candidate data")
 
     del set_trips, set_cand
 
@@ -253,22 +253,22 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
 if __name__ == "__main__":
     version = "v11"
 
-    cut_set_and_assign_splits("trues", only_pd_gr_ps, version_name=version)
-    cut_set_and_assign_splits("dims", only_pd_gr_ps, version_name=version)
-    cut_set_and_assign_splits("vars", only_pd_gr_ps, version_name=version)
-    cut_set_and_assign_splits("rejects", only_pd_gr_ps, version_name=version)
+    # cut_set_and_assign_splits("trues", only_pd_gr_ps, version_name=version)
+    # cut_set_and_assign_splits("dims", only_pd_gr_ps, version_name=version)
+    # cut_set_and_assign_splits("vars", only_pd_gr_ps, version_name=version)
+    # cut_set_and_assign_splits("rejects", only_pd_gr_ps, version_name=version)
 
     merge_sets_across_split(
         set_names=["trues", "dims", "vars", "rejects"], split_name="train",
-        cuts=only_pd_gr_ps, version_name=version, seed=2
+        version_name=version, seed=2
     )
     merge_sets_across_split(
         set_names=["trues", "dims", "vars", "rejects"], split_name="train",
-        cuts=only_pd_gr_ps, version_name=version, seed=2
+        version_name=version, seed=2
     )
     merge_sets_across_split(
         set_names=["trues", "dims", "vars", "rejects"], split_name="train",
-        cuts=only_pd_gr_ps, version_name=version, seed=2
+        version_name=version, seed=2
     )
 
     create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
