@@ -163,8 +163,8 @@ def cut_set_and_assign_splits(set_name, cuts, version_name, seed=2):
         [set_trips[is_train], set_trips[is_val], set_trips[is_test]]
     ):
         np.save(f"data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy", trips)
-        cand.loc.to_csv(f"data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
-                        index=False)
+        cand.to_csv(f"data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
+                    index=False)
         print(f"Wrote merged and shuffled {set_name} {split_name} triplets and candidate data")
 
     del set_trips, set_cand
