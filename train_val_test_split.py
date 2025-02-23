@@ -50,112 +50,124 @@ def create_cuts_str(N_max_p: int, N_max_n: int, sne_only: bool,
     return cuts_str
 
 
-def merge_data(set_names, cuts, version_name, seed=2):
-    train_triplets = np.empty((0, 63, 63, 3))
-    train_cand = pd.DataFrame()
+def merge_sets_across_split(set_names, split_name, version_name, seed=2):
+    """
+    Load candidates and triplets from all sets (i.e. trues, dims, etc.) of a
+    specific split (i.e. train, val, test) and merge into a single file. Shuffle
+    the merged data and save to disk.
+    """
+    cand = pd.concat(
+        [
+            pd.read_csv(f"data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
+                        index_col=False)
+            for set_name in set_names
+        ]
+    )
+    cand.reset_index(inplace=True, drop=True)
 
-    val_triplets = np.empty((0, 63, 63, 3))
-    val_cand = pd.DataFrame()
+    triplets = np.empty((len(cand), 63, 63, 3))
+    print(f"  Merged {split_name}")
 
-    test_triplets = np.empty((0, 63, 63, 3))
-    test_cand = pd.DataFrame()
+    shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
+    np.save(f"data/{split_name}_triplets_{version_name}.npy", triplets[shuffle_idx])
+    cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_{version_name}.csv", index=False)
+    print(f"Wrote merged and shuffled {split_name} triplets and candidate data")
 
-    for set_name in set_names:
-        print(f"Working on {set_name} data")
-        # load set
-        set_trips = np.load(f"data/base_data/{set_name}_triplets.npy", mmap_mode='r')
-        set_cand = pd.read_csv(f"data/base_data/{set_name}_candidates.csv", index_col=False)
-        print("  Read")
+    del triplets, cand
 
-        print(f"  {len(pd.unique(set_cand['objectId']))} sources initially in {set_name}")
-        print(f"  Median of {int(np.median(set_cand['objectId'].value_counts()))} detections per object")
 
-        # run other optional cuts (ex: take only positive differences in g or r band)
-        set_trips, set_cand = cuts(set_trips, set_cand)
-        set_cand.reset_index(inplace=True, drop=True)
-        print("  Ran cuts")
-        print(f"  {len(pd.unique(set_cand['objectId']))} sources remaining in {set_name}")
+def cut_set_and_assign_splits(set_name, cuts, version_name, seed=2):
+    """
+    Load candidates and triplets from a specific set (i.e. trues, dims, etc.),
+    apply cuts, and assign train/val/test splits. Save the triplets and candidates
+    to disk.
+    """
+    print(f"Working on {set_name} data")
+    # load set
+    set_trips = np.load(f"data/base_data/{set_name}_triplets.npy", mmap_mode='r')
+    set_cand = pd.read_csv(f"data/base_data/{set_name}_candidates.csv", index_col=False)
+    print("  Read")
 
-        set_cand['source_set'] = set_name
-        set_cand['N'] = None
-        set_cand['split'] = None
+    print(f"  {len(pd.unique(set_cand['objectId']))} sources initially in {set_name}")
+    print(f"  Median of {int(np.median(set_cand['objectId'].value_counts()))} dets per object")
 
-        set_cand['is_SN'] = False
-        set_cand['near_threshold'] = np.bitwise_and(set_cand['peakmag'] > 18.4,
-                                                    set_cand['peakmag'] < 18.6)
-        set_cand['is_rise'] = False
+    # run other optional cuts (ex: take only positive differences in g or r band)
+    set_trips, set_cand = cuts(set_trips, set_cand)
+    set_cand.reset_index(inplace=True, drop=True)
+    print("  Ran cuts")
+    print(f"  {len(pd.unique(set_cand['objectId']))} sources remaining in {set_name}")
 
+    set_cand['source_set'] = set_name
+    set_cand['N'] = None
+    set_cand['split'] = None
+
+    set_cand['is_SN'] = False
+    set_cand['near_threshold'] = np.bitwise_and(set_cand['peakmag'] > 18.4,
+                                                set_cand['peakmag'] < 18.6)
+    set_cand['is_rise'] = False
+
+    np.random.seed(seed)
+    splits = np.random.choice(
+        ["train", "val", "test"],
+        size=(len(pd.unique(set_cand['objectId'])),),
+        p=[0.81, 0.09, 0.10]
+    )
+
+    for i, objid in enumerate(pd.unique(set_cand['objectId'])):
+        obj_cand = set_cand[set_cand['objectId'] == objid]
+
+        # Label rise alerts
+        jd_peak = obj_cand.iloc[np.argmin(obj_cand['magpsf']), obj_cand.columns.get_loc("jd")]
+
+        set_cand.loc[np.bitwise_and(set_cand['objectId'] == objid,
+                                    set_cand['jd'] <= jd_peak), "is_rise"] = True
+
+        # Label alerts with N
+        N_tot = len(obj_cand)
         np.random.seed(seed)
-        splits = np.random.choice(["train", "val", "test"],
-                                  size=(len(pd.unique(set_cand['objectId'])),),
-                                  p=[0.81, 0.09, 0.10])
+        N_labels = np.random.choice(np.arange(1, N_tot+1), size=(N_tot,), replace=False)
 
-        for i, objid in enumerate(pd.unique(set_cand['objectId'])):
-            obj_cand = set_cand[set_cand['objectId'] == objid]
+        set_cand.loc[set_cand['objectId'] == objid, "N"] = N_labels
 
-            # Label rise alerts
-            jd_peak = obj_cand.iloc[np.argmin(obj_cand['magpsf']), obj_cand.columns.get_loc("jd")]
+        # Train/Val/Test split
+        set_cand.loc[set_cand['objectId'] == objid, "split"] = splits[i]
 
-            set_cand.loc[np.bitwise_and(set_cand['objectId'] == objid,
-                                        set_cand['jd'] <= jd_peak), "is_rise"] = True
+    # Label as SN or not
+    if set_name in ["trues", "extIas"]:
+        set_cand['is_SN'] = True
 
-            # Label alerts with N
-            N_tot = len(obj_cand)
-            np.random.seed(seed)
-            N_labels = np.random.choice(np.arange(1, N_tot+1), size=(N_tot,), replace=False)
+    if set_name == "dims":
+        # froms dims, remove things classified with non-SN types - keep unclassifieds
+        dims = pd.read_csv("data/base_data/dims.csv")
 
-            set_cand.loc[set_cand['objectId'] == objid, "N"] = N_labels
+        non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate",
+                        "nova", "rock", "star", "varstar", "QSO", "CV", "CV?",
+                        "CLAGN", "Blazar"]
 
-            # Train/Val/Test split
-            set_cand.loc[set_cand['objectId'] == objid, "split"] = splits[i]
+        SN_objectIds = dims.loc[~dims['type'].isin(non_SN_types), "ZTFID"].to_numpy()
 
-        # Label as SN or not
-        if set_name in ["trues", "extIas"]:
-            set_cand['is_SN'] = True
+        set_cand.loc[set_cand['objectId'].isin(SN_objectIds), 'is_SN'] = True
 
-        if set_name == "dims":
-            # froms dims, remove things classified with non-SN types - keep unclassifieds
-            dims = pd.read_csv("data/base_data/dims.csv")
+        # remove bright sources in dims (peaked < 18.5 only in partnership data)
+        # this is a bandaid fix to label noise identified after revealing the test split
+        only_dim = set_cand['peakmag'] > 18.5
+        set_trips, set_cand = apply_cut(set_trips, set_cand, only_dim)
 
-            non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate",
-                            "nova", "rock", "star", "varstar", "QSO", "CV", "CV?",
-                            "CLAGN", "Blazar"]
+    is_train = set_cand[set_cand['split'] == "train"].index
+    is_val = set_cand[set_cand['split'] == "val"].index
+    is_test = set_cand[set_cand['split'] == "test"].index
 
-            SN_objectIds = dims.loc[~dims['type'].isin(non_SN_types), "ZTFID"].to_numpy()
+    for split_name, cand, trips in zip(
+        ["train", "val", "test"],
+        [set_cand.loc[is_train], set_cand.loc[is_val], set_cand.loc[is_test]],
+        [set_trips[is_train], set_trips[is_val], set_trips[is_test]]
+    ):
+        np.save(f"data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy", trips)
+        cand.loc.to_csv(f"data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
+                        index=False)
+        print(f"Wrote merged and shuffled {set_name} {split_name} triplets and candidate data")
 
-            set_cand.loc[set_cand['objectId'].isin(SN_objectIds), 'is_SN'] = True
-
-            # remove bright sources in dims (peaked < 18.5 only in partnership data)
-            # this is a bandaid fix to label noise identified after revealing the test split
-            only_dim = set_cand['peakmag'] > 18.5
-            set_trips, set_cand = apply_cut(set_trips, set_cand, only_dim)
-
-        is_train = set_cand[set_cand['split'] == "train"].index
-        train_triplets = np.concatenate((train_triplets, set_trips[is_train]))
-        train_cand = pd.concat((train_cand, set_cand.loc[is_train]))
-        train_cand.reset_index(inplace=True, drop=True)
-
-        is_val = set_cand[set_cand['split'] == "val"].index
-        val_triplets = np.concatenate((val_triplets, set_trips[is_val]))
-        val_cand = pd.concat((val_cand, set_cand.loc[is_val]))
-        val_cand.reset_index(inplace=True, drop=True)
-
-        is_test = set_cand[set_cand['split'] == "test"].index
-        test_triplets = np.concatenate((test_triplets, set_trips[is_test]))
-        test_cand = pd.concat((test_cand, set_cand.loc[is_test]))
-        test_cand.reset_index(inplace=True, drop=True)
-        print(f"  Merged {set_name}")
-
-    for split_name, cand, trips in zip(["train", "val", "test"],
-                                       [train_cand, val_cand, test_cand],
-                                       [train_triplets, val_triplets, test_triplets]):
-        np.random.seed(seed)
-        shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
-        np.save(f"data/{split_name}_triplets_{version_name}.npy", trips[shuffle_idx])
-        cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_{version_name}.csv", index=False)
-        print(f"Wrote merged and shuffled {split_name} triplets and candidate data")
-
-    del train_triplets, train_cand, val_triplets, val_cand, test_triplets, test_cand
+    del set_trips, set_cand
 
 
 def apply_cut(trips, cand, keep_idxs):
@@ -174,9 +186,8 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
     split_cand_path = f"data/{split_name}_cand_{version_name}.csv"
 
     if not (os.path.exists(split_trip_path) and os.path.exists(split_cand_path)):
-        print("Parent split files absent, creating them first")
-        merge_data(set_names=["trues", "dims", "vars", "rejects"],
-                   cuts=only_pd_gr_ps, version_name=version_name)
+        print("Parent split files absent")
+        return
 
     trips = np.load(split_trip_path, mmap_mode='r')
     cand = pd.read_csv(split_cand_path, index_col=False)
@@ -242,8 +253,23 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
 if __name__ == "__main__":
     version = "v11"
 
-    merge_data(set_names=["trues", "dims", "vars", "rejects"],
-               cuts=only_pd_gr_ps, version_name=version, seed=2)
+    cut_set_and_assign_splits("trues", only_pd_gr_ps, version_name=version)
+    cut_set_and_assign_splits("dims", only_pd_gr_ps, version_name=version)
+    cut_set_and_assign_splits("vars", only_pd_gr_ps, version_name=version)
+    cut_set_and_assign_splits("rejects", only_pd_gr_ps, version_name=version)
+
+    merge_sets_across_split(
+        set_names=["trues", "dims", "vars", "rejects"], split_name="train",
+        cuts=only_pd_gr_ps, version_name=version, seed=2
+    )
+    merge_sets_across_split(
+        set_names=["trues", "dims", "vars", "rejects"], split_name="train",
+        cuts=only_pd_gr_ps, version_name=version, seed=2
+    )
+    merge_sets_across_split(
+        set_names=["trues", "dims", "vars", "rejects"], split_name="train",
+        cuts=only_pd_gr_ps, version_name=version, seed=2
+    )
 
     create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
     create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
