@@ -1,0 +1,93 @@
+import os
+import json
+import torch
+import numpy as np
+from datetime import datetime
+import torchvision.transforms.v2 as transforms
+
+
+class CustomDataset(torch.utils.data.Dataset):
+    def __init__(self, data, labels, transform=None):
+        self.data = data
+        self.labels = labels
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        triplet = self.data[idx]
+        label = self.labels[idx]
+
+        if self.transform:
+            triplet = self.transform(triplet)
+
+        return triplet, label
+
+
+class RandomRightAngleRotation(object):
+    def __call__(self, img):
+        degrees = np.random.choice([0, 90, 180, 270])
+        return transforms.functional.rotate(img, degrees)
+
+
+def make_report(config, report_path, run_data):
+    # generate training report in json format
+    print('Generating report...', end='')
+    report = {
+        'Run time stamp': datetime.now().strftime("%Y%m%d_%H%M%S"),
+        'Run name': run_data['run_name'],
+        'Training history': {k: v for k, v in run_data.items() if k != 'run_name'},
+        'train_config': dict(config),
+    }
+    for k in report['Training history'].keys():
+        report['Training history'][k] = np.array(report['Training history'][k]).tolist()
+
+    f_name = os.path.join(report_path)
+    with open(f_name, 'w') as f:
+        json.dump(report, f, indent=4)
+    print('done')
+
+
+def save_model(model, image_size, path: str):
+    """
+    Save pytorch model to disk in specified format
+
+    Parameters
+    ----------
+    model:
+        Pytorch model
+
+    model_dir: str
+        Directory to save model to
+
+    kind: str
+        Format to write model as, options: "pth", "ONNX", "all"
+    """
+
+    # if kind == "pth" or kind == "all":
+    torch.save(model.state_dict(), path)
+
+    # if kind == "scripted" or kind == "all":
+    #     try:
+    #         model_without_domain_clf = DANN(config)
+    #         model_without_domain_clf.load_state_dict(model.state_dict())
+    #         model_without_domain_clf.eval()
+    #         model_scripted = torch.jit.script(model_without_domain_clf)
+    #     except Exception as e:
+    #         print("Failed to convert model to scripted format")
+    #         print(e)
+    #         return
+    #     model_scripted.save(f"{DANN_DIR}/{model_dir}/best_model.pt")
+
+    # if kind == "ONNX" or kind == "all":
+    #     example_input = torch.randn(1, 3, image_size, image_size).to(device)
+
+    #     model.eval()
+    #     torch.onnx.export(
+    #         model, example_input, f'{DANN_DIR}/{model_dir}/best_model.onnx',
+    #         verbose=False, input_names=["triplet"], output_names=["RB"]
+    #     )
+    #     model.train()
+
+    return
