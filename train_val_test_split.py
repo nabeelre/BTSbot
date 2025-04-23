@@ -263,11 +263,11 @@ if __name__ == "__main__":
         version_name=version, seed=2
     )
     merge_sets_across_split(
-        set_names=["trues", "dims", "vars", "rejects"], split_name="train",
+        set_names=["trues", "dims", "vars", "rejects"], split_name="val",
         version_name=version, seed=2
     )
     merge_sets_across_split(
-        set_names=["trues", "dims", "vars", "rejects"], split_name="train",
+        set_names=["trues", "dims", "vars", "rejects"], split_name="test",
         version_name=version, seed=2
     )
 

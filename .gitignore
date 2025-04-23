@@ -176,4 +176,6 @@ autoscan/
 !example_data/
 non-PS1*
 BTSbot\ beta.xlsx
-
+spec_status
+spec_status/*
+*.pdf

@@ -107,8 +107,8 @@ def train(config, run_name: str = None, sweeping: bool = False):
     train_data_version = config['train_data_version']
 
     # enter new architectures and corresponding types here
-    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small']
-    need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn', 'mm_cnn_small']
+    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small', 'mm_cnn_se']
+    need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn', 'mm_cnn_small', 'mm_cnn_se']
 
     triplets_present = os.path.exists(f'{data_base_dir}data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
     metadata_present = os.path.exists(f'{data_base_dir}data/train_cand_{train_data_version}{N_str}.csv')

@@ -1,20 +1,22 @@
 If you use or reference `BTSbot` in a work, please cite our [publication](https://ui.adsabs.harvard.edu/abs/2024arXiv240115167R/abstract).
 
 ```
-@ARTICLE{2024arXiv240115167R,
+@ARTICLE{2024ApJ...972....7R,
        author = {{Rehemtulla}, Nabeel and {Miller}, Adam A. and {Jegou Du Laz}, Theophile and {Coughlin}, Michael W. and {Fremling}, Christoffer and {Perley}, Daniel A. and {Qin}, Yu-Jing and {Sollerman}, Jesper and {Mahabal}, Ashish A. and {Laher}, Russ R. and {Riddle}, Reed and {Rusholme}, Ben and {Kulkarni}, Shrinivas R.},
-        title = "{The Zwicky Transient Facility Bright Transient Survey. III. $\texttt{BTSbot}$: Automated Identification and Follow-up of Bright Transients with Deep Learning}",
-      journal = {arXiv e-prints},
-     keywords = {Astrophysics - Instrumentation and Methods for Astrophysics},
+        title = "{The Zwicky Transient Facility Bright Transient Survey. III. BTSbot: Automated Identification and Follow-up of Bright Transients with Deep Learning}",
+      journal = {\apj},
+     keywords = {Time domain astronomy, Sky surveys, Supernovae, Convolutional neural networks, 2109, 1464, 1668, 1938, Astrophysics - Instrumentation and Methods for Astrophysics},
          year = 2024,
-        month = jan,
-          eid = {arXiv:2401.15167},
-        pages = {arXiv:2401.15167},
-          doi = {10.48550/arXiv.2401.15167},
+        month = sep,
+       volume = {972},
+       number = {1},
+          eid = {7},
+        pages = {7},
+          doi = {10.3847/1538-4357/ad5666},
 archivePrefix = {arXiv},
        eprint = {2401.15167},
  primaryClass = {astro-ph.IM},
-       adsurl = {https://ui.adsabs.harvard.edu/abs/2024arXiv240115167R},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2024ApJ...972....7R},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```
