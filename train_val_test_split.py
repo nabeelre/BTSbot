@@ -65,7 +65,14 @@ def merge_sets_across_split(set_names, split_name, version_name, seed=2):
     )
     cand.reset_index(inplace=True, drop=True)
 
-    triplets = np.empty((len(cand), 63, 63, 3))
+    triplets = np.concatenate(
+        [
+            np.load(f"data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy",
+                    mmap_mode='r')
+            for set_name in set_names
+        ],
+        axis=0
+    )
     print(f"  Merged {split_name}")
 
     shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
