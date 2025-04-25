@@ -121,10 +121,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     triplets = np.load(
         f'{data_base_dir}data/train_triplets_{dataset_version}{N_str}.npy',
         mmap_mode='r'
-    )
-
-    print(f'num_notbts: {np.sum(cand.label == 0)}')
-    print(f'num_bts: {np.sum(cand.label == 1)}')
+    ).astype(np.float32)
 
     if np.any(np.isnan(triplets)):
         nan_trip_idxs = np.isnan(triplets).any(axis=(1, 2, 3))
@@ -135,6 +132,14 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
         print("**** Null in triplets ****")
         print(f"Removed {np.sum(nan_trip_idxs)} alert(s)")
+    triplets = np.transpose(triplets, (0, 3, 1, 2))
+    triplets = torch.from_numpy(triplets)
+
+    labels = torch.tensor(cand["label"], dtype=torch.int)
+    num_bts = torch.sum(labels == 1).item()
+    num_notbts = torch.sum(labels == 0).item()
+    print(f'num_notbts: {num_notbts}')
+    print(f'num_bts: {num_bts}')
 
     # Data augmentations
     transforms_list = [transforms.ToDtype(torch.float32)]
@@ -145,12 +150,13 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     if rot:
         transforms_list.append(RandomRightAngleRotation())
 
-    n_train_ex_per_class = np.array([np.sum(cand['label'] == 0), np.sum(cand['label'] == 1)])
+    n_train_ex_per_class = np.array([num_notbts, num_bts])
     class_weights = (1 / n_train_ex_per_class) / np.linalg.norm((1 / n_train_ex_per_class))
     class_weights /= np.max(class_weights)
+    class_weights = torch.tensor(class_weights, dtype=torch.float32, device=device)
 
     dataset = CustomDataset(
-        data=triplets, labels=cand["label"],
+        data=triplets, labels=labels,
         transform=transforms.Compose(transforms_list)
     )
 
@@ -289,7 +295,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
         # Get next batch of training data
         trips, labels = next(data_iterator)
         trips = trips.to(device)
-        labels = labels.to(device)
+        labels = labels.to(device).float()
         weights = torch.where(labels == 0, class_weights[0], class_weights[1]).to(device)
 
         # Run model on training data and compute loss

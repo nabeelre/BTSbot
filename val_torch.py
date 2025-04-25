@@ -72,7 +72,8 @@ def run_val(config, model_dir, dataset_version, model_filename):
         labels_path, index_col=None
     )['label'].to_numpy(dtype=np.float32)
 
-    triplets = np.load(triplets_path, mmap_mode='r')
+    triplets = np.load(triplets_path)
+    triplets = np.transpose(triplets, (0, 3, 1, 2))
     triplets = torch.from_numpy(triplets)
 
     transform = transforms.Compose([
@@ -121,9 +122,9 @@ def run_val(config, model_dir, dataset_version, model_filename):
         all_raw_preds, all_labels
 
 
-def diagnostic_figure(run_data, run_descriptor, cand_dir):
-    raw_preds = run_data['best_raw_preds']
-    labels = run_data['val_labels']
+def diagnostic_fig(run_data, run_descriptor, cand_dir):
+    raw_preds = run_data['raw_preds']
+    labels = run_data['labels']
     cand = pd.read_csv(cand_dir, index_col=None)
 
     preds = np.rint(np.transpose(raw_preds))[0].astype(int)
