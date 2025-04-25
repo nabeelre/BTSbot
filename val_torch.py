@@ -119,7 +119,7 @@ def run_val(config, model_dir, dataset_version, model_filename):
         # batch_val_acc = correct / batch_labels.shape[0]
 
     overall_accuracy = np.sum((all_raw_preds > 0.5) == all_labels) / len(all_labels)
-    return batch_val_loss.data.cpu().numpy(), overall_accuracy.cpu().numpy(), \
+    return batch_val_loss.data.cpu().numpy(), overall_accuracy, \
         all_raw_preds, all_labels
 
 
