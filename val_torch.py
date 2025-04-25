@@ -113,21 +113,23 @@ def run_val(config, model_dir, dataset_version, model_filename):
         all_raw_preds[i * batch_size:(i + 1) * batch_size] = raw_preds.data.cpu().numpy()
         all_labels[i * batch_size:(i + 1) * batch_size] = batch_labels.data.cpu().numpy()
 
-        # Calculate train accuracy
-        preds = (raw_preds > 0.5).float()
-        correct = (preds == batch_labels).float().sum()
-        batch_val_acc = correct / batch_labels.shape[0]
+        # Calculate accuracy for this batch
+        # preds = (raw_preds > 0.5).float()
+        # correct = (preds == batch_labels).float().sum()
+        # batch_val_acc = correct / batch_labels.shape[0]
 
-    return batch_val_loss.data.cpu().numpy(), batch_val_acc.data.cpu().numpy(), \
+    overall_accuracy = np.sum((all_raw_preds > 0.5) == all_labels) / len(all_labels)
+    return batch_val_loss.data.cpu().numpy(), overall_accuracy.cpu().numpy(), \
         all_raw_preds, all_labels
 
 
 def diagnostic_fig(run_data, run_descriptor, cand_dir):
     raw_preds = run_data['raw_preds']
-    labels = run_data['labels']
+    labels = run_data['labels'].astype(int)
     cand = pd.read_csv(cand_dir, index_col=None)
 
-    preds = np.rint(np.transpose(raw_preds))[0].astype(int)
+    preds = np.rint(raw_preds).astype(int)
+    cand['preds'] = preds
     results = preds == labels
     print(f"Overall val accuracy {100*np.sum(results) / len(results):.2f}%")
 
@@ -234,7 +236,7 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     ax4_histx = fig.add_subplot(ax4_grid[0, 1], sharex=ax4)
     ax4_histy = fig.add_subplot(ax4_grid[1, 0], sharey=ax4)
 
-    hist = ax4.hist2d(cand['magpsf'], raw_preds[:, 0], norm=LogNorm(), bins=28,
+    hist = ax4.hist2d(cand['magpsf'], raw_preds, norm=LogNorm(), bins=28,
                       range=[[16, 21], [0, 1]], cmap=plt.cm.viridis)
     ax4.set_aspect('auto')
 
@@ -260,7 +262,7 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     ax4_histx.set_aspect(0.00017, anchor='W')
 
     # score marginal hist
-    ax4_histy.hist(raw_preds[:, 0], orientation='horizontal',
+    ax4_histy.hist(raw_preds, orientation='horizontal',
                    bins=28, range=[0, 1], facecolor='#37125E')
     ax4_histy.set_ylabel("Bright transient score", size=22)
     ax4_histy.tick_params(direction='out', axis='y', length=2, width=1, bottom=True, pad=10)
