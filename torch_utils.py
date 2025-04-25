@@ -2,8 +2,10 @@ import os
 import json
 import torch
 import numpy as np
+import pandas as pd
 from datetime import datetime
 import torchvision.transforms.v2 as transforms
+from datasets import Dataset, Features, Array3D, Value
 
 
 class CustomDataset(torch.utils.data.Dataset):
@@ -91,3 +93,38 @@ def save_model(model, image_size, path: str):
     #     model.train()
 
     return
+
+
+def convert_to_hf(split, version):
+    triplets = np.load(f"data/{split}_triplets_{version}_N100.npy")  # shape: (N, 63, 63, 3)
+    cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv")
+
+    # cand['triplet'] = list(triplets)
+
+    feature_types = {
+        "triplet": Array3D(dtype="float32", shape=(63, 63, 3)),
+    }
+
+    for col in cand.columns:
+        if col == "candid":
+            feature_types[col] = Value("string")
+        elif col != "triplet":
+            if cand[col].dtype == object:
+                feature_types[col] = Value("string")
+            elif np.issubdtype(cand[col].dtype, np.bool_):
+                feature_types[col] = Value("bool")
+            elif cand[col].dtype == int:
+                feature_types[col] = Value("int32")
+            elif cand[col].dtype == float:
+                feature_types[col] = Value("float32")
+            else:
+                print(f"Unknown dtype for column {col}: {cand[col].dtype}")
+            # print(col, np.max(cand[col]), np.min(cand[col]))
+    # print(feature_types)
+
+    data_dict = cand.to_dict(orient="list")
+    data_dict["triplet"] = list(triplets)
+    dataset = Dataset.from_dict(data_dict, features=Features(feature_types))
+    # dataset = Dataset.from_pandas(cand, features=Features(feature_types), preserve_index=False)
+
+    dataset.save_to_disk(f"data/{split}_{version}_N100")
