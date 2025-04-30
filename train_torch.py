@@ -255,7 +255,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             })
 
     # Create figure
-    _ = val.diagnostic_fig(
+    val_summary = val.diagnostic_fig(
         run_data={
             "type": model_name,
             "raw_preds": best_raw_preds,
@@ -272,12 +272,41 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     plt.clf()
     plt.close()
 
+    wandb.summary['ROC_AUC'] = val_summary['roc_auc']
+    wandb.summary['bal_acc'] = val_summary['bal_acc']
+    wandb.summary['bts_acc'] = val_summary['bts_acc']
+    wandb.summary['notbts_acc'] = val_summary['notbts_acc']
+
+    wandb.summary['alert_precision'] = val_summary['alert_precision']
+    wandb.summary['alert_recall'] = val_summary['alert_recall']
+    wandb.summary['alert_F1'] = 2 * val_summary['alert_precision'] * val_summary['alert_recall'] /\
+        (val_summary['alert_precision'] + val_summary['alert_recall'])
+
+    for policy_name in list(val_summary['policy_performance']):
+        perf = val_summary['policy_performance'][policy_name]
+
+        wandb.summary[policy_name+"_precision"] = perf['policy_precision']
+        wandb.summary[policy_name+"_recall"] = perf['policy_recall']
+        wandb.summary[policy_name+"_binned_precision"] = perf['binned_precision']
+        wandb.summary[policy_name+"_binned_recall"] = perf['binned_recall']
+        wandb.summary[policy_name+"_peakmag_bins"] = perf['peakmag_bins']
+
+        wandb.summary[policy_name+"_save_dt"] = perf['med_save_dt']
+        wandb.summary[policy_name+"_trigger_dt"] = perf['med_trigger_dt']
+
+        wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) /\
+            (perf['policy_precision'] + perf['policy_recall'])
+
+    wandb.log({"figure": val_summary['fig']})
+
     print(BOLD+'============ Summary ============='+END)
     print(f'Best val loss: {min(val_losses[:epoch+1]):.5f}')
     print(f'Best val accuracy: {max(val_accs[:epoch+1]):.5f}')
     print(f'Model diagnostics at {model_dir}\n')
 
     make_report(config, f"{model_dir}/report.json", run_data)
+
+    del triplets
 
     return
 
@@ -328,7 +357,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = ""
-        wandb.agent(sweep_id, function=sweep_train, count=2, project="BTSbotv2")
+        sweep_id = "0h2lo6qd"
+        wandb.agent(sweep_id, function=sweep_train, count=12, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])
