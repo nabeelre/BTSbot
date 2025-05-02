@@ -150,11 +150,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     if rot:
         transforms_list.append(RandomRightAngleRotation())
 
-    n_train_ex_per_class = np.array([num_notbts, num_bts])
-    class_weights = (1 / n_train_ex_per_class) / np.linalg.norm((1 / n_train_ex_per_class))
-    class_weights /= np.max(class_weights)
-    class_weights = torch.tensor(class_weights, dtype=torch.float32, device=device)
-
     dataset = CustomDataset(
         data=triplets, labels=labels,
         transform=transforms.Compose(transforms_list)
@@ -164,6 +159,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         dataset=dataset, batch_size=batch_size,
         shuffle=True, drop_last=True
     )
+
+    bts_weight = torch.FloatTensor([num_notbts / num_bts]).to(device)
+    loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
 
     # /-----------------------------/
     #         CONNECT WandB
@@ -207,7 +205,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     for epoch in range(epochs):
         # Run training data through model, compute loss and accuracy, take step
         epoch_train_loss, epoch_train_acc = train_epoch(
-            dataloader, epoch, epochs, optimizer, class_weights, model
+            dataloader, epoch, epochs, optimizer, loss_fn, model
         )
         train_losses[epoch] = epoch_train_loss
         train_accs[epoch] = epoch_train_acc
@@ -312,7 +310,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
 
 def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
-                optimizer: optim.Optimizer, class_weights, model):
+                optimizer: optim.Optimizer, loss_fn, model):
     """
     Run one epoch of training.
     """
@@ -324,16 +322,15 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
         # Get next batch of training data
         trips, labels = next(data_iterator)
         trips = trips.to(device)
-        labels = labels.to(device).float()
-        weights = torch.where(labels == 0, class_weights[0], class_weights[1]).to(device)
-
+        labels = labels.unsqueeze(1).to(device).float()
+        
         # Run model on training data and compute loss
         model.zero_grad()
-        raw_preds = model(input_data=trips)
-        loss_fn = torch.nn.BCELoss(weight=weights).to(device)
-        batch_train_loss = loss_fn(raw_preds, labels)
+        logits = model(input_data=trips)
+        batch_train_loss = loss_fn(logits, labels)
 
         # Calculate train accuracy
+        raw_preds = torch.sigmoid(logits)
         preds = (raw_preds > 0.5).float()
         correct = (preds == labels).float().sum()
         batch_train_acc = correct / labels.shape[0]

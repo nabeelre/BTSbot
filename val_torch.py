@@ -60,8 +60,6 @@ def run_val(config, model_dir, dataset_version, model_filename):
     model.load_state_dict(torch.load(path.join(model_dir, model_filename)))
     model.eval()
 
-    loss_fn = torch.nn.BCELoss().to(device)
-
     # /--------------------/
     #       LOAD DATA
     # /--------------------/
@@ -88,6 +86,11 @@ def run_val(config, model_dir, dataset_version, model_filename):
         dataset=dataset, batch_size=batch_size, shuffle=True
     )
 
+    num_bts = np.sum(labels == 1)
+    num_notbts = np.sum(labels == 0)
+    bts_weight = torch.FloatTensor([num_notbts / num_bts]).to(device)
+    loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
+
     # /----------------/
     #      EVALUATE
     # /----------------/
@@ -102,16 +105,17 @@ def run_val(config, model_dir, dataset_version, model_filename):
         # Get next batch of val data
         batch_trips, batch_labels = next(data_iterator)
         batch_trips = batch_trips.to(device)
-        batch_labels = batch_labels.to(device)
+        batch_labels = batch_labels.unsqueeze(1).to(device)
 
         # Run model on val data and compute loss
         # model.zero_grad()
-        raw_preds = model(input_data=batch_trips)
-        batch_val_loss = loss_fn(raw_preds, batch_labels)
+        logits = model(input_data=batch_trips)
+        batch_val_loss = loss_fn(logits, batch_labels)
+        raw_preds = torch.sigmoid(logits)
 
         # Keep track of all predictions and labels
-        all_raw_preds[i * batch_size:(i + 1) * batch_size] = raw_preds.data.cpu().numpy()
-        all_labels[i * batch_size:(i + 1) * batch_size] = batch_labels.data.cpu().numpy()
+        all_raw_preds[i * batch_size:(i + 1) * batch_size] = raw_preds.squeeze().data.cpu().numpy()
+        all_labels[i * batch_size:(i + 1) * batch_size] = batch_labels.squeeze().data.cpu().numpy()
 
         # Calculate accuracy for this batch
         # preds = (raw_preds > 0.5).float()
