@@ -70,22 +70,12 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     random_state = config['random_seed']
     data_base_dir = config.get('data_base_dir', '')
 
-    try:
-        N_max_p = config["N_maxs"][0]
-        N_max_n = config["N_maxs"][1]
-    except (KeyError, TypeError, IndexError):
-        N_max_p = config["N_max_p"]
-        if "N_max_n" in config:
-            N_max_n = config["N_max_n"]
-        else:
-            N_max_n = N_max_p
+    N_max_p = config.get('N_max', 100)
+    N_max_n = N_max_p
+    N_str = f"_N{N_max_p}"
 
-    if N_max_p == N_max_n:
-        N_str = f"_N{N_max_p}"
-    else:
-        N_str = f"_Np{N_max_p}"
-        if N_max_n:
-            N_str += f"n{N_max_n}"
+    np.random.seed(random_state)
+    torch.manual_seed(random_state)
 
     # /-----------------------------------/
     #    MODEL, OPTIMIZER, & LOSS SET UP
@@ -105,10 +95,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     optimizer = optim.Adam(model.parameters(),
                            lr=learning_rate,
                            betas=(beta1, beta2))
-    # loss_fn = torch.nn.BCELoss().to(device)
-
-    np.random.seed(random_state)
-    torch.manual_seed(random_state)
 
     print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}," +
           f"N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")

@@ -28,23 +28,10 @@ def run_val(config, model_dir, dataset_version, model_filename):
     model_name = config['model_name']
     data_base_dir = config.get('data_base_dir', '')
 
-    if "N_maxs" in list(config):
-        N_max_p = config["N_maxs"][0]
-        N_max_n = config["N_maxs"][1]
-    else:
-        N_max_p = config["N_max_p"]
-        if "N_max_n" in config:
-            N_max_n = config["N_max_n"]
-        else:
-            N_max_n = N_max_p
-
-    if N_max_p == N_max_n:
-        N_str = f"_N{N_max_p}"
-    else:
-        N_str = f"_Np{N_max_p}"
-        if N_max_n:
-            N_str += f"n{N_max_n}"
-
+    N_max_p = config.get('N_max', 100)
+    N_max_n = N_max_p
+    N_str = f"_N{N_max_p}"
+    
     # /-----------------/
     #    MODEL SET UP
     # /-----------------/
