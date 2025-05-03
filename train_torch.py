@@ -54,7 +54,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     beta1 = config['beta_1']
     beta2 = config['beta_2']
     patience = config['patience']
-    
+
     h_flip = bool(config["data_aug_h_flip"])
     v_flip = bool(config["data_aug_v_flip"])
     rot = bool(config["data_aug_rot"])
@@ -238,7 +238,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             })
 
     # Create figure
-    val_summary = val.diagnostic_fig(
+    val_summ = val.diagnostic_fig(
         run_data={
             "type": model_name,
             "raw_preds": best_raw_preds,
@@ -256,32 +256,32 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     plt.close()
 
     if not config['testing']:
-        wandb.summary['ROC_AUC'] = val_summary['roc_auc']
-        wandb.summary['bal_acc'] = val_summary['bal_acc']
-        wandb.summary['bts_acc'] = val_summary['bts_acc']
-        wandb.summary['notbts_acc'] = val_summary['notbts_acc']
+        def F1(precision, recall):
+            return 2 * precision * recall / (precision + recall)
 
-        wandb.summary['alert_precision'] = val_summary['alert_precision']
-        wandb.summary['alert_recall'] = val_summary['alert_recall']
-        wandb.summary['alert_F1'] = 2 * val_summary['alert_precision'] * val_summary['alert_recall'] /\
-            (val_summary['alert_precision'] + val_summary['alert_recall'])
+        wandb.summary['ROC_AUC'] = val_summ['roc_auc']
+        wandb.summary['bal_acc'] = val_summ['bal_acc']
+        wandb.summary['bts_acc'] = val_summ['bts_acc']
+        wandb.summary['notbts_acc'] = val_summ['notbts_acc']
 
-        for policy_name in list(val_summary['policy_performance']):
-            perf = val_summary['policy_performance'][policy_name]
+        wandb.summary['alert_precision'] = val_summ['alert_precision']
+        wandb.summary['alert_recall'] = val_summ['alert_recall']
+        wandb.summary['alert_F1'] = F1(val_summ['alert_precision'], val_summ['alert_recall'])
 
-            wandb.summary[policy_name+"_precision"] = perf['policy_precision']
-            wandb.summary[policy_name+"_recall"] = perf['policy_recall']
-            wandb.summary[policy_name+"_binned_precision"] = perf['binned_precision']
-            wandb.summary[policy_name+"_binned_recall"] = perf['binned_recall']
-            wandb.summary[policy_name+"_peakmag_bins"] = perf['peakmag_bins']
+        for pol_name in list(val_summ['policy_performance']):
+            perf = val_summ['policy_performance'][pol_name]
 
-            wandb.summary[policy_name+"_save_dt"] = perf['med_save_dt']
-            wandb.summary[policy_name+"_trigger_dt"] = perf['med_trigger_dt']
+            wandb.summary[pol_name+"_precision"] = perf['policy_precision']
+            wandb.summary[pol_name+"_recall"] = perf['policy_recall']
+            wandb.summary[pol_name+"_binned_precision"] = perf['binned_precision']
+            wandb.summary[pol_name+"_binned_recall"] = perf['binned_recall']
+            wandb.summary[pol_name+"_peakmag_bins"] = perf['peakmag_bins']
 
-            wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) /\
-                (perf['policy_precision'] + perf['policy_recall'])
+            wandb.summary[pol_name+"_save_dt"] = perf['med_save_dt']
+            wandb.summary[pol_name+"_trigger_dt"] = perf['med_trigger_dt']
 
-        # wandb.log({"figure": val_summary['fig']})
+            wandb.summary[pol_name+"_F1"] = F1(perf['policy_precision'], perf['policy_recall'])
+        wandb.log({"figure": wandb.Image(val_summ['fig'])})
 
     print(BOLD+'============ Summary ============='+END)
     print(f'Best val loss: {min(val_losses[:epoch+1]):.5f}')
