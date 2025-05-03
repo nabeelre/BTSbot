@@ -28,10 +28,9 @@ def run_val(config, model_dir, dataset_version, model_filename):
     model_name = config['model_name']
     data_base_dir = config.get('data_base_dir', '')
 
-    N_max_p = config.get('N_max', 100)
-    N_max_n = N_max_p
-    N_str = f"_N{N_max_p}"
-    
+    N_max = config.get('N_max', 100)
+    N_str = f"_N{N_max}"
+
     # /-----------------/
     #    MODEL SET UP
     # /-----------------/
@@ -98,7 +97,6 @@ def run_val(config, model_dir, dataset_version, model_filename):
         # Run model on val data and compute loss
         # model.zero_grad()
         logits = model(input_data=batch_trips)
-        batch_val_loss = loss_fn(logits, batch_labels)
         raw_preds = torch.sigmoid(logits)
 
         # Keep track of all predictions and labels
@@ -106,16 +104,13 @@ def run_val(config, model_dir, dataset_version, model_filename):
         all_raw_preds[i * batch_size:(i + 1) * batch_size] = raw_preds.squeeze().data.cpu().numpy()
         all_labels[i * batch_size:(i + 1) * batch_size] = batch_labels.squeeze().data.cpu().numpy()
 
-        # Calculate accuracy for this batch
-        # preds = (raw_preds > 0.5).float()
-        # correct = (preds == batch_labels).float().sum()
-        # batch_val_acc = correct / batch_labels.shape[0]
+    overall_loss = loss_fn(
+        torch.tensor(all_logits, device=device).unsqueeze(1),
+        torch.tensor(all_labels, device=device).unsqueeze(1)
+    )
 
-    #pass
-    #print(type(all_labels), len(all_labels), all_labels[0:15])
-    overall_loss = loss_fn(all_logits, all_labels)
     overall_accuracy = np.sum((all_raw_preds > 0.5) == all_labels) / len(all_labels)
-    return overall_loss.data.cpu().numpy(), overall_accuracy, \
+    return overall_loss.detach().cpu().numpy(), overall_accuracy, \
         all_raw_preds, all_labels
 
 
@@ -129,7 +124,7 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
 
     cand = pd.read_csv(cand_dir, index_col=None)
     cand['preds'] = preds
-    
+
     fpr, tpr, thresholds = roc_curve(labels, raw_preds)
     roc_auc = auc(fpr, tpr)
 
@@ -414,8 +409,13 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
 
                 # If this is the first positive pred
                 if int(policy_pred) and not policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_pred"].values[0]:
-                    policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_jd"] = obj_alerts.loc[idx_cur, "jd"]
-                    policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_mag"] = obj_alerts.loc[idx_cur, "magpsf"]
+                    policy_cand.loc[
+                        policy_cand['objectId'] == obj_id, name+"_jd"
+                    ] = obj_alerts.loc[idx_cur, "jd"]
+
+                    policy_cand.loc[
+                        policy_cand['objectId'] == obj_id, name+"_mag"
+                    ] = obj_alerts.loc[idx_cur, "magpsf"]
 
                 # Store policy prediction
                 policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_pred"] = int(policy_pred)
