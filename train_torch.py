@@ -54,10 +54,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     beta1 = config['beta_1']
     beta2 = config['beta_2']
     patience = config['patience']
-
-    # class weighting fixed to "alerts"
-    # weight_classes = config['weight_classes']
-
+    
     h_flip = bool(config["data_aug_h_flip"])
     v_flip = bool(config["data_aug_v_flip"])
     rot = bool(config["data_aug_rot"])
@@ -89,7 +86,13 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     # Initialize model and make trainable
     model = model_type(config).to(device)
+    # for p in model.parameters():
+    #     p.requires_grad = True
+
+    # Freeze Swin?
     for p in model.parameters():
+        p.requires_grad = False
+    for p in model.head.parameters():
         p.requires_grad = True
 
     optimizer = optim.Adam(model.parameters(),
@@ -156,13 +159,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     if not sweeping:
         if not config['testing']:
             wandb.init(project="BTSbotv2", config=config)
-            wandb.require("core")  # use new WandB backend, remove when made default
             run_name = wandb.run.name
         else:
             run_name = "testing"
-
-    # Logs gradients of model to WandB
-    # wandb.watch(model)
 
     run_model_name = f"{model_name}_{dataset_version}{N_str}_{device}"
     model_dir = f"models/{run_model_name}/{run_name}/"
@@ -256,32 +255,33 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     plt.clf()
     plt.close()
 
-    wandb.summary['ROC_AUC'] = val_summary['roc_auc']
-    wandb.summary['bal_acc'] = val_summary['bal_acc']
-    wandb.summary['bts_acc'] = val_summary['bts_acc']
-    wandb.summary['notbts_acc'] = val_summary['notbts_acc']
+    if not config['testing']:
+        wandb.summary['ROC_AUC'] = val_summary['roc_auc']
+        wandb.summary['bal_acc'] = val_summary['bal_acc']
+        wandb.summary['bts_acc'] = val_summary['bts_acc']
+        wandb.summary['notbts_acc'] = val_summary['notbts_acc']
 
-    wandb.summary['alert_precision'] = val_summary['alert_precision']
-    wandb.summary['alert_recall'] = val_summary['alert_recall']
-    wandb.summary['alert_F1'] = 2 * val_summary['alert_precision'] * val_summary['alert_recall'] /\
-        (val_summary['alert_precision'] + val_summary['alert_recall'])
+        wandb.summary['alert_precision'] = val_summary['alert_precision']
+        wandb.summary['alert_recall'] = val_summary['alert_recall']
+        wandb.summary['alert_F1'] = 2 * val_summary['alert_precision'] * val_summary['alert_recall'] /\
+            (val_summary['alert_precision'] + val_summary['alert_recall'])
 
-    for policy_name in list(val_summary['policy_performance']):
-        perf = val_summary['policy_performance'][policy_name]
+        for policy_name in list(val_summary['policy_performance']):
+            perf = val_summary['policy_performance'][policy_name]
 
-        wandb.summary[policy_name+"_precision"] = perf['policy_precision']
-        wandb.summary[policy_name+"_recall"] = perf['policy_recall']
-        wandb.summary[policy_name+"_binned_precision"] = perf['binned_precision']
-        wandb.summary[policy_name+"_binned_recall"] = perf['binned_recall']
-        wandb.summary[policy_name+"_peakmag_bins"] = perf['peakmag_bins']
+            wandb.summary[policy_name+"_precision"] = perf['policy_precision']
+            wandb.summary[policy_name+"_recall"] = perf['policy_recall']
+            wandb.summary[policy_name+"_binned_precision"] = perf['binned_precision']
+            wandb.summary[policy_name+"_binned_recall"] = perf['binned_recall']
+            wandb.summary[policy_name+"_peakmag_bins"] = perf['peakmag_bins']
 
-        wandb.summary[policy_name+"_save_dt"] = perf['med_save_dt']
-        wandb.summary[policy_name+"_trigger_dt"] = perf['med_trigger_dt']
+            wandb.summary[policy_name+"_save_dt"] = perf['med_save_dt']
+            wandb.summary[policy_name+"_trigger_dt"] = perf['med_trigger_dt']
 
-        wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) /\
-            (perf['policy_precision'] + perf['policy_recall'])
+            wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) /\
+                (perf['policy_precision'] + perf['policy_recall'])
 
-    wandb.log({"figure": val_summary['fig']})
+        # wandb.log({"figure": val_summary['fig']})
 
     print(BOLD+'============ Summary ============='+END)
     print(f'Best val loss: {min(val_losses[:epoch+1]):.5f}')
@@ -290,7 +290,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     make_report(config, f"{model_dir}/report.json", run_data)
 
-    del triplets
+    del triplets, dataset, dataloader, model, optimizer, loss_fn, cand, run_data
 
     return
 
