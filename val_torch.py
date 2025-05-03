@@ -85,6 +85,7 @@ def run_val(config, model_dir, dataset_version, model_filename):
     num_batches = len(dataloader)
     data_iterator = iter(dataloader)
 
+    all_logits = np.zeros(len(labels), dtype=np.float32)
     all_raw_preds = np.zeros(len(labels), dtype=np.float32)
     all_labels = np.zeros(len(labels), dtype=np.float32)
 
@@ -101,6 +102,7 @@ def run_val(config, model_dir, dataset_version, model_filename):
         raw_preds = torch.sigmoid(logits)
 
         # Keep track of all predictions and labels
+        all_logits[i * batch_size:(i + 1) * batch_size] = logits.squeeze().data.cpu().numpy()
         all_raw_preds[i * batch_size:(i + 1) * batch_size] = raw_preds.squeeze().data.cpu().numpy()
         all_labels[i * batch_size:(i + 1) * batch_size] = batch_labels.squeeze().data.cpu().numpy()
 
@@ -109,21 +111,25 @@ def run_val(config, model_dir, dataset_version, model_filename):
         # correct = (preds == batch_labels).float().sum()
         # batch_val_acc = correct / batch_labels.shape[0]
 
+    #pass
+    #print(type(all_labels), len(all_labels), all_labels[0:15])
+    overall_loss = loss_fn(all_logits, all_labels)
     overall_accuracy = np.sum((all_raw_preds > 0.5) == all_labels) / len(all_labels)
-    return batch_val_loss.data.cpu().numpy(), overall_accuracy, \
+    return overall_loss.data.cpu().numpy(), overall_accuracy, \
         all_raw_preds, all_labels
 
 
 def diagnostic_fig(run_data, run_descriptor, cand_dir):
     raw_preds = run_data['raw_preds']
-    labels = run_data['labels'].astype(int)
-    cand = pd.read_csv(cand_dir, index_col=None)
-
     preds = np.rint(raw_preds).astype(int)
-    cand['preds'] = preds
+
+    labels = run_data['labels'].astype(int)
     results = preds == labels
     print(f"Overall val accuracy {100*np.sum(results) / len(results):.2f}%")
 
+    cand = pd.read_csv(cand_dir, index_col=None)
+    cand['preds'] = preds
+    
     fpr, tpr, thresholds = roc_curve(labels, raw_preds)
     roc_auc = auc(fpr, tpr)
 

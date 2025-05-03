@@ -92,7 +92,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # Freeze Swin?
     for p in model.parameters():
         p.requires_grad = False
-    for p in model.head.parameters():
+    for p in model.swin.head.parameters():
         p.requires_grad = True
 
     optimizer = optim.Adam(model.parameters(),
@@ -218,7 +218,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 f"       {GREEN}" +
                 f"val loss improved from {prev_best_val_loss:.5f}, saved model{END}\n"
             )
-            best_raw_preds = val_raw_preds
+            best_raw_preds = np.copy(val_raw_preds)
             epochs_since_improvement = 0
         else:
             epochs_since_improvement += 1
