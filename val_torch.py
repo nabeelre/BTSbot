@@ -84,34 +84,41 @@ def run_val(config, model_dir, dataset_version, model_filename):
     num_batches = len(dataloader)
     data_iterator = iter(dataloader)
 
-    all_logits = np.zeros(len(labels), dtype=np.float32)
-    all_raw_preds = np.zeros(len(labels), dtype=np.float32)
-    all_labels = np.zeros(len(labels), dtype=np.float32)
+    all_logits = []
+    all_labels = []
+    all_raw_preds = []
 
-    for i in range(num_batches):
-        # Get next batch of val data
-        batch_trips, batch_labels = next(data_iterator)
-        batch_trips = batch_trips.to(device)
-        batch_labels = batch_labels.unsqueeze(1).to(device)
+    # Iterate over batches of val and prevent gradients from acumulating
+    with torch.no_grad():
+        for _ in range(num_batches):
+            # Get next batch of val data
+            batch_trips, batch_labels = next(data_iterator)
+            batch_trips = batch_trips.to(device)
+            batch_labels = batch_labels.unsqueeze(1).to(device)
 
-        # Run model on val data and compute loss
-        # model.zero_grad()
-        logits = model(input_data=batch_trips)
-        raw_preds = torch.sigmoid(logits)
+            # Run model on val batch
+            logits = model(input_data=batch_trips)
 
-        # Keep track of all predictions and labels
-        all_logits[i * batch_size:(i + 1) * batch_size] = logits.squeeze().data.cpu().numpy()
-        all_raw_preds[i * batch_size:(i + 1) * batch_size] = raw_preds.squeeze().data.cpu().numpy()
-        all_labels[i * batch_size:(i + 1) * batch_size] = batch_labels.squeeze().data.cpu().numpy()
+            # Compute scores from logits
+            raw_preds = torch.sigmoid(logits)
 
+            # Keep track of all predictions and labels
+            all_logits.append(logits.detach())
+            all_labels.append(batch_labels.detach())
+            all_raw_preds.append(raw_preds.detach())
+
+    # Compute loss for all batches of val
     overall_loss = loss_fn(
-        torch.tensor(all_logits, device=device).unsqueeze(1),
-        torch.tensor(all_labels, device=device).unsqueeze(1)
-    )
+        torch.cat(all_logits, dim=0),
+        torch.cat(all_labels, dim=0)
+    ).item()
 
+    # Compute accuracy for all batches of val
+    all_raw_preds = torch.cat(all_raw_preds, dim=0).squeeze().cpu().numpy()
+    all_labels = torch.cat(all_labels, dim=0).squeeze().cpu().numpy()
     overall_accuracy = np.sum((all_raw_preds > 0.5) == all_labels) / len(all_labels)
-    return overall_loss.detach().cpu().numpy(), overall_accuracy, \
-        all_raw_preds, all_labels
+
+    return overall_loss, overall_accuracy, all_raw_preds, all_labels
 
 
 def diagnostic_fig(run_data, run_descriptor, cand_dir):

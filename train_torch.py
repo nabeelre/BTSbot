@@ -44,6 +44,18 @@ def classic_train(config_path):
     run_training(config)
 
 
+def perf_to_stdout(epoch, epochs, start_time, batch, batches, loss, acc, flush_stdout=True):
+    sys.stdout.write(
+        f"\r  {BOLD}epoch: {epoch+1}/{epochs}{END} " +
+        f"t: {(time.time()-start_time):.2f}s " +
+        f"[batch: {batch}/{batches}], " +
+        f"{RED}train loss{END}: {loss:.5f}, " +
+        f"{BLUE}train accuracy{END}: {acc:.5f}"
+    )
+    if flush_stdout:
+        sys.stdout.flush()
+
+
 def run_training(config, run_name: str = "", sweeping: bool = False):
     # Read parameters from config
     model_name = config['model_name']
@@ -304,38 +316,64 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
     num_batches = len(dataloader)
     data_iterator = iter(dataloader)
 
+    all_logits = []
+    all_labels = []
+    all_raw_preds = []
+
+    # Iterate of batches of training data
     for i in range(num_batches):
         # Get next batch of training data
         trips, labels = next(data_iterator)
         trips = trips.to(device)
         labels = labels.unsqueeze(1).to(device).float()
-        
-        # Run model on training data and compute loss
+
+        # Clear gradients, run model on batch, and compute loss
         model.zero_grad()
         logits = model(input_data=trips)
         batch_train_loss = loss_fn(logits, labels)
 
-        # Calculate train accuracy
+        # Backpropogate and take step in gradient descent
+        batch_train_loss.backward()
+        optimizer.step()
+
+        # Compute scores from logits
         raw_preds = torch.sigmoid(logits)
+
+        # Keep track of predictions and labels
+        all_logits.append(logits.detach())
+        all_labels.append(labels.detach())
+        all_raw_preds.append(raw_preds.detach())
+
+        # Calculate batch accuracy
         preds = (raw_preds > 0.5).float()
         correct = (preds == labels).float().sum()
         batch_train_acc = correct / labels.shape[0]
 
-        # Take step
-        batch_train_loss.backward()
-        optimizer.step()
-
-        # Log quantities to stdout
-        sys.stdout.write(
-            f"\r  {BOLD}epoch: {epoch+1}/{epochs}{END} " +
-            f"t: {(time.time()-epoch_start_time):.2f}s " +
-            f"[batch: {i + 1}/{num_batches}], " +
-            f"{RED}train loss{END}: {batch_train_loss.data.cpu().numpy():.5f}, " +
-            f"{BLUE}train accuracy{END}: {batch_train_acc.data.cpu().numpy():.5f}"
+        # Log batch quantities to stdout
+        perf_to_stdout(
+            epoch, epochs, epoch_start_time,
+            i + 1, num_batches,
+            batch_train_loss.item(), batch_train_acc.item(),
         )
-        sys.stdout.flush()
 
-    return batch_train_loss.data.cpu().numpy(), batch_train_acc.data.cpu().numpy()
+    # Compute loss for all batches of val
+    epoch_loss = loss_fn(
+        torch.cat(all_logits, dim=0),
+        torch.cat(all_labels, dim=0)
+    ).item()
+
+    # Compute accuracy for the entire epoch
+    all_raw_preds = torch.cat(all_raw_preds, dim=0).squeeze().cpu().numpy()
+    all_labels = torch.cat(all_labels, dim=0).squeeze().cpu().numpy()
+    epoch_accuracy = np.sum((all_raw_preds > 0.5) == all_labels) / len(all_labels)
+
+    perf_to_stdout(
+        epoch, epochs, epoch_start_time,
+        num_batches, num_batches,
+        epoch_loss, epoch_accuracy, flush_stdout=False
+    )
+
+    return epoch_loss, epoch_accuracy
 
 
 if __name__ == "__main__":
