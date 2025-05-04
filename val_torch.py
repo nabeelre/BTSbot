@@ -23,7 +23,7 @@ device = (
 )
 
 
-def run_val(config, model_dir, dataset_version, model_filename):
+def run_val(config, model_dir, dataset_version, model_filename, bts_weight):
     batch_size = config['batch_size']
     model_name = config['model_name']
     data_base_dir = config.get('data_base_dir', '')
@@ -45,6 +45,8 @@ def run_val(config, model_dir, dataset_version, model_filename):
     model = model_type(config).to(device)
     model.load_state_dict(torch.load(path.join(model_dir, model_filename)))
     model.eval()
+
+    loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
 
     # /--------------------/
     #       LOAD DATA
@@ -71,11 +73,6 @@ def run_val(config, model_dir, dataset_version, model_filename):
     dataloader = DataLoader(
         dataset=dataset, batch_size=batch_size, shuffle=True
     )
-
-    num_bts = np.sum(labels == 1)
-    num_notbts = np.sum(labels == 0)
-    bts_weight = torch.FloatTensor([num_notbts / num_bts]).to(device)
-    loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
 
     # /----------------/
     #      EVALUATE

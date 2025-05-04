@@ -212,7 +212,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
         # Run validation data through model, compute loss and accuracy
         epoch_val_loss, epoch_val_acc, val_raw_preds, val_labels = val.run_val(
-            config, model_dir, dataset_version, "latest_model.pth"
+            config, model_dir, dataset_version, "latest_model.pth", bts_weight
         )
         val_losses[epoch] = epoch_val_loss
         val_accs[epoch] = epoch_val_acc
