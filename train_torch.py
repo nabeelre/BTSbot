@@ -98,14 +98,16 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     # Initialize model and make trainable
     model = model_type(config).to(device)
-    # for p in model.parameters():
-    #     p.requires_grad = True
 
-    # Freeze Swin?
+    # Unfreeze everything
     for p in model.parameters():
-        p.requires_grad = False
-    for p in model.swin.head.parameters():
         p.requires_grad = True
+
+    # Freeze backbone and unfreeze head
+    # for p in model.parameters():
+    #     p.requires_grad = False
+    # for p in model.swin.head.parameters():
+    #     p.requires_grad = True
 
     optimizer = optim.Adam(model.parameters(),
                            lr=learning_rate,
@@ -195,7 +197,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         "val_accuracy": val_accs,
     }
 
-    best_raw_preds, val_labels = None, None
+    best_raw_preds, best_val_labels = None, None
     epochs_since_improvement = 0
 
     # TODO: implement changing LR
@@ -231,6 +233,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 f"val loss improved from {prev_best_val_loss:.5f}, saved model{END}\n"
             )
             best_raw_preds = np.copy(val_raw_preds)
+            best_val_labels = np.copy(val_labels)
             epochs_since_improvement = 0
         else:
             epochs_since_improvement += 1
@@ -254,7 +257,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         run_data={
             "type": model_name,
             "raw_preds": best_raw_preds,
-            "labels": val_labels,
+            "labels": best_val_labels,
             "run_name": run_name,
             "loss": train_losses[:epoch+1],
             "accuracy": train_accs[:epoch+1],
