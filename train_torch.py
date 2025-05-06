@@ -267,8 +267,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         run_descriptor=model_dir,
         cand_dir=f'{data_base_dir}data/val_cand_{dataset_version}{N_str}.csv'
     )
-    plt.clf()
-    plt.close()
 
     if not config['testing']:
         def F1(precision, recall):
@@ -297,6 +295,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
             wandb.summary[pol_name+"_F1"] = F1(perf['policy_precision'], perf['policy_recall'])
         wandb.log({"figure": wandb.Image(val_summ['fig'])})
+    plt.clf()
+    plt.close()
 
     print(BOLD+'============ Summary ============='+END)
     print(f'Best val loss: {min(val_losses[:epoch+1]):.5f}')
