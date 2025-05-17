@@ -11,8 +11,9 @@ import os
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch_utils import CustomDataset, RandomRightAngleRotation, make_report
 import torchvision.transforms.v2 as transforms
+
+from torch_utils import CustomDataset, RandomRightAngleRotation, make_report
 import architectures_torch as architectures
 import val_torch as val
 
@@ -71,12 +72,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     v_flip = bool(config["data_aug_v_flip"])
     rot = bool(config["data_aug_rot"])
 
-    # data_kind = config["train_data_kind"]
-    # data_variant = config["train_data_variant"]
-    # image_size = config['image_size']
-    dataset_version = config['train_data_version']
-
     random_state = config['random_seed']
+    dataset_version = config['train_data_version']
     data_base_dir = config.get('data_base_dir', '')
 
     N_max_p = config.get('N_max', 100)
@@ -90,28 +87,37 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     #    MODEL, OPTIMIZER, & LOSS SET UP
     # /-----------------------------------/
 
+    # Initialize model
     try:
         model_type = getattr(architectures, model_name)
     except AttributeError:
         print("Could not find model of name", model_name)
         exit(0)
-
-    # Initialize model and make trainable
     model = model_type(config).to(device)
 
-    # Unfreeze everything
+    # Unfreeze all layers
     for p in model.parameters():
         p.requires_grad = True
 
-    # Freeze backbone and unfreeze head
+    # Keep Swin backbone frozen but unfreeze head
     # for p in model.parameters():
     #     p.requires_grad = False
     # for p in model.swin.head.parameters():
     #     p.requires_grad = True
 
-    optimizer = optim.Adam(model.parameters(),
-                           lr=learning_rate,
-                           betas=(beta1, beta2))
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=learning_rate,
+        betas=(beta1, beta2)
+    )
+
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',
+        factor=0.4,
+        patience=patience // 2,
+        verbose=True
+    )
 
     print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}," +
           f"N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
@@ -224,6 +230,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             f"val accuracy: {epoch_val_acc:.5f}{END}"
         )
 
+        # Step the learning rate scheduler (i.e. check if LR decrease needed)
+        scheduler.step(epoch_val_loss)
+
         # If val loss improved, save model
         prev_best_val_loss = min([np.inf] + list(val_losses[:epoch]))
         if epoch_val_loss < prev_best_val_loss:
@@ -249,7 +258,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 "train_loss": epoch_train_loss,
                 "train_accuracy": epoch_train_acc,
                 "val_loss": epoch_val_loss,
-                "val_accuracy": epoch_val_acc
+                "val_accuracy": epoch_val_acc,
+                "learning_rate": optimizer.param_groups[0]['lr']
             })
 
     # Create figure
