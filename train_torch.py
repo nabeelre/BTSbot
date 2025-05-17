@@ -111,12 +111,12 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         betas=(beta1, beta2)
     )
 
+    current_lr = learning_rate
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode='min',
         factor=0.4,
         patience=patience // 2,
-        verbose=True
     )
 
     print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}," +
@@ -206,7 +206,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     best_raw_preds, best_val_labels = None, None
     epochs_since_improvement = 0
 
-    # TODO: implement changing LR
     for epoch in range(epochs):
         # Run training data through model, compute loss and accuracy, take step
         epoch_train_loss, epoch_train_acc = train_epoch(
@@ -232,6 +231,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
         # Step the learning rate scheduler (i.e. check if LR decrease needed)
         scheduler.step(epoch_val_loss)
+        if optimizer.param_groups[0]['lr'] != current_lr:
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"       {BOLD}{BLUE}LR decreased to {current_lr}{END}")
 
         # If val loss improved, save model
         prev_best_val_loss = min([np.inf] + list(val_losses[:epoch]))
@@ -259,7 +261,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 "train_accuracy": epoch_train_acc,
                 "val_loss": epoch_val_loss,
                 "val_accuracy": epoch_val_acc,
-                "learning_rate": optimizer.param_groups[0]['lr']
+                "learning_rate": current_lr
             })
 
     # Create figure
