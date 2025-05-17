@@ -68,7 +68,7 @@ def train(config, run_name: str = None, sweeping: bool = False):
     try:
         N_max_p = config["N_maxs"][0]
         N_max_n = config["N_maxs"][1]
-    except:
+    except KeyError:
         N_max_p = config["N_max_p"]
         if "N_max_n" in config:
             N_max_n = config["N_max_n"]
@@ -88,12 +88,12 @@ def train(config, run_name: str = None, sweeping: bool = False):
             crop_cutout_str = ""
         else:
             crop_cutout_str = f"_c{crop_cutout_size}"
-    except:
+    except KeyError:
         crop_cutout_str = ""
 
     try:
         model_type = getattr(architectures, config['model_name'].lower())
-    except:
+    except AttributeError:
         print("Could not find model of name", config['model_name'].lower())
         exit(0)
 
@@ -107,11 +107,22 @@ def train(config, run_name: str = None, sweeping: bool = False):
     train_data_version = config['train_data_version']
 
     # enter new architectures and corresponding types here
-    need_triplets = model_type.__name__ in ['mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small', 'mm_cnn_se']
-    need_metadata = model_type.__name__ in ['mm_cnn', 'um_nn', 'mm_cnn_small', 'mm_cnn_se']
+    need_triplets = model_type.__name__ in [
+        'mm_cnn', 'um_cnn', 'um_cnn_small', 'mm_cnn_small', 'mm_cnn_se'
+    ]
+    need_metadata = model_type.__name__ in [
+        'mm_cnn', 'um_nn', 'mm_cnn_small', 'mm_cnn_se'
+    ]
 
-    triplets_present = os.path.exists(f'{data_base_dir}data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
-    metadata_present = os.path.exists(f'{data_base_dir}data/train_cand_{train_data_version}{N_str}.csv')
+    triplets_path = (
+        f'{data_base_dir}data/train_triplets_{train_data_version}'
+        f'{N_str}{crop_cutout_str}.npy'
+    )
+    metadata_path = (
+        f'{data_base_dir}data/train_cand_{train_data_version}{N_str}.csv'
+    )
+    triplets_present = os.path.exists(triplets_path)
+    metadata_present = os.path.exists(metadata_path)
 
     if (need_triplets and (not triplets_present)) or (not metadata_present):
         print(f"Couldn't find {train_data_version}{N_str} train subset, creating...")
@@ -121,10 +132,9 @@ def train(config, run_name: str = None, sweeping: bool = False):
     else:
         print(f"{train_data_version} training data already present")
 
-    cand = pd.read_csv(f'{data_base_dir}data/train_cand_{train_data_version}{N_str}.csv')
+    cand = pd.read_csv(metadata_path)
     if need_triplets:
-        triplets = np.load(f'{data_base_dir}data/train_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy',
-                           mmap_mode='r')
+        triplets = np.load(triplets_path, mmap_mode='r')
 
     print(f'num_notbts: {np.sum(cand.label == 0)}')
     print(f'num_bts: {np.sum(cand.label == 1)}')
@@ -147,9 +157,15 @@ def train(config, run_name: str = None, sweeping: bool = False):
     # /-----------------------------
     #  LOAD VALIDATION DATA
     # /-----------------------------
-
-    val_triplets_present = os.path.exists(f'{data_base_dir}data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy')
-    val_metadata_present = os.path.exists(f'{data_base_dir}data/val_cand_{train_data_version}{N_str}.csv')
+    val_triplets_path = (
+        f'{data_base_dir}data/val_triplets_{train_data_version}'
+        f'{N_str}{crop_cutout_str}.npy'
+    )
+    val_metadata_path = (
+        f'{data_base_dir}data/val_cand_{train_data_version}{N_str}.csv'
+    )
+    val_triplets_present = os.path.exists(val_triplets_path)
+    val_metadata_present = os.path.exists(val_metadata_path)
 
     if (need_triplets and (not val_triplets_present)) or (not val_metadata_present):
         print(f"Couldn't find {train_data_version}{N_str} val subset, creating...")
@@ -158,9 +174,9 @@ def train(config, run_name: str = None, sweeping: bool = False):
     else:
         print(f"{train_data_version} val data already present")
 
-    val_cand = pd.read_csv(f'{data_base_dir}data/val_cand_{train_data_version}{N_str}.csv')
+    val_cand = pd.read_csv(val_metadata_path)
     if need_triplets:
-        val_triplets = np.load(f'{data_base_dir}data/val_triplets_{train_data_version}{N_str}{crop_cutout_str}.npy', mmap_mode='r')
+        val_triplets = np.load(val_triplets_path, mmap_mode='r')
 
     # /----------------------------------
     #  MODEL INPUT AND SOME PARAMS PREP
@@ -181,7 +197,9 @@ def train(config, run_name: str = None, sweeping: bool = False):
 
     if "alert" in weight_classes:
         # weight data on number of ALERTS per class
-        num_training_examples_per_class = np.array([np.sum(cand['label'] == 0), np.sum(cand['label'] == 1)])
+        num_training_examples_per_class = np.array([
+            np.sum(cand['label'] == 0), np.sum(cand['label'] == 1)
+        ])
     elif "source" in weight_classes:
         # weight data on number of SOURCES per class
         num_training_examples_per_class = np.array([
@@ -193,7 +211,8 @@ def train(config, run_name: str = None, sweeping: bool = False):
         num_training_examples_per_class = np.array([1, 1])
 
     # fewer examples -> larger weight
-    weights = (1 / num_training_examples_per_class) / np.linalg.norm((1 / num_training_examples_per_class))
+    weights_sum = np.sum(1 / num_training_examples_per_class)
+    weights = (1 / num_training_examples_per_class) / weights_sum
     normalized_weight = weights / np.max(weights)
 
     class_weight = {i: w for i, w in enumerate(normalized_weight)}
@@ -216,7 +235,10 @@ def train(config, run_name: str = None, sweeping: bool = False):
         model = model_type(config,  metadata_shape=metadata_shape)
 
     run_t_stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = f"{model.name}_{train_data_version}{N_str}{'_CPU' if sys.platform == 'darwin' else ''}"
+    model_name = (
+        f"{model.name}_{train_data_version}{N_str}"
+        f"{''.join(['_CPU' if sys.platform == 'darwin' else ''])}"
+    )
 
     # /-----------------------------
     #  SET UP CALLBACKS
@@ -430,7 +452,14 @@ def train(config, run_name: str = None, sweeping: bool = False):
 
     wandb.summary['alert_precision'] = val_summary['alert_precision']
     wandb.summary['alert_recall'] = val_summary['alert_recall']
-    wandb.summary['alert_F1'] = (2 * val_summary['alert_precision'] * val_summary['alert_recall']) / (val_summary['alert_precision'] + val_summary['alert_recall'])
+    alert_precision = val_summary['alert_precision']
+    alert_recall = val_summary['alert_recall']
+    if (alert_precision + alert_recall) > 0:
+        wandb.summary['alert_F1'] = (
+            2 * alert_precision * alert_recall
+        ) / (alert_precision + alert_recall)
+    else:
+        wandb.summary['alert_F1'] = 0
 
     for policy_name in list(val_summary['policy_performance']):
         perf = val_summary['policy_performance'][policy_name]
@@ -444,7 +473,14 @@ def train(config, run_name: str = None, sweeping: bool = False):
         wandb.summary[policy_name+"_save_dt"] = perf['med_save_dt']
         wandb.summary[policy_name+"_trigger_dt"] = perf['med_trigger_dt']
 
-        wandb.summary[policy_name+"_F1"] = (2 * perf['policy_precision'] * perf['policy_recall']) / (perf['policy_precision'] + perf['policy_recall'])
+        policy_precision = perf['policy_precision']
+        policy_recall = perf['policy_recall']
+        if (policy_precision + policy_recall) > 0:
+            wandb.summary[policy_name+"_F1"] = (
+                2 * policy_precision * policy_recall
+            ) / (policy_precision + policy_recall)
+        else:
+            wandb.summary[policy_name+"_F1"] = 0
 
     wandb.log({"figure": val_summary['fig']})
 
