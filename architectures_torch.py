@@ -24,12 +24,13 @@ class SwinV2(nn.Module):
 
 
 class mm_SwinV2(nn.Module):
-    def __init__(self, config, metadata_input_features: int):
+    def __init__(self, config):
         super(mm_SwinV2, self).__init__()
         model_kind = config.get("model_kind", "swin_v2_t")
         model_weights = config.get("model_weights", "IMAGENET1K_V1")
+        num_metadata_features = len(config.get("metadata_cols", []))
 
-        # Image branch (SwinV2_t)
+        # Image branch (SwinV2)
         self.swin_backbone = torch.hub.load(
             "pytorch/vision", model_kind, weights=model_weights, progress=False
         )
@@ -38,8 +39,8 @@ class mm_SwinV2(nn.Module):
 
         # Metadata branch
         self.metadata_branch = nn.Sequential(
-            nn.BatchNorm1d(metadata_input_features),
-            nn.Linear(metadata_input_features, config['meta_fc1_neurons']),
+            nn.BatchNorm1d(num_metadata_features),
+            nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
             nn.ReLU(True),
             nn.Dropout(config['meta_dropout']),
             nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),
@@ -65,12 +66,13 @@ class mm_SwinV2(nn.Module):
 
 
 class um_nn(nn.Module):
-    def __init__(self, config, metadata_input_features: int):
+    def __init__(self, config):
         super(um_nn, self).__init__()
+        num_metadata_features = len(config.get("metadata_cols", []))
 
         self.network = nn.Sequential(
-            nn.BatchNorm1d(metadata_input_features),
-            nn.Linear(metadata_input_features, config['meta_fc1_neurons']),
+            nn.BatchNorm1d(num_metadata_features),
+            nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
             nn.ReLU(True),
             nn.Dropout(config['meta_dropout']),
             nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),

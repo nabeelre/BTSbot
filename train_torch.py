@@ -13,7 +13,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms.v2 as transforms
 
-from torch_utils import CustomDataset, RandomRightAngleRotation, make_report
+from torch_utils import RandomRightAngleRotation, make_report, FlexibleDataset
 import architectures_torch as architectures
 import val_torch as val
 
@@ -32,6 +32,11 @@ device = (
     if torch.backends.mps.is_available()
     else "cpu"
 )
+
+# Define categories for model types based on their names
+IMAGE_ONLY_MODELS = ['SwinV2']
+METADATA_ONLY_MODELS = ['um_nn']
+MULTIMODAL_MODELS = ['mm_SwinV2']
 
 
 def sweep_train(config=None):
@@ -87,23 +92,38 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     #    MODEL, OPTIMIZER, & LOSS SET UP
     # /-----------------------------------/
 
+    need_triplets = (
+        model_name in IMAGE_ONLY_MODELS or
+        model_name in MULTIMODAL_MODELS
+    )
+    need_metadata = (
+        model_name in METADATA_ONLY_MODELS or
+        model_name in MULTIMODAL_MODELS
+    )
+
+    if not need_triplets and not need_metadata:
+        print(
+            f"{model_name} not categorized as image-only/metadata-only/multimodal."
+        )
+        exit(1)
+
+    if need_metadata:
+        metadata_cols = config.get('metadata_cols', None)
+        if metadata_cols is None:
+            print("Metadata columns not found in config.")
+            exit(1)
+
     # Initialize model
     try:
         model_type = getattr(architectures, model_name)
     except AttributeError:
-        print("Could not find model of name", model_name)
+        print(f"{RED}Could not find model of name {model_name}{END}")
         exit(0)
     model = model_type(config).to(device)
 
     # Unfreeze all layers
     for p in model.parameters():
         p.requires_grad = True
-
-    # Keep Swin backbone frozen but unfreeze head
-    # for p in model.parameters():
-    #     p.requires_grad = False
-    # for p in model.swin.head.parameters():
-    #     p.requires_grad = True
 
     optimizer = optim.Adam(
         model.parameters(),
@@ -119,7 +139,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         patience=patience // 2,
     )
 
-    print(f"*** Running {model_type.__name__} with N_max_p={N_max_p}," +
+    print(f"*** Running {model_name} with N_max_p={N_max_p}," +
           f"N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
 
     # /-----------------------------/
@@ -127,41 +147,69 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # /-----------------------------/
 
     cand = pd.read_csv(f'{data_base_dir}data/train_cand_{dataset_version}{N_str}.csv')
-    triplets = np.load(
-        f'{data_base_dir}data/train_triplets_{dataset_version}{N_str}.npy',
-        mmap_mode='r'
-    ).astype(np.float32)
+    labels_tensor = torch.tensor(cand["label"].values, dtype=torch.long)
 
-    if np.any(np.isnan(triplets)):
-        nan_trip_idxs = np.isnan(triplets).any(axis=(1, 2, 3))
-        triplets = triplets[~nan_trip_idxs]
+    triplets_tensor = None
+    if need_triplets:
+        triplets_np = np.load(
+            f'{data_base_dir}data/train_triplets_{dataset_version}{N_str}.npy',
+            mmap_mode='r'
+        ).astype(np.float32)
 
-        cand = cand.drop(cand.index[nan_trip_idxs])
-        cand.reset_index(inplace=True, drop=True)
+        if np.any(np.isnan(triplets_np)):
+            nan_trip_idxs = np.isnan(triplets_np).any(axis=(1, 2, 3))
+            triplets_np = triplets_np[~nan_trip_idxs]
+            # Filter cand and labels_tensor accordingly
+            cand = cand.loc[~nan_trip_idxs].reset_index(drop=True)
+            labels_tensor = torch.tensor(cand["label"].values, dtype=torch.long)
+            print(
+                f"{YELLOW}**** Null in triplets ****{END}\n"
+                f"Removed {np.sum(nan_trip_idxs)} alert(s) from triplets and "
+                f"corresponding cand/labels."
+            )
 
-        print("**** Null in triplets ****")
-        print(f"Removed {np.sum(nan_trip_idxs)} alert(s)")
-    triplets = np.transpose(triplets, (0, 3, 1, 2))
-    triplets = torch.from_numpy(triplets)
+        triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
+        triplets_tensor = torch.from_numpy(triplets_np.copy())
 
-    labels = torch.tensor(cand["label"], dtype=torch.int)
-    num_bts = torch.sum(labels == 1).item()
-    num_notbts = torch.sum(labels == 0).item()
+    metadata_tensor = None
+    if need_metadata:
+        metadata_values = cand[metadata_cols].values
+        if np.isnan(metadata_values).any():
+            print(
+                f"{RED}NaNs found in metadata columns after potential filtering "
+                f"based on triplets.{END}"
+            )
+            nan_cols = cand[metadata_cols].isnull().sum()
+            print(
+                f"Columns with NaNs: "
+                f"{nan_cols[nan_cols > 0]}{END}"
+            )
+            print(f"{YELLOW}Please ensure metadata is clean or implement imputation. Exiting.{END}")
+            exit(1)
+        metadata_tensor = torch.tensor(metadata_values, dtype=torch.float32)
+
+    num_bts = torch.sum(labels_tensor == 1).item()
+    num_notbts = torch.sum(labels_tensor == 0).item()
     print(f'num_notbts: {num_notbts}')
     print(f'num_bts: {num_bts}')
 
     # Data augmentations
-    transforms_list = [transforms.ToDtype(torch.float32)]
-    if h_flip:
-        transforms_list.append(transforms.RandomHorizontalFlip(p=0.5))
-    if v_flip:
-        transforms_list.append(transforms.RandomVerticalFlip(p=0.5))
-    if rot:
-        transforms_list.append(RandomRightAngleRotation())
+    transforms_list = []
+    if need_triplets:  # Only add image transforms if triplets are needed
+        transforms_list.append(transforms.ToDtype(torch.float32))
+        if h_flip:
+            transforms_list.append(transforms.RandomHorizontalFlip(p=0.5))
+        if v_flip:
+            transforms_list.append(transforms.RandomVerticalFlip(p=0.5))
+        if rot:
+            transforms_list.append(RandomRightAngleRotation())
 
-    dataset = CustomDataset(
-        data=triplets, labels=labels,
-        transform=transforms.Compose(transforms_list)
+    # Pass need_triplets and need_metadata to dataset
+    dataset = FlexibleDataset(
+        images=triplets_tensor,
+        metadata=metadata_tensor,
+        labels=labels_tensor,
+        transform=transforms.Compose(transforms_list) if transforms_list else None
     )
 
     dataloader = DataLoader(
@@ -177,7 +225,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # /-----------------------------/
 
     if not sweeping:
-        if not config['testing']:
+        if not config.get('testing', False):
             wandb.init(project="BTSbotv2", config=config)
             run_name = wandb.run.name
         else:
@@ -209,7 +257,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     for epoch in range(epochs):
         # Run training data through model, compute loss and accuracy, take step
         epoch_train_loss, epoch_train_acc = train_epoch(
-            dataloader, epoch, epochs, optimizer, loss_fn, model
+            dataloader, epoch, epochs, optimizer, loss_fn, model,
+            need_triplets, need_metadata
         )
         train_losses[epoch] = epoch_train_loss
         train_accs[epoch] = epoch_train_acc
@@ -254,7 +303,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 break
             print()
 
-        if not config['testing']:
+        if not config.get('testing', False):
             wandb.log({
                 "epoch": epoch,
                 "train_loss": epoch_train_loss,
@@ -280,9 +329,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         cand_dir=f'{data_base_dir}data/val_cand_{dataset_version}{N_str}.csv'
     )
 
-    if not config['testing']:
+    if not config.get('testing', False):
         def F1(precision, recall):
-            return 2 * precision * recall / (precision + recall)
+            return 2 * precision * recall / (precision + recall + 1e-7)
 
         wandb.summary['ROC_AUC'] = val_summ['roc_auc']
         wandb.summary['bal_acc'] = val_summ['bal_acc']
@@ -317,13 +366,15 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     make_report(config, f"{model_dir}/report.json", run_data)
 
-    del triplets, dataset, dataloader, model, optimizer, loss_fn, cand, run_data
+    del triplets_tensor, triplets_np, metadata_tensor, labels_tensor, dataset
+    del dataloader, model, optimizer, loss_fn, cand, run_data
 
     return
 
 
 def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
-                optimizer: optim.Optimizer, loss_fn, model):
+                optimizer: optim.Optimizer, loss_fn, model,
+                need_triplets: bool, need_metadata: bool):
     """
     Run one epoch of training.
     """
@@ -337,17 +388,35 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
     # Iterate of batches of training data
     for i in range(num_batches):
-        # Get next batch of training data
-        trips, labels = next(data_iterator)
-        trips = trips.to(device)
-        labels = labels.unsqueeze(1).to(device).float()
-
         # Clear gradients, run model on batch, and compute loss
         model.zero_grad()
-        logits = model(input_data=trips)
-        batch_train_loss = loss_fn(logits, labels)
 
-        # Backpropogate and take step in gradient descent
+        # Get next batch of training data
+        data_items = next(data_iterator)
+
+        images_batch, meta_batch, labels_batch = None, None, None
+
+        if need_triplets and need_metadata:
+            images_batch, meta_batch, labels_batch = data_items
+            images_batch = images_batch.to(device)
+            meta_batch = meta_batch.to(device)
+
+            logits = model(image_input=images_batch, metadata_input=meta_batch)
+        elif need_triplets:
+            images_batch, labels_batch = data_items
+            images_batch = images_batch.to(device)
+
+            logits = model(input_data=images_batch)  # For SwinV2 like models
+        elif need_metadata:
+            meta_batch, labels_batch = data_items
+            meta_batch = meta_batch.to(device)
+
+            logits = model(input_data=meta_batch)  # For TabularNet like models
+
+        labels_batch = labels_batch.unsqueeze(1).to(device).float()
+
+        # Compute loss, backpropogate, and take step in gradient descent
+        batch_train_loss = loss_fn(logits, labels_batch)
         batch_train_loss.backward()
         optimizer.step()
 
@@ -356,13 +425,13 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
         # Keep track of predictions and labels
         all_logits.append(logits.detach())
-        all_labels.append(labels.detach())
+        all_labels.append(labels_batch.detach())
         all_raw_preds.append(raw_preds.detach())
 
         # Calculate batch accuracy
         preds = (raw_preds > 0.5).float()
-        correct = (preds == labels).float().sum()
-        batch_train_acc = correct / labels.shape[0]
+        correct = (preds == labels_batch).float().sum()
+        batch_train_acc = correct / labels_batch.shape[0]
 
         # Log batch quantities to stdout
         perf_to_stdout(

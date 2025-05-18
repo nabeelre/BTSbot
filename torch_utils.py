@@ -5,26 +5,39 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import torchvision.transforms.v2 as transforms
+from torch.utils.data import Dataset as TorchDataset
 from datasets import Dataset, Features, Array3D, Value
 
 
-class CustomDataset(torch.utils.data.Dataset):
-    def __init__(self, data, labels, transform=None):
-        self.data = data
+class FlexibleDataset(TorchDataset):
+    def __init__(self, images=None, metadata=None, labels=None, transform=None):
+        self.images = images
+        self.metadata = metadata
         self.labels = labels
         self.transform = transform
 
     def __len__(self):
-        return len(self.data)
+        return len(self.labels)
 
     def __getitem__(self, idx):
-        triplet = self.data[idx]
-        label = self.labels[idx]
+        label_item = self.labels[idx]
+        image_item = None
+        meta_item = None
 
-        if self.transform:
-            triplet = self.transform(triplet)
+        if self.need_triplets:
+            image_item = self.images[idx]
+            if self.transform:
+                image_item = self.transform(image_item)
 
-        return triplet, label
+        if self.need_metadata:
+            meta_item = self.metadata[idx]
+
+        if self.need_triplets and self.need_metadata:
+            return image_item, meta_item, label_item
+        elif self.need_triplets:
+            return image_item, label_item
+        elif self.need_metadata:
+            return meta_item, label_item
 
 
 class RandomRightAngleRotation(object):
