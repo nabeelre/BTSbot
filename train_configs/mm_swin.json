@@ -1,15 +1,19 @@
 {
-  "model_name": "SwinV2_t",
+  "model_name": "mm_SwinV2",
+  "swin_kind": "swin_v2_t",
+  "swin_weights": "IMAGENET1K_V1",
+
   "train_data_version": "v11",
   "loss": "binary_crossentropy",
   "data_base_dir": "",
-  "learning_rate": 1e-4,
+
+  "learning_rate": 5e-5,
   "beta_1": 0.99,
   "beta_2": 0.99,
   "batch_size": 64,
 
-  "epochs": 75,
-  "patience": 15,
+  "epochs": 50,
+  "patience": 6,
   "N_max_p": 100,
   "N_max_n": 100,
   
@@ -41,9 +45,12 @@
     "maxmag_so_far"
   ],
   
-  "fc1_neurons": 128,
-  "fc2_neurons": 8,
-  "dropout1": 0.4,
+  "meta_fc1_neurons": 128,
+  "meta_dropout": 0.25,
+  "meta_fc2_neurons": 128,
+  
+  "comb_fc_neurons": 8,
+  "comb_dropout": 0.20,
 
   "data_aug_h_flip": 1,
   "data_aug_v_flip": 1,

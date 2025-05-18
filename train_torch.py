@@ -136,7 +136,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         optimizer,
         mode='min',
         factor=0.4,
-        patience=patience // 2,
+        patience=patience // 3,
     )
 
     print(f"*** Running {model_name} with N_max_p={N_max_p}," +
