@@ -270,7 +270,7 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     for ax in [ax4, ax4_histx, ax4_histy]:
         try:
             ax.label_outer()
-        except:
+        except Exception:
             pass
 
     fig.add_subplot(ax4)
@@ -371,9 +371,16 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
         already_seen = objid in policy_cand['objectId'].to_numpy()
         in_RCFJunk = objid in RCFJunk['id'].to_numpy()
         good_coverage = len(obj_alerts) >= 2  # improve, change to quality cut?
-        BTS_peak_thinned = (obj_alerts["label"].iloc[0] == 1) and np.min(obj_alerts["magpsf"]) > 18.5 
+        is_bts = obj_alerts["label"].iloc[0] == 1
+        min_magpsf = np.min(obj_alerts["magpsf"])
+        BTS_peak_thinned = is_bts and min_magpsf > 18.5
 
-        if (not already_seen) and (not in_RCFJunk) and (good_coverage) and (not BTS_peak_thinned):
+        if (
+            (not already_seen) and
+            (not in_RCFJunk) and
+            (good_coverage) and
+            (not BTS_peak_thinned)
+        ):
             policy_cand.loc[len(policy_cand)] = (
                 objid,
                 cand.loc[cand['objectId'] == objid, "label"].iloc[0],
@@ -412,17 +419,22 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
                 policy_pred = func(obj_alerts.loc[idx_sofar])
 
                 # If this is the first positive pred
-                if int(policy_pred) and not policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_pred"].values[0]:
+                current_policy_pred_val = policy_cand.loc[
+                    policy_cand['objectId'] == obj_id, name + "_pred"
+                ].values[0]
+                if int(policy_pred) and not current_policy_pred_val:
                     policy_cand.loc[
-                        policy_cand['objectId'] == obj_id, name+"_jd"
+                        policy_cand['objectId'] == obj_id, name + "_jd"
                     ] = obj_alerts.loc[idx_cur, "jd"]
 
                     policy_cand.loc[
-                        policy_cand['objectId'] == obj_id, name+"_mag"
+                        policy_cand['objectId'] == obj_id, name + "_mag"
                     ] = obj_alerts.loc[idx_cur, "magpsf"]
 
                 # Store policy prediction
-                policy_cand.loc[policy_cand['objectId'] == obj_id, name+"_pred"] = int(policy_pred)
+                policy_cand.loc[
+                    policy_cand['objectId'] == obj_id, name + "_pred"
+                ] = int(policy_pred)
 
         policy_labels = policy_cand["label"].to_numpy()
         policy_preds = policy_cand[name+"_pred"].to_numpy()
@@ -455,41 +467,76 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
             policy_precision = len(TP_idxs_policy) / (len(FP_idxs_policy) + len(TP_idxs_policy))
             policy_recall = len(TP_idxs_policy) / (len(FN_idxs_policy) + len(TP_idxs_policy))
 
-            binned_precision = TP_count_policy_binned/(TP_count_policy_binned + FP_count_policy_binned)
-            binned_recall = TP_count_policy_binned/(TP_count_policy_binned + FN_count_policy_binned)
+            binned_precision = TP_count_policy_binned / (
+                TP_count_policy_binned + FP_count_policy_binned
+            )
+            binned_recall = TP_count_policy_binned / (
+                TP_count_policy_binned + FN_count_policy_binned
+            )
 
             if plot_policy:
-                cp_ax.step(bright_narrow_bins, 100*np.append(binned_recall[0], binned_recall),
+                cp_ax.step(bright_narrow_bins, 100 * np.append(binned_recall[0], binned_recall),
                            color='#263D65', label='Completeness', linewidth=3)
                 cp_ax.step(bright_narrow_bins, 100*np.append(binned_precision[0], binned_precision),
                            color='#FE7F2D', label='Purity', linewidth=3)
 
-                cp_ax.axhline(100*policy_precision, color='#FE7F2D', linewidth=2, linestyle='dashed')
-                cp_ax.axhline(100*policy_recall, color='#263D65', linewidth=2, linestyle='dashed')
+                cp_ax.axhline(
+                    100 * policy_precision, color='#FE7F2D',
+                    linewidth=2, linestyle='dashed'
+                )
+                cp_ax.axhline(
+                    100 * policy_recall, color='#263D65',
+                    linewidth=2, linestyle='dashed'
+                )
 
             # policy cand has only val for all sets
             # save_times has train+val+test but only BTSSE trues
-            #     MS trues have unreliable/unrealistic save times, so keep them excluded from this analysis
-            #     pre ~2021 sources have unreliable/unrealistic fritz save times because they were scanned on GROWTH, so exclude them
+            # MS trues have unreliable/unrealistic save times, so exclude.
+            # Pre ~2021 sources have unreliable Fritz save times (scanned on GROWTH), exclude.
             jan1_2021_jd = 2459215.5
-            for objid in policy_cand.loc[TP_idxs_policy, "objectId"].to_list():
-                policy_obj_jd = policy_cand.loc[policy_cand["objectId"] == objid, name+"_jd"].values[0]
-                if objid in list(save_times):
-                    # Some BTS trues don't have save times...
-                    if (save_times[objid] >= jan1_2021_jd) and (policy_obj_jd > 0):
-                        policy_cand.loc[policy_cand["objectId"] == objid, name+f"_save_dt"] = policy_cand.loc[policy_cand["objectId"] == objid, name+f"_jd"].values[0] - save_times[objid]
-                if objid in list(trigger_times):
-                    if (trigger_times[objid] >= jan1_2021_jd) and (trigger_times[objid] < 1e10) and (policy_obj_jd > 0):    
-                        policy_cand.loc[policy_cand["objectId"] == objid, name+f"_trigger_dt"] = policy_cand.loc[policy_cand["objectId"] == objid, name+f"_jd"].values[0] - trigger_times[objid]
+            for objid_tp in policy_cand.loc[TP_idxs_policy, "objectId"].to_list():
+                policy_obj_jd_series = policy_cand.loc[
+                    policy_cand["objectId"] == objid_tp, name + "_jd"
+                ]
+                policy_obj_jd = policy_obj_jd_series.values[0]
 
-            med_save_dt = np.nanmedian(policy_cand[name+"_save_dt"])
-            med_trigger_dt = np.nanmedian(policy_cand[name+"_trigger_dt"])
+                if objid_tp in list(save_times):
+                    # Some BTS trues don't have save times...
+                    if (save_times[objid_tp] >= jan1_2021_jd) and (policy_obj_jd > 0):
+                        current_jd = policy_cand.loc[
+                            policy_cand["objectId"] == objid_tp, name + "_jd"
+                        ].values[0]
+                        policy_cand.loc[
+                            policy_cand["objectId"] == objid_tp, name + "_save_dt"
+                        ] = current_jd - save_times[objid_tp]
+
+                if objid_tp in list(trigger_times):
+                    trigger_time_val = trigger_times[objid_tp]
+                    if (
+                        trigger_time_val >= jan1_2021_jd and
+                        trigger_time_val < 1e10 and
+                        policy_obj_jd > 0
+                    ):
+                        current_jd = policy_cand.loc[
+                            policy_cand["objectId"] == objid_tp, name + "_jd"
+                        ].values[0]
+                        policy_cand.loc[
+                            policy_cand["objectId"] == objid_tp, name + "_trigger_dt"
+                        ] = current_jd - trigger_time_val
+
+            med_save_dt = np.nanmedian(policy_cand[name + "_save_dt"])
+            med_trigger_dt = np.nanmedian(policy_cand[name + "_trigger_dt"])
 
             if plot_policy:
-                st_ax.hist(policy_cand[name+"_save_dt"], bins=50, histtype='step',
-                           edgecolor='#654690', linewidth=3, label=name+"_save")
+                st_ax.hist(policy_cand[name + "_save_dt"], bins=50, histtype='step',
+                           edgecolor='#654690', linewidth=3, label=name + "_save")
         else:
-            policy_precision = policy_recall = binned_precision = binned_recall = med_save_dt = med_trigger_dt = -999.0
+            policy_precision = -999.0
+            policy_recall = -999.0
+            binned_precision = -999.0
+            binned_recall = -999.0
+            med_save_dt = -999.0
+            med_trigger_dt = -999.0
 
         policy_performance[name] = {
             "policy_precision": policy_precision,
