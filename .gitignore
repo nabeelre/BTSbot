@@ -179,3 +179,6 @@ BTSbot\ beta.xlsx
 spec_status
 spec_status/*
 *.pdf
+production_models/best_model/
+.conda_env
+utils.ipynb

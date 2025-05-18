@@ -65,7 +65,14 @@ def merge_sets_across_split(set_names, split_name, version_name, seed=2):
     )
     cand.reset_index(inplace=True, drop=True)
 
-    triplets = np.empty((len(cand), 63, 63, 3))
+    triplets = np.concatenate(
+        [
+            np.load(f"data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy",
+                    mmap_mode='r')
+            for set_name in set_names
+        ],
+        axis=0
+    )
     print(f"  Merged {split_name}")
 
     shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
@@ -250,6 +257,20 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
     print(f"Wrote triplets and candidate data for {cuts_str} subset of {split_name}")
 
 
+def subsample_data(split, version):
+    triplets = np.load(f"data/{split}_triplets_{version}_N100.npy")
+    cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv")
+
+    objs = pd.unique(cand['objectId'])
+    subsampled_objs = np.random.choice(objs, size=int(len(objs) * 0.1), replace=False)
+
+    subsampled_cand = cand[cand['objectId'].isin(subsampled_objs)]
+    subsampled_triplets = triplets[subsampled_cand.index]
+
+    np.save(f"data/{split}_triplets_{version}sub_N100.npy", subsampled_triplets)
+    subsampled_cand.to_csv(f"data/{split}_cand_{version}sub_N100.csv", index=False)
+
+
 if __name__ == "__main__":
     version = "v11"
 
@@ -258,19 +279,21 @@ if __name__ == "__main__":
     # cut_set_and_assign_splits("vars", only_pd_gr_ps, version_name=version)
     # cut_set_and_assign_splits("rejects", only_pd_gr_ps, version_name=version)
 
-    merge_sets_across_split(
-        set_names=["trues", "dims", "vars", "rejects"], split_name="train",
-        version_name=version, seed=2
-    )
-    merge_sets_across_split(
-        set_names=["trues", "dims", "vars", "rejects"], split_name="val",
-        version_name=version, seed=2
-    )
-    merge_sets_across_split(
-        set_names=["trues", "dims", "vars", "rejects"], split_name="test",
-        version_name=version, seed=2
-    )
+    # merge_sets_across_split(
+    #     set_names=["trues", "dims", "vars", "rejects"], split_name="train",
+    #     version_name=version, seed=2
+    # )
+    # merge_sets_across_split(
+    #     set_names=["trues", "dims", "vars", "rejects"], split_name="val",
+    #     version_name=version, seed=2
+    # )
+    # merge_sets_across_split(
+    #     set_names=["trues", "dims", "vars", "rejects"], split_name="test",
+    #     version_name=version, seed=2
+    # )
 
-    create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
-    create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
-    create_subset("test", version_name=version, N_max_p=100, N_max_n=100)
+    # create_subset("train", version_name=version, N_max_p=100, N_max_n=100)
+    # create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
+    # create_subset("test", version_name=version, N_max_p=100, N_max_n=100)
+
+    subsample_data("train", "v11")
