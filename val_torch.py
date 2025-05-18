@@ -10,9 +10,9 @@ import numpy as np
 
 import torch
 from torch.utils.data import DataLoader
-import torchvision.transforms.v2 as transforms
+from torch_utils import FlexibleDataset
 import architectures_torch as architectures
-from torch_utils import CustomDataset
+
 
 device = (
     "cuda"
@@ -23,13 +23,20 @@ device = (
 )
 
 
-def run_val(config, model_dir, dataset_version, model_filename, bts_weight):
+def run_val(config, model_dir, dataset_version, model_filename,
+            bts_weight, need_triplets, need_metadata):
     batch_size = config['batch_size']
     model_name = config['model_name']
     data_base_dir = config.get('data_base_dir', '')
 
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
+
+    if need_metadata:
+        metadata_cols = config.get('metadata_cols')
+        if metadata_cols is None:
+            print("metadata_cols not found in config")
+            exit(1)
 
     # /-----------------/
     #    MODEL SET UP
@@ -38,7 +45,7 @@ def run_val(config, model_dir, dataset_version, model_filename, bts_weight):
     try:
         model_type = getattr(architectures, model_name)
     except AttributeError:
-        print("Could not find model of name", model_name)
+        print(f"Could not find model of name {model_name}")
         exit(0)
 
     # Initialize model and set to eval mode (don't compute gradients)
@@ -52,26 +59,36 @@ def run_val(config, model_dir, dataset_version, model_filename, bts_weight):
     #       LOAD DATA
     # /--------------------/
 
-    triplets_path = f'{data_base_dir}data/val_triplets_{dataset_version}{N_str}.npy'
-    labels_path = f'{data_base_dir}data/val_cand_{dataset_version}{N_str}.csv'
-    labels = pd.read_csv(
-        labels_path, index_col=None
-    )['label'].to_numpy(dtype=np.float32)
+    cand_path = f'{data_base_dir}data/val_cand_{dataset_version}{N_str}.csv'
+    cand = pd.read_csv(cand_path, index_col=None)
+    labels_tensor = torch.tensor(cand['label'].values, dtype=torch.long)
 
-    triplets = np.load(triplets_path)
-    triplets = np.transpose(triplets, (0, 3, 1, 2))
-    triplets = torch.from_numpy(triplets)
+    triplets_tensor = None
+    if need_triplets:
+        triplets_file_path = f'{data_base_dir}data/val_triplets_{dataset_version}{N_str}.npy'
+        if not path.exists(triplets_file_path):
+            print(f"Triplets file not found for validation: {triplets_file_path}")
+            exit(1)
+        triplets_np = np.load(triplets_file_path).astype(np.float32)
 
-    transform = transforms.Compose([
-        transforms.ToDtype(torch.float32)
-    ])
+        triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
+        triplets_tensor = torch.from_numpy(triplets_np.copy())
 
-    dataset = CustomDataset(
-        data=triplets, labels=labels, transform=transform
+    metadata_tensor = None
+    if need_metadata:
+        metadata_values = cand[metadata_cols].values.astype(np.float32)
+        if np.isnan(metadata_values).any():
+            print("NaNs found in validation metadata columns")
+        metadata_tensor = torch.tensor(metadata_values)
+
+    dataset = FlexibleDataset(
+        images=triplets_tensor,
+        metadata=metadata_tensor,
+        labels=labels_tensor,
     )
 
     dataloader = DataLoader(
-        dataset=dataset, batch_size=batch_size, shuffle=True
+        dataset=dataset, batch_size=batch_size, shuffle=False
     )
 
     # /----------------/
@@ -85,23 +102,35 @@ def run_val(config, model_dir, dataset_version, model_filename, bts_weight):
     all_labels = []
     all_raw_preds = []
 
-    # Iterate over batches of val and prevent gradients from acumulating
     with torch.no_grad():
         for _ in range(num_batches):
-            # Get next batch of val data
-            batch_trips, batch_labels = next(data_iterator)
-            batch_trips = batch_trips.to(device)
-            batch_labels = batch_labels.unsqueeze(1).to(device)
+            data_items = next(data_iterator)
 
-            # Run model on val batch
-            logits = model(input_data=batch_trips)
+            images_batch, meta_batch, labels_batch = None, None, None
 
-            # Compute scores from logits
+            if need_triplets and need_metadata:
+                images_batch, meta_batch, labels_batch = data_items
+                images_batch = images_batch.to(device)
+                meta_batch = meta_batch.to(device)
+
+                logits = model(image_input=images_batch, metadata_input=meta_batch)
+            elif need_triplets:
+                images_batch, labels_batch = data_items
+                images_batch = images_batch.to(device)
+
+                logits = model(input_data=images_batch)
+            elif need_metadata:
+                meta_batch, labels_batch = data_items
+                meta_batch = meta_batch.to(device)
+
+                logits = model(input_data=meta_batch)
+
+            labels_batch = labels_batch.unsqueeze(1).to(device).float()
+
             raw_preds = torch.sigmoid(logits)
 
-            # Keep track of all predictions and labels
             all_logits.append(logits.detach())
-            all_labels.append(batch_labels.detach())
+            all_labels.append(labels_batch.detach())
             all_raw_preds.append(raw_preds.detach())
 
     # Compute loss for all batches of val
@@ -112,10 +141,10 @@ def run_val(config, model_dir, dataset_version, model_filename, bts_weight):
 
     # Compute accuracy for all batches of val
     all_raw_preds = torch.cat(all_raw_preds, dim=0).squeeze().cpu().numpy()
-    all_labels = torch.cat(all_labels, dim=0).squeeze().cpu().numpy()
-    overall_accuracy = np.sum((all_raw_preds > 0.5) == all_labels) / len(all_labels)
+    all_labels_np = torch.cat(all_labels, dim=0).squeeze().cpu().numpy()
+    overall_accuracy = np.sum((all_raw_preds > 0.5) == all_labels_np) / len(all_labels_np)
 
-    return overall_loss, overall_accuracy, all_raw_preds, all_labels
+    return overall_loss, overall_accuracy, all_raw_preds, all_labels_np
 
 
 def diagnostic_fig(run_data, run_descriptor, cand_dir):
