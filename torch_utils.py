@@ -15,6 +15,8 @@ class FlexibleDataset(TorchDataset):
         self.metadata = metadata
         self.labels = labels
         self.transform = transform
+        self.need_triplets = images is not None
+        self.need_metadata = metadata is not None
 
     def __len__(self):
         return len(self.labels)
@@ -34,9 +36,9 @@ class FlexibleDataset(TorchDataset):
 
         if self.need_triplets and self.need_metadata:
             return image_item, meta_item, label_item
-        elif self.need_triplets:
+        elif self.images is not None:
             return image_item, label_item
-        elif self.need_metadata:
+        elif self.metadata is not None:
             return meta_item, label_item
 
 

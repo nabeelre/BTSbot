@@ -26,13 +26,13 @@ class SwinV2(nn.Module):
 class mm_SwinV2(nn.Module):
     def __init__(self, config):
         super(mm_SwinV2, self).__init__()
-        model_kind = config.get("model_kind", "swin_v2_t")
-        model_weights = config.get("model_weights", "IMAGENET1K_V1")
+        swin_kind = config.get("swin_kind", "swin_v2_t")
+        swin_weights = config.get("swin_weights", "IMAGENET1K_V1")
         num_metadata_features = len(config.get("metadata_cols", []))
 
         # Image branch (SwinV2)
         self.swin_backbone = torch.hub.load(
-            "pytorch/vision", model_kind, weights=model_weights, progress=False
+            "pytorch/vision", swin_kind, weights=swin_weights, progress=False
         )
         self.swin_feature_dim = self.swin_backbone.head.in_features
         self.swin_backbone.head = nn.Identity()
