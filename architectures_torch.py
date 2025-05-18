@@ -2,11 +2,14 @@ import torch
 import torch.nn as nn
 
 
-class SwinV2_t(nn.Module):
+class SwinV2(nn.Module):
     def __init__(self, config):
-        super(SwinV2_t, self).__init__()
+        super(SwinV2, self).__init__()
+        model_kind = config.get("model_kind", "swin_v2_t")
+        model_weights = config.get("model_weights", "IMAGENET1K_V1")
+
         self.swin = torch.hub.load(
-            "pytorch/vision", "swin_v2_t", weights="IMAGENET1K_V1", progress=False
+            "pytorch/vision", model_kind, weights=model_weights, progress=False
         )
         self.swin.head = nn.Sequential(
             nn.Linear(self.swin.head.in_features, config['fc1_neurons']),
