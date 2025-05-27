@@ -34,7 +34,7 @@ device = (
 )
 
 # Define categories for model types based on their names
-IMAGE_ONLY_MODELS = ['SwinV2']
+IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT']
 METADATA_ONLY_MODELS = ['um_nn']
 MULTIMODAL_MODELS = ['mm_SwinV2']
 
@@ -167,9 +167,17 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 f"Removed {np.sum(nan_trip_idxs)} alert(s) from triplets and "
                 f"corresponding cand/labels."
             )
-
         triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
         triplets_tensor = torch.from_numpy(triplets_np.copy())
+
+        if "MaxViT" in model_name:
+            expected_model_size = getattr(model, 'image_size', 256)
+            triplets_tensor = torch.nn.functional.interpolate(
+                triplets_tensor,
+                size=(expected_model_size, expected_model_size),
+                mode='bilinear',
+                align_corners=False
+            )
 
     metadata_tensor = None
     if need_metadata:

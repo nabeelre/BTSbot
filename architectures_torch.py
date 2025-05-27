@@ -1,5 +1,22 @@
 import torch
 import torch.nn as nn
+import timm
+import re
+
+
+def get_model_image_size(model_kind: str) -> int:
+    """Extract the image size from model name.
+    For example:
+    - maxvit_base_tf_224.in1k -> 224
+    - maxvit_large_tf_384.in1k -> 384
+    - swin_v2_t -> 256 (default for SwinV2)
+    """
+    if 'maxvit' in model_kind.lower():
+        # Extract size from model name using regex
+        match = re.search(r'_(\d+)\.', model_kind)
+        if match:
+            return int(match.group(1))
+    return 256
 
 
 class SwinV2(nn.Module):
@@ -63,6 +80,19 @@ class mm_SwinV2(nn.Module):
         logits = self.combined_head(combined_features)
 
         return logits
+
+
+class MaxViT(nn.Module):
+    def __init__(self, config):
+        super(MaxViT, self).__init__()
+        model_kind = config.get("model_kind", "maxvit_base_tf_224.in1k")
+        self.image_size = get_model_image_size(model_kind)
+
+        self.maxvit = timm.create_model(model_kind, pretrained=True)
+        self.maxvit.head.fc = nn.Linear(self.maxvit.head.fc.in_features, 1)
+
+    def forward(self, input_data: torch.Tensor) -> torch.Tensor:
+        return self.maxvit(input_data)
 
 
 class um_nn(nn.Module):

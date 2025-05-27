@@ -70,9 +70,17 @@ def run_val(config, model_dir, dataset_version, model_filename,
             print(f"Triplets file not found for validation: {triplets_file_path}")
             exit(1)
         triplets_np = np.load(triplets_file_path).astype(np.float32)
-
         triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
         triplets_tensor = torch.from_numpy(triplets_np.copy())
+
+        if "MaxViT" in model_name:
+            expected_image_size = getattr(model, 'image_size', 256)
+            triplets_tensor = torch.nn.functional.interpolate(
+                triplets_tensor,
+                size=(expected_image_size, expected_image_size),
+                mode='bilinear',
+                align_corners=False
+            )
 
     metadata_tensor = None
     if need_metadata:
