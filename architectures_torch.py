@@ -92,6 +92,14 @@ class MaxViT(nn.Module):
         self.maxvit.head.fc = nn.Linear(self.maxvit.head.fc.in_features, 1)
 
     def forward(self, input_data: torch.Tensor) -> torch.Tensor:
+        # Resize input to expected size if needed
+        if input_data.shape[-1] != self.image_size or input_data.shape[-2] != self.image_size:
+            input_data = torch.nn.functional.interpolate(
+                input_data,
+                size=(self.image_size, self.image_size),
+                mode='bilinear',
+                align_corners=False
+            )
         return self.maxvit(input_data)
 
 

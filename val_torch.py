@@ -73,15 +73,6 @@ def run_val(config, model_dir, dataset_version, model_filename,
         triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
         triplets_tensor = torch.from_numpy(triplets_np.copy())
 
-        if "MaxViT" in model_name:
-            expected_image_size = getattr(model, 'image_size', 256)
-            triplets_tensor = torch.nn.functional.interpolate(
-                triplets_tensor,
-                size=(expected_image_size, expected_image_size),
-                mode='bilinear',
-                align_corners=False
-            )
-
     metadata_tensor = None
     if need_metadata:
         metadata_values = cand[metadata_cols].values.astype(np.float32)

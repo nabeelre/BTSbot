@@ -170,15 +170,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
         triplets_tensor = torch.from_numpy(triplets_np.copy())
 
-        if "MaxViT" in model_name:
-            expected_model_size = getattr(model, 'image_size', 256)
-            triplets_tensor = torch.nn.functional.interpolate(
-                triplets_tensor,
-                size=(expected_model_size, expected_model_size),
-                mode='bilinear',
-                align_corners=False
-            )
-
     metadata_tensor = None
     if need_metadata:
         metadata_values = cand[metadata_cols].values
@@ -293,9 +284,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             current_lr = optimizer.param_groups[0]['lr']
             print(f"       {BOLD}{BLUE}LR decreased to {current_lr}{END}")
 
-        # If val loss improved, save model
+        # If val loss improved (by at least 0.5%), save model
         prev_best_val_loss = min([np.inf] + list(val_losses[:epoch]))
-        if epoch_val_loss < prev_best_val_loss:
+        if (1.005 * epoch_val_loss) < prev_best_val_loss:
             torch.save(model.state_dict(), os.path.join(model_dir, "best_model.pth"))
             print(
                 f"       {GREEN}" +
