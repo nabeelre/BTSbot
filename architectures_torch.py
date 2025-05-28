@@ -85,11 +85,18 @@ class mm_SwinV2(nn.Module):
 class MaxViT(nn.Module):
     def __init__(self, config):
         super(MaxViT, self).__init__()
-        model_kind = config.get("model_kind", "maxvit_base_tf_224.in1k")
+        model_kind = config.get("model_kind", "maxvit_nano_rw_256.sw_in1k")
         self.image_size = get_model_image_size(model_kind)
 
         self.maxvit = timm.create_model(model_kind, pretrained=True)
-        self.maxvit.head.fc = nn.Linear(self.maxvit.head.fc.in_features, 1)
+        self.maxvit.head = nn.Sequential(
+            self.maxvit.head.global_pool,
+            nn.Linear(self.maxvit.head.in_features, config['fc1_neurons']),
+            nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
+            nn.ReLU(True),
+            nn.Dropout(config['dropout1']),
+            nn.Linear(config['fc2_neurons'], 1),
+        )
 
     def forward(self, input_data: torch.Tensor) -> torch.Tensor:
         # Resize input to expected size if needed
