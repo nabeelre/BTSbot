@@ -110,6 +110,24 @@ class MaxViT(nn.Module):
         return self.maxvit(input_data)
 
 
+class ConvNeXt(nn.Module):
+    def __init__(self, config):
+        super(ConvNeXt, self).__init__()
+        model_kind = config.get("model_kind", "convnext_nano.d1h_in1k")
+        self.convnext = timm.create_model(model_kind, pretrained=True)
+        self.convnext.head = nn.Sequential(
+            self.convnext.head.global_pool,
+            nn.Linear(self.convnext.head.in_features, config['fc1_neurons']),
+            nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
+            nn.ReLU(True),
+            nn.Dropout(config['dropout1']),
+            nn.Linear(config['fc2_neurons'], 1),
+        )
+
+    def forward(self, input_data: torch.Tensor) -> torch.Tensor:
+        return self.convnext(input_data)
+
+
 class um_nn(nn.Module):
     def __init__(self, config):
         super(um_nn, self).__init__()
