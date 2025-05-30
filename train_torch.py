@@ -69,6 +69,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     epochs = config['epochs']
     batch_size = config['batch_size']
     learning_rate = config['learning_rate']
+    warmup_epochs = config.get('warmup_epochs', 0)
     beta1 = config['beta_1']
     beta2 = config['beta_2']
     patience = config['patience']
@@ -81,16 +82,11 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     dataset_version = config['train_data_version']
     data_base_dir = config.get('data_base_dir', '')
 
-    N_max_p = config.get('N_max', 100)
-    N_max_n = N_max_p
-    N_str = f"_N{N_max_p}"
+    N_max = config.get('N_max', 100)
+    N_str = f"_N{N_max}"
 
     np.random.seed(random_state)
     torch.manual_seed(random_state)
-
-    # /-----------------------------------/
-    #    MODEL, OPTIMIZER, & LOSS SET UP
-    # /-----------------------------------/
 
     need_triplets = (
         model_name in IMAGE_ONLY_MODELS or
@@ -112,35 +108,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         if metadata_cols is None:
             print("Metadata columns not found in config.")
             exit(1)
-
-    # Initialize model
-    try:
-        model_type = getattr(architectures, model_name)
-    except AttributeError:
-        print(f"{RED}Could not find model of name {model_name}{END}")
-        exit(0)
-    model = model_type(config).to(device)
-
-    # Unfreeze all layers
-    for p in model.parameters():
-        p.requires_grad = True
-
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=learning_rate,
-        betas=(beta1, beta2)
-    )
-
-    current_lr = learning_rate
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='min',
-        factor=0.4,
-        patience=patience // 3,
-    )
-
-    print(f"*** Running {model_name} with N_max_p={N_max_p}," +
-          f"N_max_n={N_max_n}, and batch_size={batch_size} for epochs={epochs} ***")
 
     # /-----------------------------/
     #       LOAD TRAINING DATA
@@ -219,6 +186,47 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     bts_weight = torch.FloatTensor([num_notbts / num_bts]).to(device)
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
 
+    # /-----------------------------------/
+    #    MODEL, OPTIMIZER, & LOSS SET UP
+    # /-----------------------------------/
+
+    try:
+        model_type = getattr(architectures, model_name)
+    except AttributeError:
+        print(f"{RED}Could not find model of name {model_name}{END}")
+        exit(0)
+    model = model_type(config).to(device)
+
+    # Unfreeze all layers
+    for p in model.parameters():
+        p.requires_grad = True
+
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=learning_rate,
+        betas=(beta1, beta2)
+    )
+
+    # Cosine annealing with linear warmup setup
+    scheduler = torch.optim.lr_scheduler.SequentialLR(
+        optimizer,
+        schedulers=[
+            torch.optim.lr_scheduler.LinearLR(
+                optimizer, start_factor=0.01, total_iters=warmup_epochs
+            ),
+            torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=epochs-warmup_epochs, eta_min=learning_rate*0.01
+            )
+        ],
+        milestones=[warmup_epochs]
+    )
+
+    # Initialize current learning rate tracking
+    current_lr = optimizer.param_groups[0]['lr']
+
+    print(f"*** Running {model_name} with N_max={N_max}," +
+          f"and batch_size={batch_size} for epochs={epochs} ***")
+
     # /-----------------------------/
     #         CONNECT WandB
     # /-----------------------------/
@@ -278,11 +286,11 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             f"val accuracy: {epoch_val_acc:.5f}{END}"
         )
 
-        # Step the learning rate scheduler (i.e. check if LR decrease needed)
-        scheduler.step(epoch_val_loss)
-        if optimizer.param_groups[0]['lr'] != current_lr:
-            current_lr = optimizer.param_groups[0]['lr']
-            print(f"       {BOLD}{BLUE}LR decreased to {current_lr}{END}")
+        # Step the learning rate scheduler
+        scheduler.step()
+        # if optimizer.param_groups[0]['lr'] != current_lr:
+        #     current_lr = optimizer.param_groups[0]['lr']
+        #     print(f"       {BOLD}{BLUE}LR decreased to {current_lr}{END}")
 
         # If val loss improved (by at least 0.5%), save model
         prev_best_val_loss = min([np.inf] + list(val_losses[:epoch]))
@@ -304,6 +312,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             print()
 
         if not config.get('testing', False):
+            current_lr = optimizer.param_groups[0]['lr']
             wandb.log({
                 "epoch": epoch,
                 "train_loss": epoch_train_loss,
@@ -406,12 +415,12 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
             images_batch, labels_batch = data_items
             images_batch = images_batch.to(device)
 
-            logits = model(input_data=images_batch)  # For SwinV2 like models
+            logits = model(input_data=images_batch)
         elif need_metadata:
             meta_batch, labels_batch = data_items
             meta_batch = meta_batch.to(device)
 
-            logits = model(input_data=meta_batch)  # For TabularNet like models
+            logits = model(input_data=meta_batch)
 
         labels_batch = labels_batch.unsqueeze(1).to(device).float()
 
