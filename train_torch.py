@@ -34,7 +34,7 @@ device = (
 )
 
 # Define categories for model types based on their names
-IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT']
+IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT', 'ConvNeXt']
 METADATA_ONLY_MODELS = ['um_nn']
 MULTIMODAL_MODELS = ['mm_SwinV2']
 

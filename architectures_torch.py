@@ -30,6 +30,7 @@ class SwinV2(nn.Module):
         )
         self.swin.head = nn.Sequential(
             nn.Linear(self.swin.head.in_features, config['fc1_neurons']),
+            nn.ReLU(True),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
             nn.ReLU(True),
             nn.Dropout(config['dropout1']),
@@ -92,6 +93,7 @@ class MaxViT(nn.Module):
         self.maxvit.head = nn.Sequential(
             self.maxvit.head.global_pool,
             nn.Linear(self.maxvit.head.in_features, config['fc1_neurons']),
+            nn.ReLU(True),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
             nn.ReLU(True),
             nn.Dropout(config['dropout1']),
@@ -117,7 +119,10 @@ class ConvNeXt(nn.Module):
         self.convnext = timm.create_model(model_kind, pretrained=True)
         self.convnext.head = nn.Sequential(
             self.convnext.head.global_pool,
+            self.convnext.head.norm,
+            self.convnext.head.flatten,
             nn.Linear(self.convnext.head.in_features, config['fc1_neurons']),
+            nn.ReLU(True),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
             nn.ReLU(True),
             nn.Dropout(config['dropout1']),
