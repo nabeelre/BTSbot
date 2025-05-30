@@ -1,18 +1,20 @@
-from sklearn.metrics import roc_curve, auc, ConfusionMatrixDisplay
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
-import matplotlib.gridspec as gridspec
-from matplotlib.colors import LogNorm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import os.path as path
-import pandas as pd
 import numpy as np
+import pandas as pd
+import os.path as path
+from sklearn.metrics import roc_curve, auc, ConfusionMatrixDisplay
 
 import torch
 from torch.utils.data import DataLoader
 from torch_utils import FlexibleDataset
 import architectures_torch as architectures
 
+import matplotlib
+matplotlib.use('Agg')  # Configure matplotlib to use non-GUI backend
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+from matplotlib.colors import LogNorm
+import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 device = (
     "cuda"
@@ -161,9 +163,9 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     roc_auc = auc(fpr, tpr)
 
     TP_mask = np.bitwise_and(labels, preds)
-    TN_mask = 1-(np.bitwise_or(labels, preds))
-    FP_mask = np.bitwise_and(1-labels, preds)
-    FN_mask = np.bitwise_and(labels, 1-preds)
+    TN_mask = 1 - (np.bitwise_or(labels, preds))
+    FP_mask = np.bitwise_and(1 - labels, preds)
+    FN_mask = np.bitwise_and(labels, 1 - preds)
 
     TP_idxs = [ii for ii, mi in enumerate(TP_mask) if mi == 1]
     TN_idxs = [ii for ii, mi in enumerate(TN_mask) if mi == 1]
@@ -184,13 +186,13 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     # TN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[TN_idxs], bins=narrow_bins)
     # FN_count_nb, _  = np.histogram(cand['magpsf'].to_numpy()[FN_idxs], bins=narrow_bins)
 
-    bts_acc = len(TP_idxs)/(len(TP_idxs)+len(FN_idxs))
-    notbts_acc = len(TN_idxs)/(len(TN_idxs)+len(FP_idxs))
+    bts_acc = len(TP_idxs) / (len(TP_idxs) + len(FN_idxs))
+    notbts_acc = len(TN_idxs) / (len(TN_idxs) + len(FP_idxs))
     bal_acc = (bts_acc + notbts_acc) / 2
 
     if len(TP_idxs) > 0 and len(TN_idxs) > 0:
-        alert_precision = len(TP_idxs)/(len(TP_idxs)+len(FP_idxs))
-        alert_recall = len(TP_idxs)/(len(TP_idxs)+len(FN_idxs))
+        alert_precision = len(TP_idxs) / (len(TP_idxs) + len(FP_idxs))
+        alert_recall = len(TP_idxs) / (len(TP_idxs) + len(FN_idxs))
     else:
         alert_precision = -999.0
         alert_recall = -999.0
@@ -324,19 +326,19 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     colors = ['#26547C', '#A9BCD0', '#BA5A31', '#E59F71']
 
     ax6.bar(bins[:-1], TP_count,
-            align='edge', width=bins[1]-bins[0],
+            align='edge', width=bins[1] - bins[0],
             color=colors[0], label='TP',
             linewidth=0.1, edgecolor='k')
     ax6.bar(bins[:-1], FP_count, bottom=TP_count,
-            align='edge', width=bins[1]-bins[0],
+            align='edge', width=bins[1] - bins[0],
             color=colors[1], label='FP',
             linewidth=0.1, edgecolor='k')
-    ax6.bar(bins[:-1], TN_count, bottom=TP_count+FP_count,
-            align='edge', width=bins[1]-bins[0],
+    ax6.bar(bins[:-1], TN_count, bottom=TP_count + FP_count,
+            align='edge', width=bins[1] - bins[0],
             color=colors[2], label='TN',
             linewidth=0.1, edgecolor='k')
-    ax6.bar(bins[:-1], FN_count, bottom=TP_count+FP_count+TN_count,
-            align='edge', width=bins[1]-bins[0],
+    ax6.bar(bins[:-1], FN_count, bottom=TP_count + FP_count + TN_count,
+            align='edge', width=bins[1] - bins[0],
             color=colors[3], label='FN',
             linewidth=0.1, edgecolor='k')
 
@@ -420,11 +422,11 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes, ST_axes):
         plot_policy = cp_ax is not None
         # Initialize new columns
-        policy_cand[name+"_pred"] = 0
-        policy_cand[name+"_jd"] = -1
-        policy_cand[name+"_mag"] = -1
-        policy_cand[name+"_save_dt"] = np.nan
-        policy_cand[name+"_trigger_dt"] = np.nan
+        policy_cand[name + "_pred"] = 0
+        policy_cand[name + "_jd"] = -1
+        policy_cand[name + "_mag"] = -1
+        policy_cand[name + "_save_dt"] = np.nan
+        policy_cand[name + "_trigger_dt"] = np.nan
 
         # For each source
         for obj_id in policy_cand["objectId"]:
@@ -437,7 +439,7 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
                 idx_cur = obj_alerts.index[i]
 
                 # the obj_alerts index of the current and previous rows of iteration
-                idx_sofar = obj_alerts.index[0:i+1]
+                idx_sofar = obj_alerts.index[0:i + 1]
 
                 # Don't save before 19 mag
                 # if np.min(obj_alerts.loc[obj_alerts.index[0:i+1], 'magpsf']) > 19:
@@ -465,13 +467,13 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
                 ] = int(policy_pred)
 
         policy_labels = policy_cand["label"].to_numpy()
-        policy_preds = policy_cand[name+"_pred"].to_numpy()
-        bright_narrow_bins = np.arange(17.00, 18.50+0.25, 0.25)
+        policy_preds = policy_cand[name + "_pred"].to_numpy()
+        bright_narrow_bins = np.arange(17.00, 18.50 + 0.25, 0.25)
 
         TP_mask_policy = np.bitwise_and(policy_labels, policy_preds)
-        TN_mask_policy = 1-(np.bitwise_or(policy_labels, policy_preds))
-        FP_mask_policy = np.bitwise_and(1-policy_labels, policy_preds)
-        FN_mask_policy = np.bitwise_and(policy_labels, 1-policy_preds)
+        TN_mask_policy = 1 - (np.bitwise_or(policy_labels, policy_preds))
+        FP_mask_policy = np.bitwise_and(1 - policy_labels, policy_preds)
+        FN_mask_policy = np.bitwise_and(policy_labels, 1 - policy_preds)
 
         TP_idxs_policy = [ii for ii, mi in enumerate(TP_mask_policy) if mi == 1]
         TN_idxs_policy = [ii for ii, mi in enumerate(TN_mask_policy) if mi == 1]
@@ -503,9 +505,11 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
             )
 
             if plot_policy:
-                cp_ax.step(bright_narrow_bins, 100 * np.append(binned_recall[0], binned_recall),
+                cp_ax.step(bright_narrow_bins,
+                           100 * np.append(binned_recall[0], binned_recall),
                            color='#263D65', label='Completeness', linewidth=3)
-                cp_ax.step(bright_narrow_bins, 100*np.append(binned_precision[0], binned_precision),
+                cp_ax.step(bright_narrow_bins,
+                           100 * np.append(binned_precision[0], binned_precision),
                            color='#FE7F2D', label='Purity', linewidth=3)
 
                 cp_ax.axhline(
