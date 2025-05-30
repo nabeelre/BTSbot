@@ -36,7 +36,7 @@ device = (
 # Define categories for model types based on their names
 IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT', 'ConvNeXt']
 METADATA_ONLY_MODELS = ['um_nn']
-MULTIMODAL_MODELS = ['mm_SwinV2']
+MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT']
 
 
 def sweep_train(config=None):
@@ -215,7 +215,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 optimizer, start_factor=0.01, total_iters=warmup_epochs
             ),
             torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer, T_max=epochs-warmup_epochs, eta_min=learning_rate*0.01
+                optimizer, T_max=epochs - warmup_epochs, eta_min=learning_rate * 0.01
             )
         ],
         milestones=[warmup_epochs]
@@ -329,10 +329,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             "raw_preds": best_raw_preds,
             "labels": best_val_labels,
             "run_name": run_name,
-            "loss": train_losses[:epoch+1],
-            "accuracy": train_accs[:epoch+1],
-            "val_loss": val_losses[:epoch+1],
-            "val_accuracy": val_accs[:epoch+1],
+            "loss": train_losses[:epoch + 1],
+            "accuracy": train_accs[:epoch + 1],
+            "val_loss": val_losses[:epoch + 1],
+            "val_accuracy": val_accs[:epoch + 1],
         },
         run_descriptor=model_dir,
         cand_dir=f'{data_base_dir}data/val_cand_{dataset_version}{N_str}.csv'
@@ -354,21 +354,21 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         for pol_name in list(val_summ['policy_performance']):
             perf = val_summ['policy_performance'][pol_name]
 
-            wandb.summary[pol_name+"_precision"] = perf['policy_precision']
-            wandb.summary[pol_name+"_recall"] = perf['policy_recall']
-            wandb.summary[pol_name+"_binned_precision"] = perf['binned_precision']
-            wandb.summary[pol_name+"_binned_recall"] = perf['binned_recall']
-            wandb.summary[pol_name+"_peakmag_bins"] = perf['peakmag_bins']
+            wandb.summary[pol_name + "_precision"] = perf['policy_precision']
+            wandb.summary[pol_name + "_recall"] = perf['policy_recall']
+            wandb.summary[pol_name + "_binned_precision"] = perf['binned_precision']
+            wandb.summary[pol_name + "_binned_recall"] = perf['binned_recall']
+            wandb.summary[pol_name + "_peakmag_bins"] = perf['peakmag_bins']
 
-            wandb.summary[pol_name+"_save_dt"] = perf['med_save_dt']
-            wandb.summary[pol_name+"_trigger_dt"] = perf['med_trigger_dt']
+            wandb.summary[pol_name + "_save_dt"] = perf['med_save_dt']
+            wandb.summary[pol_name + "_trigger_dt"] = perf['med_trigger_dt']
 
-            wandb.summary[pol_name+"_F1"] = F1(perf['policy_precision'], perf['policy_recall'])
+            wandb.summary[pol_name + "_F1"] = F1(perf['policy_precision'], perf['policy_recall'])
         wandb.log({"figure": wandb.Image(val_summ['fig'])})
     plt.clf()
     plt.close()
 
-    print(BOLD+'============ Summary ============='+END)
+    print(BOLD + '============ Summary =============' + END)
     print(f'Best val loss: {min(val_losses[:epoch+1]):.5f}')
     print(f'Best val accuracy: {max(val_accs[:epoch+1]):.5f}')
     print(f'Model diagnostics at {model_dir}\n')
@@ -471,7 +471,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "0h2lo6qd"
-        wandb.agent(sweep_id, function=sweep_train, count=12, project="BTSbotv2")
+        sweep_id = "qdp10mxk"
+        wandb.agent(sweep_id, function=sweep_train, count=20, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])
