@@ -1,0 +1,28 @@
+{
+  "model_name": "MaxViT",
+  "model_kind": "maxvit_nano_rw_256.sw_in1k",
+
+  "train_data_version": "v11",
+  "loss": "binary_crossentropy",
+
+  "learning_rate": 5e-6,
+  "warmup_epochs": 2,
+  "beta_1": 0.9,
+  "beta_2": 0.999,
+
+  "batch_size": 64,
+  "epochs": 25,
+  "patience": 5,
+  "N_max": 100,
+  
+  "fc1_neurons": 256,
+  "fc2_neurons": 8,
+  "dropout1": 0.7,
+
+  "data_aug_h_flip": 1,
+  "data_aug_v_flip": 1,
+  "data_aug_rot": 1,
+  
+  "random_seed": 2,
+  "testing": 0
+}
