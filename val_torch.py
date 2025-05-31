@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import pandas as pd
 import os.path as path
@@ -29,7 +30,10 @@ def run_val(config, model_dir, dataset_version, model_filename,
             bts_weight, need_triplets, need_metadata):
     batch_size = config['batch_size']
     model_name = config['model_name']
-    data_base_dir = config.get('data_base_dir', '')
+    if sys.platform != 'darwin':  # If not on macOS, use quest path
+        data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
+    else:
+        data_base_dir = ""
 
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"

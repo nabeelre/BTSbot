@@ -80,7 +80,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     random_state = config['random_seed']
     dataset_version = config['train_data_version']
-    data_base_dir = config.get('data_base_dir', '')
+    if sys.platform != 'darwin':  # If not on macOS, use quest path
+        data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
+    else:
+        data_base_dir = ""
 
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
