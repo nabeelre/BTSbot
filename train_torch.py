@@ -229,6 +229,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     print(f"*** Running {model_name} with N_max={N_max}," +
           f"and batch_size={batch_size} for epochs={epochs} ***")
+    if data_base_dir != "":
+        print(f"Using data from {data_base_dir}")
 
     # /-----------------------------/
     #         CONNECT WandB
