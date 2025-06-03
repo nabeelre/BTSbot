@@ -37,7 +37,7 @@ device = (
 # Define categories for model types based on their names
 IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT', 'ConvNeXt']
 METADATA_ONLY_MODELS = ['um_nn']
-MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT']
+MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT', 'mm_ConvNeXt']
 
 
 def sweep_train(config=None):
@@ -111,13 +111,13 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         print(
             f"{model_name} not categorized as image-only/metadata-only/multimodal."
         )
-        exit(1)
+        raise ValueError(f"{model_name} not categorized as image-only/metadata-only/multimodal.")
 
     if need_metadata:
         metadata_cols = config.get('metadata_cols', None)
         if metadata_cols is None:
             print("Metadata columns not found in config.")
-            exit(1)
+            raise ValueError("Metadata columns not found in config.")
 
     # /-----------------------------/
     #       LOAD TRAINING DATA
@@ -160,8 +160,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 f"Columns with NaNs: "
                 f"{nan_cols[nan_cols > 0]}{END}"
             )
-            print(f"{YELLOW}Please ensure metadata is clean or implement imputation. Exiting.{END}")
-            exit(1)
+            raise ValueError("NaNs found in metadata columns")
         metadata_tensor = torch.tensor(metadata_values, dtype=torch.float32)
 
     num_bts = torch.sum(labels_tensor == 1).item()
@@ -203,8 +202,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     try:
         model_type = getattr(architectures, model_name)
     except AttributeError:
-        print(f"{RED}Could not find model of name {model_name}{END}")
-        exit(0)
+        raise ValueError(f"Could not find model of name {model_name}")
     model = model_type(config).to(device)
 
     # Unfreeze all layers
@@ -493,7 +491,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "qdp10mxk"
-        wandb.agent(sweep_id, function=sweep_train, count=20, project="BTSbotv2")
+        sweep_id = "ea49y66r"
+        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])
