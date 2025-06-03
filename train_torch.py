@@ -7,6 +7,7 @@ import json
 import time
 import sys
 import os
+import gc
 
 import torch
 import torch.optim as optim
@@ -40,8 +41,14 @@ MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT']
 
 
 def sweep_train(config=None):
-    with wandb.init(config=config) as run:
-        run_training(run.config, run_name=run.name, sweeping=True)
+    try:
+        with wandb.init(config=config) as run:
+            run_training(run.config, run_name=run.name, sweeping=True)
+    finally:
+        # Clean up any remaining resources
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        plt.close('all')
+        gc.collect()
 
 
 def classic_train(config_path):
@@ -380,8 +387,18 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     make_report(config, f"{model_dir}/report.json", run_data)
 
+    # Clean up all large objects
     del triplets_tensor, triplets_np, metadata_tensor, labels_tensor, dataset
     del dataloader, model, optimizer, loss_fn, cand, run_data
+    del train_losses, train_accs, val_losses, val_accs
+    del best_raw_preds, best_val_labels
+
+    # Clear CUDA cache if available
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    # Force garbage collection
+    gc.collect()
 
     return
 
