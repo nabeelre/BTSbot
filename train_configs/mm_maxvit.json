@@ -1,6 +1,6 @@
 {
   "model_name": "mm_MaxViT",
-  "model_kind": "maxvit_nano_rw_256.sw_in1k",
+  "model_kind": "maxvit_tiny_rw_224.sw_in1k",
 
   "train_data_version": "v11",
   "loss": "binary_crossentropy",

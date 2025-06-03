@@ -88,7 +88,7 @@ class mm_SwinV2(nn.Module):
 class MaxViT(nn.Module):
     def __init__(self, config):
         super(MaxViT, self).__init__()
-        model_kind = config.get("model_kind", "maxvit_nano_rw_256.sw_in1k")
+        model_kind = config.get("model_kind", "maxvit_tiny_rw_224.sw_in1k")
         self.image_size = get_model_image_size(model_kind)
 
         self.maxvit = timm.create_model(model_kind, pretrained=True)
@@ -117,7 +117,7 @@ class MaxViT(nn.Module):
 class mm_MaxViT(nn.Module):
     def __init__(self, config):
         super(mm_MaxViT, self).__init__()
-        model_kind = config.get("model_kind", "maxvit_nano_rw_256.sw_in1k")
+        model_kind = config.get("model_kind", "maxvit_tiny_rw_224.sw_in1k")
         self.image_size = get_model_image_size(model_kind)
         num_metadata_features = len(config.get("metadata_cols", []))
 
