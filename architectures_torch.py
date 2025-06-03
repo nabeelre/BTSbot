@@ -30,9 +30,9 @@ class SwinV2(nn.Module):
         )
         self.swin.head = nn.Sequential(
             nn.Linear(self.swin.head.in_features, config['fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['dropout1']),
             nn.Linear(config['fc2_neurons'], 1),
         )
@@ -59,19 +59,19 @@ class mm_SwinV2(nn.Module):
         self.metadata_branch = nn.Sequential(
             nn.BatchNorm1d(num_metadata_features),
             nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['meta_dropout']),
             nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),
-            nn.ReLU(True)
+            nn.GELU()
         )
 
         # Combined branch
         combined_input_features = self.swin_feature_dim + config['meta_fc2_neurons']
         self.combined_head = nn.Sequential(
             nn.Linear(combined_input_features, config['comb_fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Linear(config['comb_fc1_neurons'], config['comb_fc2_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['comb_dropout']),
             nn.Linear(config['comb_fc2_neurons'], 1)
         )
@@ -95,9 +95,9 @@ class MaxViT(nn.Module):
         self.maxvit.head = nn.Sequential(
             self.maxvit.head.global_pool,
             nn.Linear(self.maxvit.head.in_features, config['fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['dropout1']),
             nn.Linear(config['fc2_neurons'], 1),
         )
@@ -130,19 +130,19 @@ class mm_MaxViT(nn.Module):
         self.metadata_branch = nn.Sequential(
             nn.BatchNorm1d(num_metadata_features),
             nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['meta_dropout']),
             nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),
-            nn.ReLU(True)
+            nn.GELU()
         )
 
         # Combined branch
         combined_input_features = self.maxvit_feature_dim + config['meta_fc2_neurons']
         self.combined_head = nn.Sequential(
             nn.Linear(combined_input_features, config['comb_fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Linear(config['comb_fc1_neurons'], config['comb_fc2_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['comb_dropout']),
             nn.Linear(config['comb_fc2_neurons'], 1)
         )
@@ -173,9 +173,9 @@ class ConvNeXt(nn.Module):
             self.convnext.head.norm,
             self.convnext.head.flatten,
             nn.Linear(self.convnext.head.in_features, config['fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['dropout1']),
             nn.Linear(config['fc2_neurons'], 1),
         )
@@ -199,19 +199,19 @@ class mm_ConvNeXt(nn.Module):
         self.metadata_branch = nn.Sequential(
             nn.BatchNorm1d(num_metadata_features),
             nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['meta_dropout']),
             nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),
-            nn.ReLU(True)
+            nn.GELU()
         )
 
         # Combined branch
         combined_input_features = self.convnext_feature_dim + config['meta_fc2_neurons']
         self.combined_head = nn.Sequential(
             nn.Linear(combined_input_features, config['comb_fc1_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Linear(config['comb_fc1_neurons'], config['comb_fc2_neurons']),
-            nn.ReLU(True),
+            nn.GELU(),
             nn.Dropout(config['comb_dropout']),
             nn.Linear(config['comb_fc2_neurons'], 1)
         )
