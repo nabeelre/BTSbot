@@ -123,8 +123,8 @@ class mm_MaxViT(nn.Module):
 
         # Image branch (MaxViT)
         self.maxvit_backbone = timm.create_model(model_kind, pretrained=True)
-        self.maxvit_feature_dim = self.maxvit_backbone.head.in_features
-        self.maxvit_backbone.head = nn.Identity()
+        self.maxvit_feature_dim = self.maxvit_backbone.head.fc.in_features
+        self.maxvit_backbone.head = self.maxvit_backbone.head.global_pool
 
         # Metadata branch
         self.metadata_branch = nn.Sequential(
@@ -147,16 +147,16 @@ class mm_MaxViT(nn.Module):
             nn.Linear(config['comb_fc2_neurons'], 1)
         )
 
-    def forward(self, input_data: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
+    def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
         # Resize input to expected size if needed
-        if input_data.shape[-1] != self.image_size or input_data.shape[-2] != self.image_size:
-            input_data = torch.nn.functional.interpolate(
-                input_data,
+        if image_input.shape[-1] != self.image_size or image_input.shape[-2] != self.image_size:
+            image_input = torch.nn.functional.interpolate(
+                image_input,
                 size=(self.image_size, self.image_size),
                 mode='bilinear',
                 align_corners=False
             )
-        image_features = self.maxvit_backbone(input_data)
+        image_features = self.maxvit_backbone(image_input)
         meta_features = self.metadata_branch(metadata_input)
         combined_features = torch.cat((image_features, meta_features), dim=1)
         logits = self.combined_head(combined_features)
@@ -193,7 +193,7 @@ class mm_ConvNeXt(nn.Module):
         # Image branch (ConvNeXt)
         self.convnext_backbone = timm.create_model(model_kind, pretrained=True)
         self.convnext_feature_dim = self.convnext_backbone.head.in_features
-        self.convnext_backbone.head = nn.Identity()
+        self.convnext_backbone.head = nn.Flatten()
 
         # Metadata branch
         self.metadata_branch = nn.Sequential(
@@ -216,8 +216,8 @@ class mm_ConvNeXt(nn.Module):
             nn.Linear(config['comb_fc2_neurons'], 1)
         )
 
-    def forward(self, input_data: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
-        image_features = self.convnext_backbone(input_data)
+    def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
+        image_features = self.convnext_backbone(image_input)
         meta_features = self.metadata_branch(metadata_input)
         combined_features = torch.cat((image_features, meta_features), dim=1)
         logits = self.combined_head(combined_features)
