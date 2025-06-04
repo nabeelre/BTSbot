@@ -12,6 +12,7 @@ import gc
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DataParallel
 import torchvision.transforms.v2 as transforms
 
 from torch_utils import RandomRightAngleRotation, make_report, FlexibleDataset
@@ -26,13 +27,13 @@ YELLOW = '\033[33m'
 BLUE = '\033[34m'
 END = '\033[0m'
 
-device = (
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-)
+# Set device
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 # Define categories for model types based on their names
 IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT', 'ConvNeXt']
@@ -70,6 +71,9 @@ def perf_to_stdout(epoch, epochs, start_time, batch, batches, loss, acc, flush_s
 
 
 def run_training(config, run_name: str = "", sweeping: bool = False):
+    # Check for multiple GPUs
+    multiple_GPUs = torch.cuda.device_count() > 1
+
     # Read parameters from config
     model_name = config['model_name']
 
@@ -95,8 +99,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
 
+    # Set random seeds for reproducibility
     np.random.seed(random_state)
-    torch.manual_seed(random_state)
+    torch.cuda.manual_seed_all(random_state)
 
     need_triplets = (
         model_name in IMAGE_ONLY_MODELS or
@@ -188,8 +193,12 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     )
 
     dataloader = DataLoader(
-        dataset=dataset, batch_size=batch_size,
-        shuffle=True, drop_last=True
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=(device.type != 'mps'),
+        drop_last=True
     )
 
     bts_weight = torch.FloatTensor([num_notbts / num_bts]).to(device)
@@ -208,6 +217,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # Unfreeze all layers
     for p in model.parameters():
         p.requires_grad = True
+
+    # Wrap model in DataParallel if using multiple GPUs
+    if multiple_GPUs:
+        model = DataParallel(model)
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -281,7 +294,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         train_accs[epoch] = epoch_train_acc
 
         # Save latest model to disk
-        torch.save(model.state_dict(), os.path.join(model_dir, "latest_model.pth"))
+        if multiple_GPUs:
+            torch.save(model.module.state_dict(), os.path.join(model_dir, "latest_model.pth"))
+        else:
+            torch.save(model.state_dict(), os.path.join(model_dir, "latest_model.pth"))
 
         # Run validation data through model, compute loss and accuracy
         epoch_val_loss, epoch_val_acc, val_raw_preds, val_labels = val.run_val(
@@ -305,7 +321,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         # If val loss improved (by at least 0.5%), save model
         prev_best_val_loss = min([np.inf] + list(val_losses[:epoch]))
         if (1.005 * epoch_val_loss) < prev_best_val_loss:
-            torch.save(model.state_dict(), os.path.join(model_dir, "best_model.pth"))
+            if multiple_GPUs:
+                torch.save(model.module.state_dict(), os.path.join(model_dir, "best_model.pth"))
+            else:
+                torch.save(model.state_dict(), os.path.join(model_dir, "best_model.pth"))
             print(
                 f"       {GREEN}" +
                 f"val loss improved from {prev_best_val_loss:.5f}, saved model{END}\n"
@@ -373,7 +392,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             wandb.summary[pol_name + "_save_dt"] = perf['med_save_dt']
             wandb.summary[pol_name + "_trigger_dt"] = perf['med_trigger_dt']
 
-            wandb.summary[pol_name + "_F1"] = F1(perf['policy_precision'], perf['policy_recall'])
+            wandb.summary[pol_name + "_F1"] = F1(
+                perf['policy_precision'],
+                perf['policy_recall']
+            )
         wandb.log({"figure": wandb.Image(val_summ['fig'])})
     plt.clf()
     plt.close()
@@ -427,22 +449,22 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
         if need_triplets and need_metadata:
             images_batch, meta_batch, labels_batch = data_items
-            images_batch = images_batch.to(device)
-            meta_batch = meta_batch.to(device)
+            images_batch = images_batch.to(device, non_blocking=True)
+            meta_batch = meta_batch.to(device, non_blocking=True)
 
             logits = model(image_input=images_batch, metadata_input=meta_batch)
         elif need_triplets:
             images_batch, labels_batch = data_items
-            images_batch = images_batch.to(device)
+            images_batch = images_batch.to(device, non_blocking=True)
 
             logits = model(input_data=images_batch)
         elif need_metadata:
             meta_batch, labels_batch = data_items
-            meta_batch = meta_batch.to(device)
+            meta_batch = meta_batch.to(device, non_blocking=True)
 
             logits = model(input_data=meta_batch)
 
-        labels_batch = labels_batch.unsqueeze(1).to(device).float()
+        labels_batch = labels_batch.unsqueeze(1).to(device, non_blocking=True).float()
 
         # Compute loss, backpropogate, and take step in gradient descent
         batch_train_loss = loss_fn(logits, labels_batch)

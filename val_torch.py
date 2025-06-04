@@ -6,6 +6,7 @@ from sklearn.metrics import roc_curve, auc, ConfusionMatrixDisplay
 
 import torch
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DataParallel
 from torch_utils import FlexibleDataset
 import architectures_torch as architectures
 
@@ -17,17 +18,20 @@ from matplotlib.colors import LogNorm
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-device = (
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-)
+# Set device
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 
 def run_val(config, model_dir, dataset_version, model_filename,
             bts_weight, need_triplets, need_metadata):
+    # Check for multiple GPUs
+    multiple_GPUs = torch.cuda.device_count() > 1
+
     batch_size = config['batch_size']
     model_name = config['model_name']
     if sys.platform != 'darwin':  # If not on macOS, use quest path
@@ -58,6 +62,10 @@ def run_val(config, model_dir, dataset_version, model_filename,
     model = model_type(config).to(device)
     model.load_state_dict(torch.load(path.join(model_dir, model_filename)))
     model.eval()
+
+    # Wrap model in DataParallel if using multiple GPUs
+    if multiple_GPUs:
+        model = DataParallel(model)
 
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
 
@@ -93,7 +101,11 @@ def run_val(config, model_dir, dataset_version, model_filename,
     )
 
     dataloader = DataLoader(
-        dataset=dataset, batch_size=batch_size, shuffle=False
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=(device.type != 'mps')
     )
 
     # /----------------/
@@ -115,22 +127,22 @@ def run_val(config, model_dir, dataset_version, model_filename,
 
             if need_triplets and need_metadata:
                 images_batch, meta_batch, labels_batch = data_items
-                images_batch = images_batch.to(device)
-                meta_batch = meta_batch.to(device)
+                images_batch = images_batch.to(device, non_blocking=True)
+                meta_batch = meta_batch.to(device, non_blocking=True)
 
                 logits = model(image_input=images_batch, metadata_input=meta_batch)
             elif need_triplets:
                 images_batch, labels_batch = data_items
-                images_batch = images_batch.to(device)
+                images_batch = images_batch.to(device, non_blocking=True)
 
                 logits = model(input_data=images_batch)
             elif need_metadata:
                 meta_batch, labels_batch = data_items
-                meta_batch = meta_batch.to(device)
+                meta_batch = meta_batch.to(device, non_blocking=True)
 
                 logits = model(input_data=meta_batch)
 
-            labels_batch = labels_batch.unsqueeze(1).to(device).float()
+            labels_batch = labels_batch.unsqueeze(1).to(device, non_blocking=True).float()
 
             raw_preds = torch.sigmoid(logits)
 
