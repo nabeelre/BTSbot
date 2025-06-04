@@ -223,7 +223,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 optimizer, start_factor=0.01, total_iters=warmup_epochs
             ),
             torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer, T_max=epochs - warmup_epochs, eta_min=learning_rate * 0.01
+                optimizer, T_max=max(1, epochs - warmup_epochs), eta_min=learning_rate * 0.01
             )
         ],
         milestones=[warmup_epochs]
@@ -491,7 +491,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "ea49y66r"
+        sweep_id = "cxm4zzs8"
         wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])

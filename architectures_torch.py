@@ -16,7 +16,7 @@ def get_model_image_size(model_kind: str) -> int:
         match = re.search(r'_(\d+)\.', model_kind)
         if match:
             return int(match.group(1))
-    return 256
+    return 224
 
 
 class SwinV2(nn.Module):
@@ -123,7 +123,7 @@ class mm_MaxViT(nn.Module):
 
         # Image branch (MaxViT)
         self.maxvit_backbone = timm.create_model(model_kind, pretrained=True)
-        self.maxvit_feature_dim = self.maxvit_backbone.head.fc.in_features
+        self.maxvit_feature_dim = self.maxvit_backbone.head.in_features
         self.maxvit_backbone.head = self.maxvit_backbone.head.global_pool
 
         # Metadata branch
