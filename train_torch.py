@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 # import datetime
+import traceback
 import wandb
 import json
 import time
@@ -16,6 +17,7 @@ from torch.nn.parallel import DataParallel
 import torchvision.transforms.v2 as transforms
 
 from torch_utils import RandomRightAngleRotation, make_report, FlexibleDataset
+from generate_embeddings import get_torch_embedding
 import architectures_torch as architectures
 import val_torch as val
 
@@ -118,8 +120,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         )
         raise ValueError(f"{model_name} not categorized as image-only/metadata-only/multimodal.")
 
+    metadata_cols = config.get('metadata_cols', None)
     if need_metadata:
-        metadata_cols = config.get('metadata_cols', None)
         if metadata_cols is None:
             print("Metadata columns not found in config.")
             raise ValueError("Metadata columns not found in config.")
@@ -412,6 +414,27 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     del dataloader, model, optimizer, loss_fn, cand, run_data
     del train_losses, train_accs, val_losses, val_accs
     del best_raw_preds, best_val_labels
+
+    if config.get('generate_embeddings', False):
+        cand_path = f'{data_base_dir}data/test_cand_{dataset_version}{N_str}.csv'
+        if need_triplets:
+            triplets_path = f'{data_base_dir}data/test_triplets_{dataset_version}{N_str}.npy'
+
+        try:
+            emb = get_torch_embedding(
+                model_dir=model_dir,
+                cand_path=cand_path,
+                trips_path=triplets_path if need_triplets else None,
+                metadata_cols=metadata_cols if need_metadata else None,
+                validate_model=False,
+                batch_size=batch_size,
+                umap_seed=random_state
+            )
+            emb.to_csv(f"embeddings/{run_model_name}_{run_name}.csv", index=False)
+        except Exception as e:
+            print("Error generating embeddings", e)
+            print(traceback.format_exc())
+            print("Skipping embedding generation.")
 
     # Clear CUDA cache if available
     if torch.cuda.is_available():
