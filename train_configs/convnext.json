@@ -2,7 +2,7 @@
   "model_name": "ConvNeXt",
   "model_kind": "convnext_nano.d1h_in1k",
 
-  "train_data_version": "v11",
+  "train_data_version": "v11sub",
   "loss": "binary_crossentropy",
 
   "learning_rate": 5e-6,
@@ -24,5 +24,6 @@
   "data_aug_rot": 1,
   
   "random_seed": 2,
-  "testing": 0
+  "generate_embeddings": 1,
+  "testing": 1
 }

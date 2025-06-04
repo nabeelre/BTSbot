@@ -24,5 +24,6 @@
   "data_aug_rot": 1,
   
   "random_seed": 2,
+  "generate_embeddings": 1,
   "testing": 0
 }

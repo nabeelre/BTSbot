@@ -2,17 +2,17 @@
   "model_name": "mm_MaxViT",
   "model_kind": "maxvit_tiny_rw_224.sw_in1k",
 
-  "train_data_version": "v11",
+  "train_data_version": "v10",
   "loss": "binary_crossentropy",
 
-  "learning_rate": 5e-6,
-  "warmup_epochs": 2,
+  "learning_rate": 1e-6,
+  "warmup_epochs": 4,
   "beta_1": 0.9,
   "beta_2": 0.999,
 
-  "batch_size": 64,
-  "epochs": 25,
-  "patience": 5,
+  "batch_size": 16,
+  "epochs": 30,
+  "patience": 6,
   "N_max": 100,
   
   "metadata_cols": [
@@ -44,11 +44,11 @@
   ],
   
   "meta_fc1_neurons": 256,
-  "meta_dropout": 0.6,
-  "meta_fc2_neurons": 128,
+  "meta_dropout": 0.63,
+  "meta_fc2_neurons": 8,
   
-  "comb_fc1_neurons": 256,
-  "comb_fc2_neurons": 16,
+  "comb_fc1_neurons": 128,
+  "comb_fc2_neurons": 32,
   "comb_dropout": 0.6,
 
   "data_aug_h_flip": 1,
@@ -56,5 +56,6 @@
   "data_aug_rot": 1,
   
   "random_seed": 2,
+  "generate_embeddings": 1,
   "testing": 0
 }
