@@ -29,7 +29,7 @@ standard_metadata_cols = [
 
 
 def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
-                        metadata_cols=None, validate_model=True,
+                        metadata_cols=None, validate_model=True, config=None,
                         umap_seed=2):
     # Check for multiple GPUs
     multi_gpu = False
@@ -65,8 +65,9 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
         ), batch_size=batch_size, shuffle=False, num_workers=4, pin_memory=(device != 'mps')
     )
 
-    with open(model_dir + "report.json") as report:
-        config = json.load(report)['train_config']
+    if config is None:
+        with open(model_dir + "report.json") as report:
+            config = json.load(report)['train_config']
 
     try:
         if config['model_name'] == "SwinV2_t":
@@ -208,15 +209,18 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
 
 
 if __name__ == "__main__":
-    mm_maxvit_cand = get_torch_embedding(
-        model_dir="models/mm_MaxViT_v10_N100_cuda/happy-sweep-5/",
+    mm_maxvit_emb = get_torch_embedding(
+        model_dir="models/mm_MaxViT_v10_N100_cuda/dutiful-sweep-11/",
         cand_path="data/test_cand_v10_N100.csv",
         trips_path="data/test_triplets_v10_N100.npy",
         metadata_cols=standard_metadata_cols,
         validate_model=False,
-        batch_size=32
+        batch_size=128,
     )
-    mm_maxvit_cand.to_csv(
-        "embeddings/mm_MaxViT_v10_N100_happy-sweep-5.csv",
+
+    mm_maxvit_emb_df = pd.DataFrame(mm_maxvit_emb, columns=["umap_emb_1", "umap_emb_2"])
+
+    mm_maxvit_emb_df.to_csv(
+        "embeddings/mm_MaxViT_v10_N100_dutiful-sweep-11.csv",
         index=False
     )

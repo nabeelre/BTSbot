@@ -164,7 +164,7 @@ def run_val(config, model_dir, dataset_version, model_filename,
     return overall_loss, overall_accuracy, all_raw_preds, all_labels_np
 
 
-def diagnostic_fig(run_data, run_descriptor, cand_dir):
+def diagnostic_fig(run_data, cand_dir, run_descriptor):
     raw_preds = run_data['raw_preds']
     preds = np.rint(raw_preds).astype(int)
 
@@ -225,8 +225,8 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     plt.suptitle(run_descriptor, size=28, y=0.92)
 
     ax1 = plt.Subplot(fig, main_grid[0])
-    ax1.plot(run_data["accuracy"], label='Training', linewidth=2)
-    ax1.plot(run_data['val_accuracy'], label='Validation', linewidth=2)
+    ax1.plot(run_data.get("accuracy", []), label='Training', linewidth=2)
+    ax1.plot(run_data.get('val_accuracy', []), label='Validation', linewidth=2)
     ax1.axhline(bts_acc, label="BTS", c='blue', linewidth=1.5, linestyle='dashed')
     ax1.axhline(notbts_acc, label="notBTS", c='green', linewidth=1.5, linestyle='dashed')
     ax1.axhline(bal_acc, label="Balanced", c='gray', linewidth=1.5, linestyle='dashed')
@@ -241,8 +241,8 @@ def diagnostic_fig(run_data, run_descriptor, cand_dir):
     # Loss
 
     ax2 = plt.Subplot(fig, main_grid[1])
-    ax2.plot(run_data['loss'], label='Training', linewidth=2)
-    ax2.plot(run_data['val_loss'], label='Validation', linewidth=2)
+    ax2.plot(run_data.get('loss', []), label='Training', linewidth=2)
+    ax2.plot(run_data.get('val_loss', []), label='Validation', linewidth=2)
     ax2.set_xlabel('Epoch', size=18)
     ax2.set_ylabel('Loss', size=18)
     ax2.legend(loc='best')

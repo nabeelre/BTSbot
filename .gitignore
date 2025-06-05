@@ -182,4 +182,7 @@ spec_status/*
 production_models/best_model/
 .conda_env
 utils.ipynb
-embedding_cands/
+embeddings/
+old_configs/
+*train*.sh
+*sweep*.sh
