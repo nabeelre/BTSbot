@@ -122,7 +122,7 @@ class mm_MaxViT(nn.Module):
         num_metadata_features = len(config.get("metadata_cols", []))
 
         # Image branch (MaxViT)
-        self.maxvit_backbone = timm.create_model(model_kind, pretrained=True)
+        self.maxvit_backbone = timm.create_model(model_kind, pretrained=config.get('pretrained', True))
         self.maxvit_feature_dim = self.maxvit_backbone.head.in_features
         self.maxvit_backbone.head = self.maxvit_backbone.head.global_pool
 
