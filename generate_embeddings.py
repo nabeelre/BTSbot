@@ -205,7 +205,7 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
     # cand["umap_emb_1"] = umap_emb[:, 0]
     # cand["umap_emb_2"] = umap_emb[:, 1]
 
-    return umap_emb
+    return np.concatenate((umap_emb, cand['candid']), axis=1)
 
 
 if __name__ == "__main__":
