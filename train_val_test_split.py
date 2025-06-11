@@ -257,7 +257,9 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
     print(f"Wrote triplets and candidate data for {cuts_str} subset of {split_name}")
 
 
-def subsample_data(split, version, perc_to_keep=10):
+def subsample_data(split, version, perc_to_keep=10, random_seed=2):
+    np.random.seed(random_seed)
+
     fraction_to_keep = perc_to_keep / 100
     triplets = np.load(f"data/{split}_triplets_{version}_N100.npy")
     cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv")
