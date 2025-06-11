@@ -132,7 +132,7 @@ def cut_set_and_assign_splits(set_name, cuts, version_name, seed=2):
         # Label alerts with N
         N_tot = len(obj_cand)
         np.random.seed(seed)
-        N_labels = np.random.choice(np.arange(1, N_tot+1), size=(N_tot,), replace=False)
+        N_labels = np.random.choice(np.arange(1, N_tot + 1), size=(N_tot,), replace=False)
 
         set_cand.loc[set_cand['objectId'] == objid, "N"] = N_labels
 
@@ -257,18 +257,19 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
     print(f"Wrote triplets and candidate data for {cuts_str} subset of {split_name}")
 
 
-def subsample_data(split, version):
+def subsample_data(split, version, perc_to_keep=10):
+    fraction_to_keep = perc_to_keep / 100
     triplets = np.load(f"data/{split}_triplets_{version}_N100.npy")
     cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv")
 
     objs = pd.unique(cand['objectId'])
-    subsampled_objs = np.random.choice(objs, size=int(len(objs) * 0.1), replace=False)
+    subsampled_objs = np.random.choice(objs, size=int(len(objs) * fraction_to_keep), replace=False)
 
     subsampled_cand = cand[cand['objectId'].isin(subsampled_objs)]
     subsampled_triplets = triplets[subsampled_cand.index]
 
-    np.save(f"data/{split}_triplets_{version}sub_N100.npy", subsampled_triplets)
-    subsampled_cand.to_csv(f"data/{split}_cand_{version}sub_N100.csv", index=False)
+    np.save(f"data/{split}_triplets_{version}s{perc_to_keep}_N100.npy", subsampled_triplets)
+    subsampled_cand.to_csv(f"data/{split}_cand_{version}s{perc_to_keep}_N100.csv", index=False)
 
 
 if __name__ == "__main__":
@@ -296,4 +297,11 @@ if __name__ == "__main__":
     # create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
     # create_subset("test", version_name=version, N_max_p=100, N_max_n=100)
 
-    subsample_data("train", "v11")
+    subsample_data("train", "v11", perc_to_keep=10)
+    subsample_data("val", "v11", perc_to_keep=10)
+    subsample_data("test", "v11", perc_to_keep=10)
+
+    subsample_data("train", "v11", perc_to_keep=50)
+    subsample_data("val", "v11", perc_to_keep=50)
+    subsample_data("test", "v11", perc_to_keep=50)
+
