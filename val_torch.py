@@ -174,6 +174,7 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
 
     cand = pd.read_csv(cand_dir, index_col=None)
     cand['preds'] = preds
+    cand['raw_preds'] = raw_preds
 
     fpr, tpr, thresholds = roc_curve(labels, raw_preds)
     roc_auc = auc(fpr, tpr)
@@ -399,9 +400,19 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
             valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
             return len(valid) >= 2
         return False
+    
+    def prod_p1(alerts):
+        valid = alerts[(alerts['raw_preds'] > 0.85) & (alerts['magpsf'] < 19)]
+        return len(valid) >= 1
 
-    policy_names = ["bts_p1", "bts_p2"]
-    policies = [bts_p1, bts_p2]
+    def prod_p2(alerts):
+        if np.min(alerts['magpsf']) <= 18.5:
+            valid = alerts[(alerts['raw_preds'] > 0.85) & (alerts['magpsf'] < 19)]
+            return len(valid) >= 1
+        return False
+
+    policy_names = ["bts_p1", "bts_p2", "prod_p1", "prod_p2"]
+    policies = [bts_p1, bts_p2, prod_p1, prod_p2]
     CP_axes = [ax7, ax8, ax9, None, None]
     ST_axes = [ax10, ax11, ax12, None, None]
 
