@@ -303,8 +303,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
         # Run validation data through model, compute loss and accuracy
         epoch_val_loss, epoch_val_acc, val_raw_preds, val_labels = val.run_val(
-            config, model_dir, dataset_version, "latest_model.pth", bts_weight,
-            need_triplets, need_metadata
+            config, model_dir, "latest_model.pth", bts_weight, need_triplets, need_metadata
         )
         val_losses[epoch] = epoch_val_loss
         val_accs[epoch] = epoch_val_acc
@@ -536,7 +535,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "cxm4zzs8"
+        sweep_id = "0v8xm7id"
         wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])

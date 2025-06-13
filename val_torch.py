@@ -27,13 +27,14 @@ else:
     device = torch.device("cpu")
 
 
-def run_val(config, model_dir, dataset_version, model_filename,
+def run_val(config, model_dir, model_filename,
             bts_weight, need_triplets, need_metadata):
     # Check for multiple GPUs
     multiple_GPUs = torch.cuda.device_count() > 1
 
     batch_size = config['batch_size']
     model_name = config['model_name']
+    dataset_version = config['train_data_version']
     if sys.platform != 'darwin':  # If not on macOS, use quest path
         data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
     else:
@@ -450,8 +451,8 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
         plot_policy = cp_ax is not None
         # Initialize new columns
         policy_cand[name + "_pred"] = 0
-        policy_cand[name + "_jd"] = -1
-        policy_cand[name + "_mag"] = -1
+        policy_cand[name + "_jd"] = np.float64(-1)
+        policy_cand[name + "_mag"] = np.float64(-1)
         policy_cand[name + "_save_dt"] = np.nan
         policy_cand[name + "_trigger_dt"] = np.nan
 
@@ -600,9 +601,9 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
         policy_performance[name] = {
             "policy_precision": policy_precision,
             "policy_recall": policy_recall,
-            "binned_precision": binned_precision,
-            "binned_recall": binned_recall,
-            "peakmag_bins": bright_narrow_bins,
+            "binned_precision": list(binned_precision),
+            "binned_recall": list(binned_recall),
+            "peakmag_bins": list(bright_narrow_bins),
             "med_save_dt": med_save_dt,
             "med_trigger_dt": med_trigger_dt
         }
@@ -674,3 +675,56 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
         "notbts_acc": notbts_acc, "alert_precision": alert_precision,
         "alert_recall": alert_recall, "policy_performance": policy_performance
     }
+
+
+if __name__ == "__main__":
+    import wandb, json
+    api = wandb.Api()
+    project = "nabeelr/BTSbotv2/runs/"
+
+    run_device = "cuda"
+    runs = [
+        "a803lnt7",  # light-sweep-5
+    ]
+
+    for run_id in runs:
+        run = api.run(project+run_id)
+        config = run.config
+        run_name = run.name
+        history = run.history()
+        
+        print(f"Running validation for {run_name}")
+
+        model_name = config['model_name']
+        dataset_version = config['train_data_version']
+
+        run_model_name = f"{model_name}_{dataset_version}_N100_{run_device}"
+        model_dir = f"models/{run_model_name}/{run_name}/"
+
+        epoch_val_loss, epoch_val_acc, val_raw_preds, val_labels = run_val(
+            config=config, model_dir=model_dir, model_filename="best_model.pth",
+            bts_weight=None, need_triplets=True, need_metadata=True
+        )
+        print(f"Finished prediictions for {run_name}")
+        
+        run_data = {
+            "type": model_name,
+            "raw_preds": val_raw_preds,
+            "labels": val_labels,
+            "run_name": run_name,
+            "loss": history['train_loss'].to_numpy(),
+            "accuracy": history['train_accuracy'].to_numpy(),
+            "val_loss": history['val_loss'].to_numpy(),
+            "val_accuracy": history['val_accuracy'].to_numpy(),
+        }
+        if sys.platform != 'darwin':  # If not on macOS, use quest path
+            data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
+        else:
+            data_base_dir = ""
+        cand_dir = f'{data_base_dir}data/val_cand_{dataset_version}_N100.csv'
+        perf = diagnostic_fig(run_data, cand_dir, model_dir)
+        
+        with open(f"{model_dir}/perf.json", 'w') as f:
+            perf.pop("fig", None)
+            json.dump(perf, f, indent=4)
+        print(f"Finished validation for {run_name}")
