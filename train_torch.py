@@ -406,7 +406,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     print(f'Best val accuracy: {max(val_accs[:epoch+1]):.5f}')
     print(f'Model diagnostics at {model_dir}\n')
 
-    make_report(config, f"{model_dir}/report.json", run_data)
+    val_summ.pop("fig", None)
+    make_report(config, f"{model_dir}/report.json", run_data, val_summ)
 
     # Clean up all large objects
     del triplets_tensor, triplets_np, metadata_tensor, labels_tensor, dataset

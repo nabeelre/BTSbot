@@ -48,7 +48,7 @@ class RandomRightAngleRotation(object):
         return transforms.functional.rotate(img, degrees)
 
 
-def make_report(config, report_path, run_data):
+def make_report(config, report_path, run_data, val_summ):
     # generate training report in json format
     print('Generating report...', end='')
     report = {
@@ -56,6 +56,7 @@ def make_report(config, report_path, run_data):
         'Run name': run_data['run_name'],
         'Training history': {k: v for k, v in run_data.items() if k != 'run_name'},
         'train_config': dict(config),
+        'val_summary': dict(val_summ),
     }
     for k in report['Training history'].keys():
         report['Training history'][k] = np.array(report['Training history'][k]).tolist()
