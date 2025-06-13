@@ -401,7 +401,7 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
             valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
             return len(valid) >= 2
         return False
-    
+
     def prod_p1(alerts):
         valid = alerts[(alerts['raw_preds'] > 0.85) & (alerts['magpsf'] < 19)]
         return len(valid) >= 1
@@ -678,7 +678,9 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
 
 
 if __name__ == "__main__":
-    import wandb, json
+    import wandb
+    import json
+
     api = wandb.Api()
     project = "nabeelr/BTSbotv2/runs/"
 
@@ -688,11 +690,11 @@ if __name__ == "__main__":
     ]
 
     for run_id in runs:
-        run = api.run(project+run_id)
+        run = api.run(project + run_id)
         config = run.config
         run_name = run.name
         history = run.history()
-        
+
         print(f"Running validation for {run_name}")
 
         model_name = config['model_name']
@@ -706,7 +708,7 @@ if __name__ == "__main__":
             bts_weight=None, need_triplets=True, need_metadata=True
         )
         print(f"Finished prediictions for {run_name}")
-        
+
         run_data = {
             "type": model_name,
             "raw_preds": val_raw_preds,
@@ -723,7 +725,7 @@ if __name__ == "__main__":
             data_base_dir = ""
         cand_dir = f'{data_base_dir}data/val_cand_{dataset_version}_N100.csv'
         perf = diagnostic_fig(run_data, cand_dir, model_dir)
-        
+
         with open(f"{model_dir}/perf.json", 'w') as f:
             perf.pop("fig", None)
             json.dump(perf, f, indent=4)
