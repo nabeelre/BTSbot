@@ -430,6 +430,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 batch_size=batch_size,
                 umap_seed=random_state
             )
+            emb = pd.DataFrame(emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
             emb.to_csv(f"embeddings/{run_model_name}_{run_name}.csv", index=False)
         except Exception as e:
             print("Error generating embeddings", e)

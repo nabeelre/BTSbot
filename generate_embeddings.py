@@ -218,7 +218,7 @@ if __name__ == "__main__":
         batch_size=128,
     )
 
-    mm_maxvit_emb_df = pd.DataFrame(mm_maxvit_emb, columns=["umap_emb_1", "umap_emb_2"])
+    mm_maxvit_emb_df = pd.DataFrame(mm_maxvit_emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
 
     mm_maxvit_emb_df.to_csv(
         "embeddings/mm_MaxViT_v10_N100_dutiful-sweep-11.csv",
