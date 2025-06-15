@@ -537,7 +537,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
 if __name__ == "__main__":
     if sys.argv[1] == "sweep":
-        sweep_id = "0v8xm7id"
+        sweep_id = "gaw48x32"
         wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])

@@ -205,22 +205,28 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
     # cand["umap_emb_1"] = umap_emb[:, 0]
     # cand["umap_emb_2"] = umap_emb[:, 1]
 
-    return np.concatenate((umap_emb, cand['candid']), axis=1)
+    return np.concatenate((umap_emb, cand['candid'].values.reshape(-1, 1)), axis=1)
 
 
 if __name__ == "__main__":
-    mm_maxvit_emb = get_torch_embedding(
-        model_dir="models/mm_MaxViT_v10_N100_cuda/dutiful-sweep-11/",
-        cand_path="data/test_cand_v10_N100.csv",
-        trips_path="data/test_triplets_v10_N100.npy",
-        metadata_cols=standard_metadata_cols,
-        validate_model=False,
-        batch_size=128,
-    )
+    runs = [
+        "light-sweep-5",
+        "honest-sweep-7"
+    ]
+    version_str = "v11s10"
 
-    mm_maxvit_emb_df = pd.DataFrame(mm_maxvit_emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
+    for run in runs:
+        emb = get_torch_embedding(
+            model_dir=f"models/mm_MaxViT_{version_str}_N100_cuda/{run}/",
+            cand_path=f"data/test_cand_{version_str}_N100.csv",
+            trips_path=f"data/test_triplets_{version_str}_N100.npy",
+            metadata_cols=standard_metadata_cols,
+            validate_model=False,
+            batch_size=128,
+        )
 
-    mm_maxvit_emb_df.to_csv(
-        "embeddings/mm_MaxViT_v10_N100_dutiful-sweep-11.csv",
-        index=False
-    )
+        emb = pd.DataFrame(emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
+        emb.to_csv(
+            f"embeddings/mm_MaxViT_{version_str}_N100_{run}.csv",
+            index=False
+        )
