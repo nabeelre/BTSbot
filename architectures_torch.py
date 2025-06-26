@@ -91,7 +91,7 @@ class MaxViT(nn.Module):
         model_kind = config.get("model_kind", "maxvit_tiny_rw_224.sw_in1k")
         self.image_size = get_model_image_size(model_kind)
 
-        self.maxvit = timm.create_model(model_kind, pretrained=True)
+        self.maxvit = timm.create_model(model_kind, pretrained=config.get('pretrained', True))
         self.maxvit.head = nn.Sequential(
             self.maxvit.head.global_pool,
             nn.Linear(self.maxvit.head.in_features, config['fc1_neurons']),
@@ -122,7 +122,8 @@ class mm_MaxViT(nn.Module):
         num_metadata_features = len(config.get("metadata_cols", []))
 
         # Image branch (MaxViT)
-        self.maxvit_backbone = timm.create_model(model_kind, pretrained=config.get('pretrained', True))
+        self.maxvit_backbone = timm.create_model(model_kind,
+                                                 pretrained=config.get('pretrained', True))
         self.maxvit_feature_dim = self.maxvit_backbone.head.in_features
         self.maxvit_backbone.head = self.maxvit_backbone.head.global_pool
 
@@ -167,7 +168,7 @@ class ConvNeXt(nn.Module):
     def __init__(self, config):
         super(ConvNeXt, self).__init__()
         model_kind = config.get("model_kind", "convnext_nano.d1h_in1k")
-        self.convnext = timm.create_model(model_kind, pretrained=True)
+        self.convnext = timm.create_model(model_kind, pretrained=config.get('pretrained', True))
         self.convnext.head = nn.Sequential(
             self.convnext.head.global_pool,
             self.convnext.head.norm,
@@ -191,7 +192,8 @@ class mm_ConvNeXt(nn.Module):
         num_metadata_features = len(config.get("metadata_cols", []))
 
         # Image branch (ConvNeXt)
-        self.convnext_backbone = timm.create_model(model_kind, pretrained=True)
+        self.convnext_backbone = timm.create_model(model_kind,
+                                                   pretrained=config.get('pretrained', True))
         self.convnext_feature_dim = self.convnext_backbone.head.in_features
         self.convnext_backbone.head = nn.Flatten()
 
