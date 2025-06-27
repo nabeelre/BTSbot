@@ -81,7 +81,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     epochs = config['epochs']
     batch_size = config['batch_size']
-    learning_rate = config['learning_rate']
+    learning_rate = float(config['learning_rate'])  # sometimes WandB makes LR a string
     warmup_epochs = config.get('warmup_epochs', 0)
     beta1 = config['beta_1']
     beta2 = config['beta_2']
