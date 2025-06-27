@@ -593,8 +593,8 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
         else:
             policy_precision = -999.0
             policy_recall = -999.0
-            binned_precision = -999.0
-            binned_recall = -999.0
+            binned_precision = [-999.0]
+            binned_recall = [-999.0]
             med_save_dt = -999.0
             med_trigger_dt = -999.0
 
