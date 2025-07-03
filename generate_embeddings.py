@@ -1,6 +1,7 @@
 import umap.umap_ as umap
 import pandas as pd
 import numpy as np
+import torch.nn as nn
 
 import architectures_torch as architectures
 from torch_utils import FlexibleDataset
@@ -30,7 +31,15 @@ standard_metadata_cols = [
 
 def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
                         metadata_cols=None, validate_model=True, config=None,
-                        umap_seed=2):
+                        umap_seed=2, embedding_type="last_layer"):
+    """
+    Generate embeddings from a specified model using a specified dataset.
+
+    embedding_type:
+        - last_layer: last layer of the model (default)
+        - image: flattened vector directly out of the image backbone
+        - concat: concatenated image and metadata embeddings without additional dense layers
+    """
     # Check for multiple GPUs
     multi_gpu = False
     if torch.cuda.device_count() > 1:
@@ -113,17 +122,16 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
             # Remove final layer(s) of the model to get embeddings
             if config['model_name'] == "mm_SwinV2":
                 pass
-                # emb_model.combined_head = nn.Sequential(
-                #     nn.Linear(
-                #         emb_model.combined_head[0].in_features,
-                #         emb_model.combined_head[0].out_features
-                #     ),
-                #     nn.ReLU()
-                # )
             elif config['model_name'] == "mm_MaxViT":
-                print(emb_model.combined_head)
-                emb_model.combined_head = emb_model.combined_head[:4]
-                print(emb_model.combined_head)
+                if embedding_type == "last_layer":
+                    print(emb_model.combined_head)
+                    emb_model.combined_head = emb_model.combined_head[:4]
+                    print(emb_model.combined_head)
+
+                else:
+                    print(emb_model.combined_head)
+                    emb_model.combined_head = nn.Identity()
+                    print(emb_model.combined_head)
 
             emb_model = emb_model.to(device).eval()
             if multi_gpu:
@@ -153,20 +161,7 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
             else:
                 emb_model = model
 
-            if config['model_name'] == "SwinV2":
-                pass
-                # emb_model.swin.head = nn.Sequential(
-                #     nn.Linear(
-                #         emb_model.swin.head[0].in_features,
-                #         emb_model.swin.head[0].out_features
-                #     ),
-                #     nn.Linear(
-                #         emb_model.swin.head[1].in_features,
-                #         emb_model.swin.head[1].out_features
-                #     ),
-                #     nn.ReLU()
-                # )
-            elif config['model_name'] == "MaxViT":
+            if config['model_name'] == "MaxViT":
                 print(emb_model.maxvit.head)
                 emb_model.maxvit.head = emb_model.maxvit.head[:5]
                 print(emb_model.maxvit.head)
@@ -174,6 +169,8 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
                 print(emb_model.convnext.head)
                 emb_model.convnext.head = emb_model.convnext.head[:7]
                 print(emb_model.convnext.head)
+            else:
+                pass
 
             emb_model = emb_model.to(device).eval()
             if multi_gpu:
@@ -197,6 +194,9 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
         cand['raw_preds'] = raw_preds_np
 
     embs = torch.cat(all_embs, dim=0).squeeze().numpy()
+    if embedding_type == "image":
+        if config['model_name'] == "mm_MaxViT":
+            embs = embs[:, :512]
     print("shape of embeddings", np.shape(embs))
 
     umap_model = umap.UMAP(random_state=umap_seed)
@@ -214,6 +214,7 @@ if __name__ == "__main__":
         "honest-sweep-7"
     ]
     version_str = "v11s10"
+    embedding_type = "image"
 
     for run in runs:
         emb = get_torch_embedding(
@@ -223,10 +224,11 @@ if __name__ == "__main__":
             metadata_cols=standard_metadata_cols,
             validate_model=False,
             batch_size=128,
+            embedding_type=embedding_type
         )
 
         emb = pd.DataFrame(emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
         emb.to_csv(
-            f"embeddings/mm_MaxViT_{version_str}_N100_{run}.csv",
+            f"embeddings/mm_MaxViT_{version_str}_N100_{run}_{embedding_type}.csv",
             index=False
         )
