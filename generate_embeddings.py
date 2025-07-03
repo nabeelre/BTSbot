@@ -132,6 +132,16 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
                     print(emb_model.combined_head)
                     emb_model.combined_head = nn.Identity()
                     print(emb_model.combined_head)
+            elif config['model_name'] == "mm_ConvNeXt":
+                if embedding_type == "last_layer":
+                    print(emb_model.combined_head)
+                    emb_model.combined_head = emb_model.combined_head[:4]
+                    print(emb_model.combined_head)
+
+                else:
+                    print(emb_model.combined_head)
+                    emb_model.combined_head = nn.Identity()
+                    print(emb_model.combined_head)
 
             emb_model = emb_model.to(device).eval()
             if multi_gpu:
@@ -195,7 +205,7 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
 
     embs = torch.cat(all_embs, dim=0).squeeze().numpy()
     if embedding_type == "image":
-        if config['model_name'] == "mm_MaxViT":
+        if config['model_name'] in ["mm_MaxViT", "mm_ConvNeXt"]:
             embs = embs[:, :512]
     print("shape of embeddings", np.shape(embs))
 
