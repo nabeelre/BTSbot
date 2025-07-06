@@ -88,15 +88,20 @@ if __name__ == "__main__":
         '--version', type=str, default='v11',
         help='Version identifier for the dataset (default: v11)'
     )
+    parser.add_argument(
+        '--workers', type=int, default=8,
+        help='Number of workers to use for parallel processing (default: 8)'
+    )
 
     args = parser.parse_args()
     split = args.split
     version = args.version
+    workers = args.workers
 
     cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv", index_col=None)
     cand[['objectId', 'ra', 'dec']]
 
-    cand, img_cache = build_LS_image_cache(cand, show_images=False, max_workers=8)
+    cand, img_cache = build_LS_image_cache(cand, show_images=False, max_workers=workers)
 
     LS_imgs = np.zeros((len(cand), 224, 224, 3))
     for idx in cand.index:
