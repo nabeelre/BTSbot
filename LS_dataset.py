@@ -16,11 +16,11 @@ def download_image_batch(batch):
         try:
             url = "https://www.legacysurvey.org/viewer/jpeg-cutout?" + \
                 f"ra={source['ra']}&dec={source['dec']}&" + \
-                  "size=224&layer=ls-dr10&pixscale=0.25&bands=griy"
+                  "size=112&layer=ls-dr10&pixscale=0.5&bands=griy"
 
             response = requests.get(url)
             image = Image.open(io.BytesIO(response.content))
-            image_array = np.array(image)
+            image_array = np.array(image, dtype=np.float16)
 
             empty_image = all(32 == image_array.flatten())
             results.append((source['objectId'], image_array, empty_image))
@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     cand, img_cache = build_LS_image_cache(cand, show_images=False, max_workers=workers)
 
-    LS_imgs = np.zeros((len(cand), 224, 224, 3))
+    LS_imgs = np.zeros((len(cand), 112, 112, 3), dtype=np.float16)
     for idx in cand.index:
         obj = cand.loc[idx]
         LS_imgs[idx] = img_cache[obj['objectId']]
