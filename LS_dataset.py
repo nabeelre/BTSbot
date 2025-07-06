@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import requests
 import io
+import argparse
 from multiprocessing import Pool, cpu_count
 
 
@@ -76,8 +77,21 @@ def build_LS_image_cache(cand, show_images=False, max_workers=None):
 
 
 if __name__ == "__main__":
-    split = "val"
-    version = "v11sub"
+    parser = argparse.ArgumentParser(
+        description='Process LS dataset with specified split and version'
+    )
+    parser.add_argument(
+        '--split', type=str, default='train', choices=['train', 'val', 'test'],
+        help='Dataset split to process (default: train)'
+    )
+    parser.add_argument(
+        '--version', type=str, default='v11',
+        help='Version identifier for the dataset (default: v11)'
+    )
+
+    args = parser.parse_args()
+    split = args.split
+    version = args.version
 
     cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv", index_col=None)
     cand[['objectId', 'ra', 'dec']]
