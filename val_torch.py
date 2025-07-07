@@ -86,7 +86,7 @@ def run_val(config, model_dir, model_filename,
             exit(1)
         triplets_np = np.load(triplets_file_path).astype(np.float32)
         triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
-        triplets_tensor = torch.from_numpy(triplets_np.copy())
+        triplets_tensor = torch.from_numpy(np.ascontiguousarray(triplets_np))
 
     metadata_tensor = None
     if need_metadata:
