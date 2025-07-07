@@ -137,7 +137,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     if need_triplets:
         triplets_np = np.load(
             f'{data_base_dir}data/train_triplets_{dataset_version}{N_str}.npy',
-            mmap_mode='r'
         ).astype(np.float32)
 
         if np.any(np.isnan(triplets_np)):
@@ -152,7 +151,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 f"corresponding cand/labels."
             )
         triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
-        triplets_tensor = torch.from_numpy(triplets_np.copy())
+        triplets_tensor = torch.from_numpy(np.ascontiguousarray(triplets_np))
 
     metadata_tensor = None
     if need_metadata:
