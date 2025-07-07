@@ -195,7 +195,11 @@ class mm_ConvNeXt(nn.Module):
         self.convnext_backbone = timm.create_model(model_kind,
                                                    pretrained=config.get('pretrained', True))
         self.convnext_feature_dim = self.convnext_backbone.head.in_features
-        self.convnext_backbone.head = nn.Flatten()
+        self.convnext_backbone.head = nn.Sequential(
+            self.convnext_backbone.head.global_pool,
+            self.convnext_backbone.head.norm,
+            self.convnext_backbone.head.flatten
+        )
 
         # Metadata branch
         self.metadata_branch = nn.Sequential(
