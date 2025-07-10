@@ -220,25 +220,33 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
 
 if __name__ == "__main__":
     runs = [
-        "light-sweep-5",
-        "honest-sweep-7"
+        "galaxyzoo",
+        "imagenet",
+        "random_init"
     ]
-    version_str = "v11s10"
-    embedding_type = "image"
+    version_str = "v11"
+    embedding_types = ["image"]
+    arch_type = "mm_MaxViT"
 
     for run in runs:
-        emb = get_torch_embedding(
-            model_dir=f"models/mm_MaxViT_{version_str}_N100_cuda/{run}/",
-            cand_path=f"data/test_cand_{version_str}_N100.csv",
-            trips_path=f"data/test_triplets_{version_str}_N100.npy",
-            metadata_cols=standard_metadata_cols,
-            validate_model=False,
-            batch_size=128,
-            embedding_type=embedding_type
-        )
+        for embedding_type in embedding_types:
+            try:
+                emb = get_torch_embedding(
+                    model_dir=f"models/{arch_type}_zeroshot/{run}/",
+                    cand_path=f"data/test_cand_{version_str}_N100.csv",
+                    trips_path=f"data/test_triplets_{version_str}_N100.npy",
+                    metadata_cols=standard_metadata_cols,
+                    validate_model=False,
+                    batch_size=64,
+                    embedding_type=embedding_type
+                )
 
-        emb = pd.DataFrame(emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
-        emb.to_csv(
-            f"embeddings/mm_MaxViT_{version_str}_N100_{run}_{embedding_type}.csv",
-            index=False
-        )
+                emb = pd.DataFrame(emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
+                emb.to_csv(
+                    f"embeddings/mm_MaxViT_zeroshot_{run}_{embedding_type}.csv",
+                    index=False
+                )
+                print(f"finished {run} {embedding_type}")
+            except Exception as e:
+                print(e)
+                print(f"failed on {run} {embedding_type}")
