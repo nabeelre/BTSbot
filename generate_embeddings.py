@@ -212,10 +212,12 @@ def get_torch_embedding(model_dir, cand_path, trips_path=None, batch_size=1024,
     umap_model = umap.UMAP(random_state=umap_seed)
     umap_emb = umap_model.fit_transform(embs)
 
-    # cand["umap_emb_1"] = umap_emb[:, 0]
-    # cand["umap_emb_2"] = umap_emb[:, 1]
+    emb_df = pd.DataFrame(umap_emb, columns=["umap_emb_1", "umap_emb_2"])
+    emb_df["candid"] = pd.Series(cand['candid'], dtype=np.int64).values
+    for i in range(embs.shape[1]):
+        emb_df[f"emb_{i}"] = embs[:, i]
 
-    return np.concatenate((umap_emb, cand['candid'].values.reshape(-1, 1)), axis=1)
+    return emb_df
 
 
 if __name__ == "__main__":
@@ -226,12 +228,12 @@ if __name__ == "__main__":
     ]
     version_str = "v11"
     embedding_types = ["image"]
-    arch_type = "mm_MaxViT"
+    arch_type = "mm_ConvNeXt"
 
     for run in runs:
         for embedding_type in embedding_types:
             try:
-                emb = get_torch_embedding(
+                emb_df = get_torch_embedding(
                     model_dir=f"models/{arch_type}_zeroshot/{run}/",
                     cand_path=f"data/test_cand_{version_str}_N100.csv",
                     trips_path=f"data/test_triplets_{version_str}_N100.npy",
@@ -241,9 +243,8 @@ if __name__ == "__main__":
                     embedding_type=embedding_type
                 )
 
-                emb = pd.DataFrame(emb, columns=["umap_emb_1", "umap_emb_2", "candid"])
-                emb.to_csv(
-                    f"embeddings/mm_MaxViT_zeroshot_{run}_{embedding_type}.csv",
+                emb_df.to_csv(
+                    f"embeddings/{arch_type}_zeroshot_{run}_{embedding_type}.csv",
                     index=False
                 )
                 print(f"finished {run} {embedding_type}")
