@@ -40,7 +40,7 @@ else:
 # Define categories for model types based on their names
 IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT', 'ConvNeXt']
 METADATA_ONLY_MODELS = ['um_nn']
-MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT', 'mm_ConvNeXt']
+MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT', 'mm_ConvNeXt', 'mm_ResNet', 'mm_cnn']
 
 
 def sweep_train(config=None):
