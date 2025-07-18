@@ -276,6 +276,62 @@ class mm_ResNet(nn.Module):
         return logits
 
 
+class mm_cnn(nn.Module):
+    def __init__(self, config):
+        super(mm_cnn, self).__init__()
+        num_metadata_features = len(config.get("metadata_cols", []))
+
+        # Image branch (CNN)
+        self.conv_layers = nn.Sequential(
+            # First convolutional block
+            nn.Conv2d(3, config['conv1_channels'],
+                      kernel_size=config['conv_kernel'], padding='same'),
+            nn.ReLU(),
+            nn.Conv2d(config['conv1_channels'], config['conv1_channels'],
+                      kernel_size=config['conv_kernel'], padding='same'),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Dropout2d(config['conv_dropout1']),
+
+            # Second convolutional block
+            nn.Conv2d(config['conv1_channels'], config['conv2_channels'],
+                      kernel_size=config['conv_kernel'], padding='same'),
+            nn.ReLU(),
+            nn.Conv2d(config['conv2_channels'], config['conv2_channels'],
+                      kernel_size=config['conv_kernel'], padding='same'),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=4, stride=4),
+            nn.Dropout2d(config['conv_dropout2']),
+            nn.Flatten()
+        )
+        self.conv_feature_dim = config['conv2_channels'] * (config['image_size'] // 8) ** 2
+
+        # Metadata branch
+        self.metadata_branch = nn.Sequential(
+            nn.BatchNorm1d(num_metadata_features),
+            nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
+            nn.ReLU(),
+            nn.Dropout(config['meta_dropout']),
+            nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),
+            nn.ReLU()
+        )
+
+        combined_input_features = self.conv_feature_dim + config['meta_fc2_neurons']
+        self.combined_head = nn.Sequential(
+            nn.Linear(combined_input_features, config['comb_fc_neurons']),
+            nn.ReLU(),
+            nn.Dropout(config['comb_dropout']),
+            nn.Linear(config['comb_fc_neurons'], 1),
+        )
+
+    def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
+        conv_features = self.conv_layers(image_input)
+        meta_features = self.metadata_branch(metadata_input)
+        combined_features = torch.cat((conv_features, meta_features), dim=1)
+        logits = self.combined_head(combined_features)
+        return logits
+
+
 class um_nn(nn.Module):
     def __init__(self, config):
         super(um_nn, self).__init__()
