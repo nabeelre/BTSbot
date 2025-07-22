@@ -241,10 +241,16 @@ class mm_ResNet(nn.Module):
         num_metadata_features = len(config.get("metadata_cols", []))
 
         # Image branch (ResNet)
-        self.resnet_backbone = timm.create_model(model_kind,
-                                                 pretrained=config.get('pretrained', True))
-        self.resnet_feature_dim = self.resnet_backbone.fc.in_features
-        # Add global pool and norm to head when using larger legacy survey images
+        self.resnet_backbone = timm.create_model(
+            model_kind, pretrained=config.get('pretrained', True)
+        )
+        try:
+            self.resnet_feature_dim = self.resnet_backbone.fc.in_features
+        except AttributeError:
+            if model_kind == "hf_hub:mwalmsley/zoobot-encoder-resnet18":
+                self.resnet_feature_dim = 512
+            else:
+                raise NotImplementedError("Model kind not yet supported", model_kind)
         self.resnet_backbone.fc = nn.Identity()
 
         # Metadata branch
