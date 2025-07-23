@@ -16,7 +16,7 @@ def download_image_batch(batch):
         try:
             url = "https://www.legacysurvey.org/viewer/jpeg-cutout?" + \
                 f"ra={source['ra']}&dec={source['dec']}&" + \
-                  "size=112&layer=ls-dr10&pixscale=0.5&bands=griy"
+                  "size=63&layer=ls-dr10&pixscale=1&bands=griy"
 
             response = requests.get(url)
             image = Image.open(io.BytesIO(response.content))
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         description='Process LS dataset with specified split and version'
     )
     parser.add_argument(
-        '--split', type=str, default='train', choices=['train', 'val', 'test'],
+        '--split', type=str, default='train', choices=['train', 'val', 'test', 'all'],
         help='Dataset split to process (default: train)'
     )
     parser.add_argument(
@@ -98,23 +98,29 @@ if __name__ == "__main__":
     version = args.version
     workers = args.workers
 
-    cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv", index_col=None)
-    cand[['objectId', 'ra', 'dec']]
+    if split == "all":
+        splits = ['train', 'val', 'test']
+    else:
+        splits = [split]
 
-    cand, img_cache = build_LS_image_cache(cand, show_images=False, max_workers=workers)
+    for split in splits:
+        cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv", index_col=None)
+        cand[['objectId', 'ra', 'dec']]
 
-    LS_imgs = np.zeros((len(cand), 112, 112, 3), dtype=np.float16)
-    for idx in cand.index:
-        obj = cand.loc[idx]
-        LS_imgs[idx] = img_cache[obj['objectId']]
+        cand, img_cache = build_LS_image_cache(cand, show_images=False, max_workers=workers)
 
-    cand.to_csv(f"data/{split}_cand_{version}LS_N100.csv", index=False)
-    np.save(f"data/{split}_triplets_{version}LS_N100.npy", LS_imgs)
+        LS_imgs = np.zeros((len(cand), 112, 112, 3), dtype=np.float16)
+        for idx in cand.index:
+            obj = cand.loc[idx]
+            LS_imgs[idx] = img_cache[obj['objectId']]
 
-    print(f"ratio of missing LS: {np.sum(cand['missing_LS'])/len(cand)}")
+        cand.to_csv(f"data/{split}_cand_{version}LS63_N100.csv", index=False)
+        np.save(f"data/{split}_triplets_{version}LS63_N100.npy", LS_imgs)
 
-    LS_imgs = LS_imgs[~cand['missing_LS']]
-    cand = cand[~cand['missing_LS']]
+        print(f"ratio of missing LS: {np.sum(cand['missing_LS'])/len(cand)}")
 
-    cand.to_csv(f"data/{split}_cand_{version}LSnd_N100.csv", index=False)
-    np.save(f"data/{split}_triplets_{version}LSnd_N100.npy", LS_imgs)
+        LS_imgs = LS_imgs[~cand['missing_LS']]
+        cand = cand[~cand['missing_LS']]
+
+        cand.to_csv(f"data/{split}_cand_{version}LS63nd_N100.csv", index=False)
+        np.save(f"data/{split}_triplets_{version}LS63nd_N100.npy", LS_imgs)
