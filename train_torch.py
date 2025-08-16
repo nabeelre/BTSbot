@@ -16,6 +16,27 @@ from torch.utils.data import DataLoader
 from torch.nn.parallel import DataParallel
 import torchvision.transforms.v2 as transforms
 
+# NVTX for profiling
+try:
+    import torch.cuda.nvtx as nvtx
+    NVTX_AVAILABLE = True
+except ImportError:
+    print("Warning: NVTX not available. Install with: pip install nvtx")
+    NVTX_AVAILABLE = False
+
+
+def nvtx_range_start(name):
+    """Start an NVTX range if NVTX is available."""
+    if NVTX_AVAILABLE:
+        nvtx.range_push(name)
+
+
+def nvtx_range_end():
+    """End an NVTX range if NVTX is available."""
+    if NVTX_AVAILABLE:
+        nvtx.range_pop()
+
+
 from torch_utils import RandomRightAngleRotation, make_report, FlexibleDataset
 from generate_embeddings import get_torch_embedding
 import architectures_torch as architectures
@@ -129,6 +150,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # /-----------------------------/
     #       LOAD TRAINING DATA
     # /-----------------------------/
+    nvtx_range_start("Data Preprocessing")
 
     cand = pd.read_csv(f'{data_base_dir}data/train_cand_{dataset_version}{N_str}.csv')
     labels_tensor = torch.tensor(cand["label"].values, dtype=torch.long)
@@ -205,9 +227,11 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     bts_weight = torch.FloatTensor([num_notbts / num_bts]).to(device)
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
 
+    nvtx_range_end()
     # /-----------------------------------/
     #    MODEL, OPTIMIZER, & LOSS SET UP
     # /-----------------------------------/
+    nvtx_range_start("Model Creation")
 
     try:
         model_type = getattr(architectures, model_name)
@@ -251,6 +275,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     if data_base_dir != "":
         print(f"Using data from {data_base_dir}")
 
+    nvtx_range_end()
     # /-----------------------------/
     #         CONNECT WandB
     # /-----------------------------/
@@ -271,6 +296,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # /----------------------/
     #          TRAIN
     # /----------------------/
+    nvtx_range_start("Training Loop")
 
     train_losses, train_accs, val_losses, val_accs \
         = [np.zeros(epochs) for _ in range(4)]
@@ -301,9 +327,11 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             torch.save(model.state_dict(), os.path.join(model_dir, "latest_model.pth"))
 
         # Run validation data through model, compute loss and accuracy
+        nvtx_range_start("Validation")
         epoch_val_loss, epoch_val_acc, val_raw_preds, val_labels = val.run_val(
             config, model_dir, "latest_model.pth", bts_weight, need_triplets, need_metadata
         )
+        nvtx_range_end()
         val_losses[epoch] = epoch_val_loss
         val_accs[epoch] = epoch_val_acc
         print(
@@ -313,10 +341,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         )
 
         # Step the learning rate scheduler
+        nvtx_range_start("Scheduler Step")
         scheduler.step()
-        # if optimizer.param_groups[0]['lr'] != current_lr:
-        #     current_lr = optimizer.param_groups[0]['lr']
-        #     print(f"       {BOLD}{BLUE}LR decreased to {current_lr}{END}")
+        nvtx_range_end()
 
         # If val loss improved (by at least 0.5%), save model
         prev_best_val_loss = min([np.inf] + list(val_losses[:epoch]))
@@ -400,6 +427,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     plt.clf()
     plt.close()
 
+    nvtx_range_end()
+
     print(BOLD + '============ Summary =============' + END)
     print(f'Best val loss: {min(val_losses[:epoch+1]):.5f}')
     print(f'Best val accuracy: {max(val_accs[:epoch+1]):.5f}')
@@ -462,6 +491,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
     # Iterate of batches of training data
     for i in range(num_batches):
+        nvtx_range_start(f"Batch {i+1}/{num_batches}")
         # Clear gradients, run model on batch, and compute loss
         model.zero_grad()
 
@@ -470,6 +500,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
         images_batch, meta_batch, labels_batch = None, None, None
 
+        nvtx_range_start("Forward Pass")
         if need_triplets and need_metadata:
             images_batch, meta_batch, labels_batch = data_items
             images_batch = images_batch.to(device, non_blocking=True)
@@ -488,11 +519,18 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
             logits = model(input_data=meta_batch)
 
         labels_batch = labels_batch.unsqueeze(1).to(device, non_blocking=True).float()
+        nvtx_range_end()
 
         # Compute loss, backpropogate, and take step in gradient descent
         batch_train_loss = loss_fn(logits, labels_batch)
+
+        nvtx_range_start("Backward Pass")
         batch_train_loss.backward()
+        nvtx_range_end()
+
+        nvtx_range_start("Optimizer Step")
         optimizer.step()
+        nvtx_range_end()
 
         # Compute scores from logits
         raw_preds = torch.sigmoid(logits)
@@ -513,6 +551,7 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
             i + 1, num_batches,
             batch_train_loss.item(), batch_train_acc.item(),
         )
+        nvtx_range_end()
 
     # Compute loss for all batches of val
     epoch_loss = loss_fn(
