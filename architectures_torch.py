@@ -310,7 +310,7 @@ class mm_cnn(nn.Module):
             nn.Dropout2d(config['conv_dropout2']),
             nn.Flatten()
         )
-        self.conv_feature_dim = config['conv2_channels'] * (config['image_size'] // 8) ** 2
+        self.conv_feature_dim = config['conv2_channels'] * (config.get('image_size', 63) // 8) ** 2
 
         # Metadata branch
         self.metadata_branch = nn.Sequential(
@@ -368,7 +368,7 @@ class um_cnn(nn.Module):
             nn.Flatten()
         )
         
-        conv_feature_dim = config['conv2_channels'] * (config['image_size'] // 8) ** 2
+        conv_feature_dim = config['conv2_channels'] * (config.get('image_size', 63) // 8) ** 2
         
         # Classification head
         self.head = nn.Sequential(
