@@ -108,10 +108,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     beta2 = config['beta_2']
     patience = config['patience']
 
-    h_flip = bool(config["data_aug_h_flip"])
-    v_flip = bool(config["data_aug_v_flip"])
-    rot = bool(config["data_aug_rot"])
-
     random_state = config['random_seed']
     dataset_version = config['train_data_version']
     if sys.platform != 'darwin':  # If not on macOS, use quest path
@@ -199,6 +195,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # Data augmentations
     transforms_list = []
     if need_triplets:  # Only add image transforms if triplets are needed
+        h_flip = bool(config["data_aug_h_flip"])
+        v_flip = bool(config["data_aug_v_flip"])
+        rot = bool(config["data_aug_rot"])
+
         transforms_list.append(transforms.ToDtype(torch.float32))
         if h_flip:
             transforms_list.append(transforms.RandomHorizontalFlip(p=0.5))
