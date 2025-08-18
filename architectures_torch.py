@@ -33,7 +33,7 @@ class SwinV2(nn.Module):
             nn.GELU(),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
             nn.GELU(),
-            nn.Dropout(config['dropout1']),
+            nn.Dropout(config['dropout']),
             nn.Linear(config['fc2_neurons'], 1),
         )
 
@@ -98,7 +98,7 @@ class MaxViT(nn.Module):
             nn.GELU(),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
             nn.GELU(),
-            nn.Dropout(config['dropout1']),
+            nn.Dropout(config['dropout']),
             nn.Linear(config['fc2_neurons'], 1),
         )
 
@@ -177,7 +177,7 @@ class ConvNeXt(nn.Module):
             nn.GELU(),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
             nn.GELU(),
-            nn.Dropout(config['dropout1']),
+            nn.Dropout(config['dropout']),
             nn.Linear(config['fc2_neurons'], 1),
         )
 
@@ -374,7 +374,7 @@ class um_cnn(nn.Module):
             nn.ReLU(),
             nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
             nn.ReLU(),
-            nn.Dropout(config['dropout1']),
+            nn.Dropout(config['dropout']),
             nn.Linear(config['fc2_neurons'], 1)
         )
 
