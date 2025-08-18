@@ -324,10 +324,12 @@ class mm_cnn(nn.Module):
 
         combined_input_features = self.conv_feature_dim + config['meta_fc2_neurons']
         self.combined_head = nn.Sequential(
-            nn.Linear(combined_input_features, config['comb_fc_neurons']),
+            nn.Linear(combined_input_features, config['comb_fc1_neurons']),
+            nn.ReLU(),
+            nn.Linear(config['comb_fc1_neurons'], config['comb_fc2_neurons']),
             nn.ReLU(),
             nn.Dropout(config['comb_dropout']),
-            nn.Linear(config['comb_fc_neurons'], 1),
+            nn.Linear(config['comb_fc2_neurons'], 1)
         )
 
     def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
