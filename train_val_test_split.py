@@ -275,7 +275,7 @@ def subsample_data(split, version, perc_to_keep=10, random_seed=2):
 
 
 if __name__ == "__main__":
-    version = "v11"
+    version = "v12"
 
     # cut_set_and_assign_splits("trues", only_pd_gr_ps, version_name=version)
     # cut_set_and_assign_splits("dims", only_pd_gr_ps, version_name=version)
@@ -299,10 +299,10 @@ if __name__ == "__main__":
     # create_subset("val", version_name=version, N_max_p=100, N_max_n=100)
     # create_subset("test", version_name=version, N_max_p=100, N_max_n=100)
 
-    subsample_data("train", "v11", perc_to_keep=10)
-    subsample_data("val", "v11", perc_to_keep=10)
-    subsample_data("test", "v11", perc_to_keep=10)
+    subsample_data("train", version, perc_to_keep=10)
+    subsample_data("val", version, perc_to_keep=10)
+    subsample_data("test", version, perc_to_keep=10)
 
-    subsample_data("train", "v11", perc_to_keep=50)
-    subsample_data("val", "v11", perc_to_keep=50)
-    subsample_data("test", "v11", perc_to_keep=50)
+    subsample_data("train", version, perc_to_keep=50)
+    subsample_data("val", version, perc_to_keep=50)
+    subsample_data("test", version, perc_to_keep=50)

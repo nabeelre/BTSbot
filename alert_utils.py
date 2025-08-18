@@ -403,10 +403,10 @@ def prep_alerts(alerts, label, new_drb):
             alert_df.loc[idx_cur, "days_since_peak"] = alert_df.loc[idx_cur, "jd"] - jd_peak_so_far
             alert_df.loc[idx_cur, "days_to_peak"] = jd_peak_so_far - jd_first_alert
 
-        # nondet_jd, nondet_diffmaglim = query_nondet(objid, np.min(obj_alerts['jd']))
+        nondet_jd, nondet_diffmaglim = query_nondet(objid, np.min(obj_alerts['jd']))
 
-        # alert_df.loc[alert_df['objectId'] == objid, "last_nondet_jd"] = nondet_jd
-        # alert_df.loc[alert_df['objectId'] == objid, "last_nondet_diffmaglim"] = nondet_diffmaglim
+        alert_df.loc[alert_df['objectId'] == objid, "last_nondet_jd"] = nondet_jd
+        alert_df.loc[alert_df['objectId'] == objid, "last_nondet_diffmaglim"] = nondet_diffmaglim
 
         # first_det_mag = obj_alerts.sort_values("jd", ascending=True).iloc[0]['magpsf']
 
