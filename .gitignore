@@ -186,3 +186,10 @@ embeddings/
 old_configs/
 *train*.sh
 *sweep*.sh
+pretraining_sweeps/
+LS_dataset.ipynb
+test.csv
+zeroshot_classification.py
+zero_shot_classification.ipynb
+*latent_space*
+train_configs/LS*

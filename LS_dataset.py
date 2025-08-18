@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
         cand, img_cache = build_LS_image_cache(cand, show_images=False, max_workers=workers)
 
-        LS_imgs = np.zeros((len(cand), 112, 112, 3), dtype=np.float16)
+        LS_imgs = np.zeros((len(cand), 63, 63, 3), dtype=np.float16)
         for idx in cand.index:
             obj = cand.loc[idx]
             LS_imgs[idx] = img_cache[obj['objectId']]
