@@ -438,7 +438,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     make_report(config, f"{model_dir}/report.json", run_data, val_summ)
 
     # Clean up all large objects
-    del triplets_tensor, triplets_np, metadata_tensor, labels_tensor, dataset
+    if need_triplets:
+        del triplets_np, triplets_tensor
+    del metadata_tensor, labels_tensor, dataset
     del dataloader, model, optimizer, loss_fn, cand, run_data
     del train_losses, train_accs, val_losses, val_accs
     del best_raw_preds, best_val_labels
