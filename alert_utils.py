@@ -5,6 +5,7 @@ from astropy.io import fits
 import tensorflow as tf
 import pandas as pd
 import numpy as np
+import tqdm
 import gzip
 import json
 import sys
@@ -300,12 +301,25 @@ def query_nondet(objid, first_alert_jd):
 
     r = k.query(query)
 
-    # elements of prv_candidates
-    prv = pd.DataFrame(r['data'][0]['prv_candidates'])
+    nondet_lc = r['kowalski']['data']
+    
+    # Empty if the source has never had non-detections
+    if len(nondet_lc) == 0:
+        return np.nan, np.nan
+
+    prv = pd.DataFrame(nondet_lc[0]['prv_candidates'])
+
+    # if only non-detections found
+    if 'magpsf' not in prv.columns:
+        prv['magpsf'] = np.nan
+    
+    if 'jd' not in prv.columns:
+        return np.nan, np.nan
 
     # non-detections before first detection
     leading_nondets = prv[np.isnan(prv['magpsf']) & (prv['jd'] < first_alert_jd)]
 
+    # if no leading non-detections found
     if len(leading_nondets) == 0:
         return np.nan, np.nan
 
@@ -373,7 +387,7 @@ def prep_alerts(alerts, label, new_drb):
 
     alert_df["nnotdet"] = alert_df["ncovhist"] - alert_df["ndethist"]
 
-    for objid in pd.unique(alert_df['objectId']):
+    for objid in tqdm.tqdm(pd.unique(alert_df['objectId'])):
         obj_alerts = alert_df.loc[alert_df["objectId"] == objid].sort_values(by="jd")
 
         peakmag = np.min(obj_alerts["magpsf"])

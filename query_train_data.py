@@ -79,6 +79,15 @@ def query_kowalski(ZTFID, kowalski, programid, include_cutouts: bool = True,
         return None
 
     alerts = []
+    
+    if include_cutouts:
+        cutout_query_dict = {
+            "cutoutScience": 1,
+            "cutoutTemplate": 1,
+            "cutoutDifference": 1
+        }
+    else:
+        cutout_query_dict = {}
 
     # For each object requested ...
     for ZTFID in list_ZTFID:
@@ -181,11 +190,7 @@ def query_kowalski(ZTFID, kowalski, programid, include_cutouts: bool = True,
                     "classifications.acai_n": 1,
                     "classifications.acai_b": 1,
                     "classifications.bts": 1,
-
-                    "cutoutScience": int(include_cutouts),
-                    "cutoutTemplate": int(include_cutouts),
-                    "cutoutDifference": int(include_cutouts),
-                }
+                } | cutout_query_dict
             }
         }
 
@@ -326,28 +331,20 @@ def download_training_data(query_df, query_name, label,
 
     # Query programid=1 and 2 alerts from kowalski for all ZTFIDs and separate
     # their triplets from the rest of their alert packets
+    query_response = query_kowalski(
+        query_df['ZTFID'].to_list(), k, programid=1,
+        include_cutouts=include_cutouts, normalize=normalize_cutouts,
+        verbose=verbose, save_raw=save_raw, load_raw=load_raw
+    ) + query_kowalski(
+        query_df['ZTFID'].to_list(), k, programid=2,
+        include_cutouts=include_cutouts, normalize=normalize_cutouts,
+        verbose=verbose, save_raw=save_raw, load_raw=load_raw
+    )
+    
     if include_cutouts:
-        alerts, triplets = extract_triplets(
-            query_kowalski(
-                query_df['ZTFID'].to_list(), k, programid=1,
-                include_cutouts=include_cutouts, normalize=normalize_cutouts,
-                verbose=verbose, save_raw=save_raw, load_raw=load_raw
-            ) + query_kowalski(
-                query_df['ZTFID'].to_list(), k, programid=2,
-                include_cutouts=include_cutouts, normalize=normalize_cutouts,
-                verbose=verbose, save_raw=save_raw, load_raw=load_raw
-            )
-        )
+        alerts, triplets = extract_triplets(query_response)
     else:
-        alerts = query_kowalski(
-            query_df['ZTFID'].to_list(), k, 1,
-            normalize=normalize_cutouts, verbose=verbose,
-            save_raw=save_raw, load_raw=load_raw
-        ) + query_kowalski(
-            query_df['ZTFID'].to_list(), k, 2,
-            normalize=normalize_cutouts, verbose=verbose,
-            save_raw=save_raw, load_raw=load_raw
-        )
+        alerts = query_response
 
     num_alerts = len(alerts)
 
