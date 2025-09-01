@@ -343,33 +343,33 @@ class mm_cnn(nn.Module):
 class um_cnn(nn.Module):
     def __init__(self, config):
         super(um_cnn, self).__init__()
-        
+
         # CNN backbone
         self.conv_layers = nn.Sequential(
             # First convolutional block
             nn.Conv2d(3, config['conv1_channels'],
-                     kernel_size=config['conv_kernel'], padding='same'),
+                      kernel_size=config['conv_kernel'], padding='same'),
             nn.ReLU(),
             nn.Conv2d(config['conv1_channels'], config['conv1_channels'],
-                     kernel_size=config['conv_kernel'], padding='same'),
+                      kernel_size=config['conv_kernel'], padding='same'),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Dropout2d(config['conv_dropout1']),
 
             # Second convolutional block
             nn.Conv2d(config['conv1_channels'], config['conv2_channels'],
-                     kernel_size=config['conv_kernel'], padding='same'),
+                      kernel_size=config['conv_kernel'], padding='same'),
             nn.ReLU(),
             nn.Conv2d(config['conv2_channels'], config['conv2_channels'],
-                     kernel_size=config['conv_kernel'], padding='same'),
+                      kernel_size=config['conv_kernel'], padding='same'),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=4, stride=4),
             nn.Dropout2d(config['conv_dropout2']),
             nn.Flatten()
         )
-        
+
         conv_feature_dim = config['conv2_channels'] * (config.get('image_size', 63) // 8) ** 2
-        
+
         # Classification head
         self.head = nn.Sequential(
             nn.Linear(conv_feature_dim, config['fc1_neurons']),
