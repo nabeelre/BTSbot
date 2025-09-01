@@ -97,7 +97,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
     use_test_split = config.get('use_test_split', False)
-    use_test_split = True # TODO, REVERT THIS TEMP LINE
+    use_test_split = True  # TODO, REVERT THIS TEMP LINE
 
     # Set random seeds for reproducibility
     np.random.seed(random_state)
@@ -355,8 +355,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         if split == "test":
             # Overwrites best_raw_preds and best_val_labels created earlier
             # Okay to overwrite because test analysis done after val analysis
-            _, _, best_raw_preds, best_val_labels = val.run_val(
-                config, model_dir, "best_model.pth", bts_weight, need_triplets, need_metadata, split="test"
+            test_acc, test_loss, best_raw_preds, best_val_labels = val.run_val(
+                config, model_dir, "best_model.pth", bts_weight,
+                need_triplets, need_metadata, split="test"
             )
 
         summary = val.diagnostic_fig(
@@ -379,6 +380,10 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
                 return 2 * precision * recall / (precision + recall + 1e-7)
             prefix = "" if split == "val" else "test_"
 
+            if split == "test":
+                wandb.summary["test_acc"] = test_acc
+                wandb.summary["test_loss"] = test_loss
+
             wandb.summary[prefix + 'ROC_AUC'] = summary['roc_auc']
             wandb.summary[prefix + 'bal_acc'] = summary['bal_acc']
             wandb.summary[prefix + 'bts_acc'] = summary['bts_acc']
@@ -386,7 +391,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
             wandb.summary[prefix + 'alert_precision'] = summary['alert_precision']
             wandb.summary[prefix + 'alert_recall'] = summary['alert_recall']
-            wandb.summary[prefix + 'alert_F1'] = F1(summary['alert_precision'], summary['alert_recall'])
+            wandb.summary[prefix + 'alert_F1'] = F1(
+                summary['alert_precision'], summary['alert_recall']
+            )
 
             for pol_name in list(summary['policy_performance']):
                 perf = summary['policy_performance'][pol_name]
