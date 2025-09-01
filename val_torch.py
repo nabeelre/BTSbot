@@ -28,7 +28,7 @@ else:
 
 
 def run_val(config, model_dir, model_filename,
-            bts_weight, need_triplets, need_metadata):
+            bts_weight, need_triplets, need_metadata, split="val"):
     # Check for multiple GPUs
     multiple_GPUs = torch.cuda.device_count() > 1
 
@@ -74,15 +74,15 @@ def run_val(config, model_dir, model_filename,
     #       LOAD DATA
     # /--------------------/
 
-    cand_path = f'{data_base_dir}data/val_cand_{dataset_version}{N_str}.csv'
+    cand_path = f'{data_base_dir}data/{split}_cand_{dataset_version}{N_str}.csv'
     cand = pd.read_csv(cand_path, index_col=None)
     labels_tensor = torch.tensor(cand['label'].values, dtype=torch.long)
 
     triplets_tensor = None
     if need_triplets:
-        triplets_file_path = f'{data_base_dir}data/val_triplets_{dataset_version}{N_str}.npy'
+        triplets_file_path = f'{data_base_dir}data/{split}_triplets_{dataset_version}{N_str}.npy'
         if not path.exists(triplets_file_path):
-            print(f"Triplets file not found for validation: {triplets_file_path}")
+            print(f"Triplets file not found for {split}: {triplets_file_path}")
             exit(1)
         triplets_np = np.load(triplets_file_path).astype(np.float32)
         triplets_np = np.transpose(triplets_np, (0, 3, 1, 2))
@@ -92,7 +92,7 @@ def run_val(config, model_dir, model_filename,
     if need_metadata:
         metadata_values = cand[metadata_cols].values.astype(np.float32)
         if np.isnan(metadata_values).any():
-            print("NaNs found in validation metadata columns")
+            print(f"NaNs found in {split} metadata columns")
         metadata_tensor = torch.tensor(metadata_values)
 
     dataset = FlexibleDataset(

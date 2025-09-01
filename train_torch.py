@@ -16,27 +16,6 @@ from torch.utils.data import DataLoader
 from torch.nn.parallel import DataParallel
 import torchvision.transforms.v2 as transforms
 
-# NVTX for profiling
-try:
-    import torch.cuda.nvtx as nvtx
-    NVTX_AVAILABLE = True
-except ImportError:
-    print("Warning: NVTX not available. Install with: pip install nvtx")
-    NVTX_AVAILABLE = False
-
-
-def nvtx_range_start(name):
-    """Start an NVTX range if NVTX is available."""
-    if NVTX_AVAILABLE:
-        nvtx.range_push(name)
-
-
-def nvtx_range_end():
-    """End an NVTX range if NVTX is available."""
-    if NVTX_AVAILABLE:
-        nvtx.range_pop()
-
-
 from torch_utils import RandomRightAngleRotation, make_report, FlexibleDataset
 from generate_embeddings import get_torch_embedding
 import architectures_torch as architectures
@@ -117,6 +96,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
+    use_test_split = config.get('use_test_split', False)
+    use_test_split = True # TODO, REVERT THIS TEMP LINE
 
     # Set random seeds for reproducibility
     np.random.seed(random_state)
@@ -146,8 +127,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # /-----------------------------/
     #       LOAD TRAINING DATA
     # /-----------------------------/
-    nvtx_range_start("Data Preprocessing")
-
     cand = pd.read_csv(f'{data_base_dir}data/train_cand_{dataset_version}{N_str}.csv')
     labels_tensor = torch.tensor(cand["label"].values, dtype=torch.long)
 
@@ -227,11 +206,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     bts_weight = torch.FloatTensor([num_notbts / num_bts]).to(device)
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=bts_weight).to(device)
 
-    nvtx_range_end()
     # /-----------------------------------/
     #    MODEL, OPTIMIZER, & LOSS SET UP
     # /-----------------------------------/
-    nvtx_range_start("Model Creation")
 
     try:
         model_type = getattr(architectures, model_name)
@@ -275,7 +252,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     if data_base_dir != "":
         print(f"Using data from {data_base_dir}")
 
-    nvtx_range_end()
     # /-----------------------------/
     #         CONNECT WandB
     # /-----------------------------/
@@ -296,7 +272,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # /----------------------/
     #          TRAIN
     # /----------------------/
-    nvtx_range_start("Training Loop")
 
     train_losses, train_accs, val_losses, val_accs \
         = [np.zeros(epochs) for _ in range(4)]
@@ -327,11 +302,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             torch.save(model.state_dict(), os.path.join(model_dir, "latest_model.pth"))
 
         # Run validation data through model, compute loss and accuracy
-        nvtx_range_start("Validation")
         epoch_val_loss, epoch_val_acc, val_raw_preds, val_labels = val.run_val(
             config, model_dir, "latest_model.pth", bts_weight, need_triplets, need_metadata
         )
-        nvtx_range_end()
         val_losses[epoch] = epoch_val_loss
         val_accs[epoch] = epoch_val_acc
         print(
@@ -341,9 +314,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         )
 
         # Step the learning rate scheduler
-        nvtx_range_start("Scheduler Step")
         scheduler.step()
-        nvtx_range_end()
 
         # If val loss improved (by at least 0.5%), save model
         prev_best_val_loss = min([np.inf] + list(val_losses[:epoch]))
@@ -379,63 +350,71 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
             })
 
     # Create figure
-    val_summ = val.diagnostic_fig(
-        run_data={
-            "type": model_name,
-            "raw_preds": best_raw_preds,
-            "labels": best_val_labels,
-            "run_name": run_name,
-            "loss": train_losses[:epoch + 1],
-            "accuracy": train_accs[:epoch + 1],
-            "val_loss": val_losses[:epoch + 1],
-            "val_accuracy": val_accs[:epoch + 1],
-        },
-        run_descriptor=model_dir,
-        cand_dir=f'{data_base_dir}data/val_cand_{dataset_version}{N_str}.csv'
-    )
-
-    if not config.get('testing', False):
-        def F1(precision, recall):
-            return 2 * precision * recall / (precision + recall + 1e-7)
-
-        wandb.summary['ROC_AUC'] = val_summ['roc_auc']
-        wandb.summary['bal_acc'] = val_summ['bal_acc']
-        wandb.summary['bts_acc'] = val_summ['bts_acc']
-        wandb.summary['notbts_acc'] = val_summ['notbts_acc']
-
-        wandb.summary['alert_precision'] = val_summ['alert_precision']
-        wandb.summary['alert_recall'] = val_summ['alert_recall']
-        wandb.summary['alert_F1'] = F1(val_summ['alert_precision'], val_summ['alert_recall'])
-
-        for pol_name in list(val_summ['policy_performance']):
-            perf = val_summ['policy_performance'][pol_name]
-
-            wandb.summary[pol_name + "_precision"] = perf['policy_precision']
-            wandb.summary[pol_name + "_recall"] = perf['policy_recall']
-            wandb.summary[pol_name + "_binned_precision"] = perf['binned_precision']
-            wandb.summary[pol_name + "_binned_recall"] = perf['binned_recall']
-            wandb.summary[pol_name + "_peakmag_bins"] = perf['peakmag_bins']
-
-            wandb.summary[pol_name + "_save_dt"] = perf['med_save_dt']
-            wandb.summary[pol_name + "_trigger_dt"] = perf['med_trigger_dt']
-
-            wandb.summary[pol_name + "_F1"] = F1(
-                perf['policy_precision'],
-                perf['policy_recall']
+    final_analysis_splits = ["val"] + (["test"] if use_test_split else [])
+    for split in final_analysis_splits:
+        if split == "test":
+            # Overwrites best_raw_preds and best_val_labels created earlier
+            # Okay to overwrite because test analysis done after val analysis
+            _, _, best_raw_preds, best_val_labels = val.run_val(
+                config, model_dir, "best_model.pth", bts_weight, need_triplets, need_metadata, split="test"
             )
-        wandb.log({"figure": wandb.Image(val_summ['fig'])})
-    plt.clf()
-    plt.close()
 
-    nvtx_range_end()
+        summary = val.diagnostic_fig(
+            run_data={
+                "type": model_name,
+                "raw_preds": best_raw_preds,
+                "labels": best_val_labels,
+                "run_name": run_name,
+                "loss": train_losses[:epoch + 1],
+                "accuracy": train_accs[:epoch + 1],
+                "val_loss": val_losses[:epoch + 1],
+                "val_accuracy": val_accs[:epoch + 1],
+            },
+            run_descriptor=model_dir,
+            cand_dir=f'{data_base_dir}data/{split}_cand_{dataset_version}{N_str}.csv'
+        )
+
+        if not config.get('testing', False):
+            def F1(precision, recall):
+                return 2 * precision * recall / (precision + recall + 1e-7)
+            prefix = "" if split == "val" else "test_"
+
+            wandb.summary[prefix + 'ROC_AUC'] = summary['roc_auc']
+            wandb.summary[prefix + 'bal_acc'] = summary['bal_acc']
+            wandb.summary[prefix + 'bts_acc'] = summary['bts_acc']
+            wandb.summary[prefix + 'notbts_acc'] = summary['notbts_acc']
+
+            wandb.summary[prefix + 'alert_precision'] = summary['alert_precision']
+            wandb.summary[prefix + 'alert_recall'] = summary['alert_recall']
+            wandb.summary[prefix + 'alert_F1'] = F1(summary['alert_precision'], summary['alert_recall'])
+
+            for pol_name in list(summary['policy_performance']):
+                perf = summary['policy_performance'][pol_name]
+
+                wandb.summary[prefix + pol_name + "_precision"] = perf['policy_precision']
+                wandb.summary[prefix + pol_name + "_recall"] = perf['policy_recall']
+                wandb.summary[prefix + pol_name + "_binned_precision"] = perf['binned_precision']
+                wandb.summary[prefix + pol_name + "_binned_recall"] = perf['binned_recall']
+                wandb.summary[prefix + pol_name + "_peakmag_bins"] = perf['peakmag_bins']
+
+                wandb.summary[prefix + pol_name + "_save_dt"] = perf['med_save_dt']
+                wandb.summary[prefix + pol_name + "_trigger_dt"] = perf['med_trigger_dt']
+
+                wandb.summary[prefix + pol_name + "_F1"] = F1(
+                    perf['policy_precision'],
+                    perf['policy_recall']
+                )
+            wandb.log({prefix + "figure": wandb.Image(summary['fig'])})
+        plt.clf()
+        plt.close()
 
     print(BOLD + '============ Summary =============' + END)
     print(f'Best val loss: {min(val_losses[:epoch+1]):.5f}')
     print(f'Best val accuracy: {max(val_accs[:epoch+1]):.5f}')
     print(f'Model diagnostics at {model_dir}\n')
 
-    val_summ.pop("fig", None)
-    make_report(config, f"{model_dir}/report.json", run_data, val_summ)
+    summary.pop("fig", None)
+    make_report(config, f"{model_dir}/report.json", run_data, summary)
 
     # Clean up all large objects
     if need_triplets:
@@ -493,7 +472,6 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
     # Iterate of batches of training data
     for i in range(num_batches):
-        nvtx_range_start(f"Batch {i+1}/{num_batches}")
         # Clear gradients, run model on batch, and compute loss
         model.zero_grad()
 
@@ -502,7 +480,6 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
 
         images_batch, meta_batch, labels_batch = None, None, None
 
-        nvtx_range_start("Forward Pass")
         if need_triplets and need_metadata:
             images_batch, meta_batch, labels_batch = data_items
             images_batch = images_batch.to(device, non_blocking=True)
@@ -521,18 +498,11 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
             logits = model(input_data=meta_batch)
 
         labels_batch = labels_batch.unsqueeze(1).to(device, non_blocking=True).float()
-        nvtx_range_end()
 
         # Compute loss, backpropogate, and take step in gradient descent
         batch_train_loss = loss_fn(logits, labels_batch)
-
-        nvtx_range_start("Backward Pass")
         batch_train_loss.backward()
-        nvtx_range_end()
-
-        nvtx_range_start("Optimizer Step")
         optimizer.step()
-        nvtx_range_end()
 
         # Compute scores from logits
         raw_preds = torch.sigmoid(logits)
@@ -553,7 +523,6 @@ def train_epoch(dataloader: DataLoader, epoch: int, epochs: int,
             i + 1, num_batches,
             batch_train_loss.item(), batch_train_acc.item(),
         )
-        nvtx_range_end()
 
     # Compute loss for all batches of val
     epoch_loss = loss_fn(
@@ -581,6 +550,6 @@ if __name__ == "__main__":
             sweep_id = sys.argv[2]
         else:
             sweep_id = "4egcxmet"
-        wandb.agent(sweep_id, function=sweep_train, count=15, project="BTSbotv2")
+        wandb.agent(sweep_id, function=sweep_train, count=5, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])
