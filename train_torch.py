@@ -40,7 +40,8 @@ else:
 # Define categories for model types based on their names
 IMAGE_ONLY_MODELS = ['SwinV2', 'MaxViT', 'ConvNeXt', 'um_cnn']
 METADATA_ONLY_MODELS = ['um_nn']
-MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT', 'mm_ConvNeXt', 'mm_ResNet', 'mm_cnn']
+MULTIMODAL_MODELS = ['mm_SwinV2', 'mm_MaxViT', 'mm_ConvNeXt',
+                     'mm_ResNet', 'mm_cnn', 'frozen_fusion']
 
 
 def sweep_train(config=None):
@@ -97,7 +98,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
     use_test_split = config.get('use_test_split', False)
-    use_test_split = True  # TODO, REVERT THIS TEMP LINE
 
     # Set random seeds for reproducibility
     np.random.seed(random_state)
@@ -218,6 +218,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     if config['model_name'] == "frozen_fusion":
         # For frozen fusion, only the combined head is trained
+        print("Freezing image and metadata branches")
         for p in model.image_branch.parameters():
             p.requires_grad = False
         for p in model.meta_branch.parameters():
