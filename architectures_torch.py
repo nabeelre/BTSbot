@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
-import timm
+
 import re
+import timm
+import json
+import os.path as path
 
 
 def get_model_image_size(model_kind: str) -> int:
@@ -402,3 +405,72 @@ class um_nn(nn.Module):
 
     def forward(self, input_data: torch.Tensor) -> torch.Tensor:
         return self.network(input_data)
+
+
+class frozen_fusion(nn.Module):
+    @staticmethod
+    def remove_branch_head(model, model_name):
+        if model_name == "um_nn":
+            model.network = nn.Sequential(
+                *list(model.network.children())[:-2]
+            )
+            emb_dim = model.network[-1].out_features
+        elif model_name == "MaxViT":
+            emb_dim = model.maxvit.head[1].in_features
+            model.maxvit.head = nn.Sequential(
+                *list(model.maxvit.head.children())[0:1]
+            )
+        elif model_name == "ConvNeXt":
+            model.convnext.head = nn.Sequential(
+                *list(model.convnext.head.children())[0:3]
+            )
+            emb_dim = model.convnext.head[1].normalized_shape[0]
+        elif model_name == "um_cnn":
+            emb_dim = model.head[0].in_features
+            model.head = nn.Identity()
+        else:
+            raise ValueError(f"Model {model_name} not supported")
+
+        return model, emb_dim
+
+    @staticmethod
+    def load_BTSbot_model(model_dir):
+        with open(path.join(model_dir, "report.json"), 'r') as f:
+            train_config = json.load(f)['train_config']
+
+        try:
+            model_type = globals()[train_config['model_name']]
+        except KeyError:
+            print(f"Could not find model of name {train_config['model_name']}")
+            exit(0)
+        model = model_type(train_config)
+        model.load_state_dict(torch.load(path.join(model_dir, "best_model.pth")))
+        model, emb_dim = frozen_fusion.remove_branch_head(model, train_config['model_name'])
+
+        return model, emb_dim
+
+    def __init__(self, config):
+        super(frozen_fusion, self).__init__()
+        # Image branch
+        self.image_branch, img_emb_dim = frozen_fusion.load_BTSbot_model(config['image_model_dir'])
+
+        # Metadata branch
+        self.meta_branch, meta_emb_dim = frozen_fusion.load_BTSbot_model(config['meta_model_dir'])
+
+        # Combined branch
+        combined_dim = img_emb_dim + meta_emb_dim
+        self.combined_head = nn.Sequential(
+            nn.Linear(combined_dim, config['comb_fc1_neurons']),
+            nn.ReLU(),
+            nn.Linear(config['comb_fc1_neurons'], config['comb_fc2_neurons']),
+            nn.ReLU(),
+            nn.Dropout(config['comb_dropout']),
+            nn.Linear(config['comb_fc2_neurons'], 1)
+        )
+
+    def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
+        img_features = self.image_branch(image_input)
+        meta_features = self.meta_branch(metadata_input)
+        combined_features = torch.cat((img_features, meta_features), dim=1)
+        logits = self.combined_head(combined_features)
+        return logits

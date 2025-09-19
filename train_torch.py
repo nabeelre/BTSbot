@@ -216,9 +216,18 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         raise ValueError(f"Could not find model of name {model_name}")
     model = model_type(config).to(device)
 
-    # Unfreeze all layers
-    for p in model.parameters():
-        p.requires_grad = True
+    if config['model_name'] == "frozen_fusion":
+        # For frozen fusion, only the combined head is trained
+        for p in model.image_branch.parameters():
+            p.requires_grad = False
+        for p in model.meta_branch.parameters():
+            p.requires_grad = False
+        for p in model.combined_head.parameters():
+            p.requires_grad = True
+    else:
+        # Otherwise, unfreeze all layers
+        for p in model.parameters():
+            p.requires_grad = True
 
     # Wrap model in DataParallel if using multiple GPUs
     if multiple_GPUs:
