@@ -571,6 +571,6 @@ if __name__ == "__main__":
             sweep_id = sys.argv[2]
         else:
             sweep_id = "4egcxmet"
-        wandb.agent(sweep_id, function=sweep_train, count=5, project="BTSbotv2")
+        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])
