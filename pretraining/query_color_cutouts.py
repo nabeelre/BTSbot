@@ -1,13 +1,20 @@
 from multiprocessing import Pool, cpu_count
-import matplotlib.pyplot as plt
 from astropy.table import Table
+from functools import partial
 from PIL import Image
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import requests
 import argparse
+import sys
 import io
+
+
+if sys.platform == 'darwin':
+    base_dir = "/Users/nabeelr/Desktop/School/ZTF/BTSbot/"
+else:
+    base_dir = "/projects/b1094/rehemtulla/BTSbot/"
 
 
 def get_ps_image_table(ra, dec, filters="grizy"):
@@ -69,7 +76,7 @@ def download_image_batch(batch, survey):
     results = []
     for source in batch:
         try:
-            if survey == 'ls':
+            if survey == 'LS':
                 # Legacy Survey query
                 url = "https://www.legacysurvey.org/viewer/jpeg-cutout?" + \
                     f"ra={source['ra']}&dec={source['dec']}&" + \
@@ -82,7 +89,7 @@ def download_image_batch(batch, survey):
                 empty_image = all(32 == image_array.flatten())
                 results.append((source['objectId'], image_array, empty_image))
 
-            elif survey == 'ps':
+            elif survey == 'PS':
                 # PanSTARRS query
                 url = get_ps_url(source['ra'], source['dec'], size=252, im_format="jpeg")
                 if url is None:
@@ -109,7 +116,7 @@ def download_image_batch(batch, survey):
     return results
 
 
-def query_images(cand, survey, show_images=False, max_workers=None):
+def query_images(cand, survey, max_workers=None):
     """Query images for the given candidates from the specified survey"""
     img_cache = {}
     missing_col = f'missing_{survey.upper()}'  # "missing_PS" or "missing_LS"
@@ -132,7 +139,7 @@ def query_images(cand, survey, show_images=False, max_workers=None):
 
         # Process batches in parallel
         results = list(tqdm(
-            pool.imap(lambda batch: download_image_batch(batch, survey), batch_dicts),
+            pool.imap(partial(download_image_batch, survey=survey), batch_dicts),
             total=len(batch_dicts),
             desc=f"Downloading {survey.upper()} image batches",
             unit="batch"
@@ -146,17 +153,13 @@ def query_images(cand, survey, show_images=False, max_workers=None):
             if image_array is not None:
                 img_cache[object_id] = image_array
 
-                if show_images:
-                    plt.imshow(image_array)
-                    plt.show()
-
                 if is_empty:
                     cand.loc[cand['objectId'] == object_id, missing_col] = True
 
     return cand, img_cache
 
 
-def process_dataset(survey, split_to_process, version, workers, show_images=False):
+def process_dataset(survey, split_to_process, version, workers):
     """Process dataset for the specified survey, split, and version"""
     if split_to_process == "all":
         splits = ['train', 'val', 'test']
@@ -167,11 +170,11 @@ def process_dataset(survey, split_to_process, version, workers, show_images=Fals
         print(f"Querying {survey.upper()} for {split} split...")
 
         # Load candidate data
-        cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv", index_col=None)
+        cand = pd.read_csv(f"{base_dir}data/{split}_cand_{version}_N100.csv", index_col=None)
         cand[['objectId', 'ra', 'dec']]
 
         # Query images based on survey
-        cand, img_cache = query_images(cand, survey, show_images=show_images, max_workers=workers)
+        cand, img_cache = query_images(cand, survey, max_workers=workers)
         missing_col = f'missing_{survey.upper()}'
         survey_suffix = f'{survey.upper()}63'
 
@@ -182,8 +185,8 @@ def process_dataset(survey, split_to_process, version, workers, show_images=Fals
             imgs[idx] = img_cache[obj['objectId']]
 
         # Save with missing images
-        cand.to_csv(f"data/{split}_cand_{version}{survey_suffix}_N100.csv", index=False)
-        np.save(f"data/{split}_triplets_{version}{survey_suffix}_N100.npy", imgs)
+        cand.to_csv(f"{base_dir}data/{split}_cand_{version}{survey_suffix}_N100.csv", index=False)
+        np.save(f"{base_dir}data/{split}_triplets_{version}{survey_suffix}_N100.npy", imgs)
 
         print(f"ratio of missing {survey.upper()}: {np.sum(cand[missing_col])/len(cand)}")
 
@@ -191,8 +194,8 @@ def process_dataset(survey, split_to_process, version, workers, show_images=Fals
         imgs = imgs[~cand[missing_col]]
         cand = cand[~cand[missing_col]]
 
-        cand.to_csv(f"data/{split}_cand_{version}{survey_suffix}nd_N100.csv", index=False)
-        np.save(f"data/{split}_triplets_{version}{survey_suffix}nd_N100.npy", imgs)
+        cand.to_csv(f"{base_dir}data/{split}_cand_{version}{survey_suffix}nd_N100.csv", index=False)
+        np.save(f"{base_dir}data/{split}_triplets_{version}{survey_suffix}nd_N100.npy", imgs)
 
 
 if __name__ == "__main__":
@@ -200,8 +203,8 @@ if __name__ == "__main__":
         description='Query color cutouts from PanSTARRS or Legacy Survey'
     )
     parser.add_argument(
-        '--survey', type=str, required=True, choices=['ps', 'ls'],
-        help='Survey to query from: ps (PanSTARRS) or ls (Legacy Survey)'
+        '--survey', type=str, required=True, choices=['PS', 'LS'],
+        help='Survey to query from: PS (PanSTARRS) or LS (Legacy Survey)'
     )
     parser.add_argument(
         '--split', type=str, default='train', choices=['train', 'val', 'test', 'all'],
@@ -215,10 +218,6 @@ if __name__ == "__main__":
         '--workers', type=int, default=8,
         help='Number of workers to use for parallel processing (default: 8)'
     )
-    parser.add_argument(
-        '--show-images', action='store_true',
-        help='Display images during processing (for debugging)'
-    )
 
     args = parser.parse_args()
 
@@ -227,5 +226,4 @@ if __name__ == "__main__":
         split_to_process=args.split,
         version=args.version,
         workers=args.workers,
-        show_images=args.show_images
     )
