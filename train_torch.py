@@ -202,7 +202,8 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
         dataset=dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=4,
+        num_workers=6,
+        prefetch_factor=4,
         pin_memory=(device.type != 'mps'),
         drop_last=True
     )
@@ -571,6 +572,6 @@ if __name__ == "__main__":
             sweep_id = sys.argv[2]
         else:
             sweep_id = "4egcxmet"
-        wandb.agent(sweep_id, function=sweep_train, count=10, project="BTSbotv2")
+        wandb.agent(sweep_id, function=sweep_train, count=5, project="BTSbotv2")
     else:
         classic_train(sys.argv[1])
