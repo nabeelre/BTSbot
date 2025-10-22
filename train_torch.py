@@ -130,6 +130,7 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     cand_path = f'{data_base_dir}data/train_cand_{dataset_version}{N_str}.csv'
     if data_base_dir != "" and not os.path.exists(cand_path):
         data_base_dir = ""
+        cand_path = f'{data_base_dir}data/train_cand_{dataset_version}{N_str}.csv'
         print(f"No candidates csv found at {cand_path}. Reverting to empty data_base_dir.")
     cand = pd.read_csv(cand_path)
     labels_tensor = torch.tensor(cand["label"].values, dtype=torch.long)
