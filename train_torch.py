@@ -90,10 +90,14 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
 
     random_state = config['random_seed']
     dataset_version = config['train_data_version']
-    if sys.platform != 'darwin':  # If not on macOS, use quest path
-        data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
+    data_base_dir = ""
+    if sys.platform != 'darwin':
+        if os.path.exists(f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"):
+            data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
+        else:
+            print(f"No data found at /scratch/nrc5378/BTSbot_training_{dataset_version}/")
     else:
-        data_base_dir = ""
+        print("Running on macOS, using empty data_base_dir")
 
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
@@ -128,10 +132,6 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     #       LOAD TRAINING DATA
     # /-----------------------------/
     cand_path = f'{data_base_dir}data/train_cand_{dataset_version}{N_str}.csv'
-    if data_base_dir != "" and not os.path.exists(cand_path):
-        data_base_dir = ""
-        cand_path = f'{data_base_dir}data/train_cand_{dataset_version}{N_str}.csv'
-        print(f"No candidates csv found at {cand_path}. Reverting to empty data_base_dir.")
     cand = pd.read_csv(cand_path)
     labels_tensor = torch.tensor(cand["label"].values, dtype=torch.long)
 

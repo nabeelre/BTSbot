@@ -1,3 +1,4 @@
+import os
 import sys
 import numpy as np
 import pandas as pd
@@ -35,10 +36,14 @@ def run_val(config, model_dir, model_filename,
     batch_size = config['batch_size']
     model_name = config['model_name']
     dataset_version = config['train_data_version']
-    if sys.platform != 'darwin':  # If not on macOS, use quest path
-        data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
+    data_base_dir = ""
+    if sys.platform != 'darwin':
+        if os.path.exists(f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"):
+            data_base_dir = f"/scratch/nrc5378/BTSbot_training_{dataset_version}/"
+        else:
+            print(f"No data found at /scratch/nrc5378/BTSbot_training_{dataset_version}/")
     else:
-        data_base_dir = ""
+        print("Running on macOS, using empty data_base_dir")
 
     N_max = config.get('N_max', 100)
     N_str = f"_N{N_max}"
