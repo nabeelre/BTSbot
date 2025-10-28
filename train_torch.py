@@ -179,9 +179,9 @@ def run_training(config, run_name: str = "", sweeping: bool = False):
     # Data augmentations
     transforms_list = []
     if need_triplets:  # Only add image transforms if triplets are needed
-        h_flip = bool(config["data_aug_h_flip"])
-        v_flip = bool(config["data_aug_v_flip"])
-        rot = bool(config["data_aug_rot"])
+        h_flip = bool(config.get("data_aug_h_flip", True))
+        v_flip = bool(config.get("data_aug_v_flip", True))
+        rot = bool(config.get("data_aug_rot", True))
 
         transforms_list.append(transforms.ToDtype(torch.float32))
         if h_flip:
