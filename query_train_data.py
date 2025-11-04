@@ -414,7 +414,9 @@ if __name__ == "__main__":
         print(query_name, "not known")
         exit()
 
-    download_training_data(query_df, query_name, label=label,
-                           normalize_cutouts=True, include_cutouts=False, verbose=True,
-                           save_raw=quest_raw_path+query_name,
-                           load_raw=quest_raw_path+query_name)
+    download_training_data(
+        query_df, query_name, label=label,
+        normalize_cutouts=True, include_cutouts=False, verbose=True,
+        save_raw=quest_raw_path + query_name,
+        load_raw=quest_raw_path + query_name
+    )
