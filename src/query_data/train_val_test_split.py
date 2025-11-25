@@ -58,7 +58,7 @@ def merge_sets_across_split(set_names, split_name, version_name, seed=2):
     """
     cand = pd.concat(
         [
-            pd.read_csv(f"data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
+            pd.read_csv(f"../data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
                         index_col=False)
             for set_name in set_names
         ]
@@ -67,7 +67,7 @@ def merge_sets_across_split(set_names, split_name, version_name, seed=2):
 
     triplets = np.concatenate(
         [
-            np.load(f"data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy",
+            np.load(f"../data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy",
                     mmap_mode='r')
             for set_name in set_names
         ],
@@ -76,8 +76,8 @@ def merge_sets_across_split(set_names, split_name, version_name, seed=2):
     print(f"  Merged {split_name}")
 
     shuffle_idx = np.random.choice(np.arange(len(cand)), size=(len(cand),), replace=False)
-    np.save(f"data/{split_name}_triplets_{version_name}.npy", triplets[shuffle_idx])
-    cand.loc[shuffle_idx].to_csv(f"data/{split_name}_cand_{version_name}.csv", index=False)
+    np.save(f"../data/{split_name}_triplets_{version_name}.npy", triplets[shuffle_idx])
+    cand.loc[shuffle_idx].to_csv(f"../data/{split_name}_cand_{version_name}.csv", index=False)
     print(f"Wrote merged and shuffled {split_name} triplets and candidate data")
 
     del triplets, cand
@@ -91,8 +91,8 @@ def cut_set_and_assign_splits(set_name, cuts, version_name, seed=2):
     """
     print(f"Working on {set_name} data")
     # load set
-    set_trips = np.load(f"data/base_data/{set_name}_triplets.npy", mmap_mode='r')
-    set_cand = pd.read_csv(f"data/base_data/{set_name}_candidates.csv", index_col=False)
+    set_trips = np.load(f"../data/base_data/{set_name}_triplets.npy", mmap_mode='r')
+    set_cand = pd.read_csv(f"../data/base_data/{set_name}_candidates.csv", index_col=False)
     print("  Read")
 
     print(f"  {len(pd.unique(set_cand['objectId']))} sources initially in {set_name}")
@@ -145,7 +145,7 @@ def cut_set_and_assign_splits(set_name, cuts, version_name, seed=2):
 
     if set_name == "dims":
         # froms dims, remove things classified with non-SN types - keep unclassifieds
-        dims = pd.read_csv("data/base_data/dims.csv")
+        dims = pd.read_csv("../data/base_data/dims.csv")
 
         non_SN_types = ["AGN", "AGN?", "bogus", "bogus?", "duplicate",
                         "nova", "rock", "star", "varstar", "QSO", "CV", "CV?",
@@ -169,8 +169,8 @@ def cut_set_and_assign_splits(set_name, cuts, version_name, seed=2):
         [set_cand.loc[is_train], set_cand.loc[is_val], set_cand.loc[is_test]],
         [set_trips[is_train], set_trips[is_val], set_trips[is_test]]
     ):
-        np.save(f"data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy", trips)
-        cand.to_csv(f"data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
+        np.save(f"../data/base_data/{set_name}_{split_name}_triplets_{version_name}.npy", trips)
+        cand.to_csv(f"../data/base_data/{set_name}_{split_name}_cand_{version_name}.csv",
                     index=False)
         print(f"Wrote {set_name} {split_name} triplets and candidate data")
 
@@ -189,8 +189,8 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
                   sne_only: bool = False, keep_near_threshold: bool = True,
                   rise_only: bool = False):
 
-    split_trip_path = f"data/{split_name}_triplets_{version_name}.npy"
-    split_cand_path = f"data/{split_name}_cand_{version_name}.csv"
+    split_trip_path = f"../data/{split_name}_triplets_{version_name}.npy"
+    split_cand_path = f"../data/{split_name}_cand_{version_name}.csv"
 
     if not (os.path.exists(split_trip_path) and os.path.exists(split_cand_path)):
         print("Parent split files absent")
@@ -252,8 +252,8 @@ def create_subset(split_name, version_name, N_max_p: int, N_max_n: int = 0,
         trips, cand = apply_cut(trips, cand, cand[cand["is_rise"]].index)
 
     print(f"Created a {cuts_str} subset of {split_name}")
-    np.save(f"data/{split_name}_triplets_{version_name}{cuts_str}.npy", trips)
-    cand.to_csv(f"data/{split_name}_cand_{version_name}{cuts_str}.csv", index=False)
+    np.save(f"../data/{split_name}_triplets_{version_name}{cuts_str}.npy", trips)
+    cand.to_csv(f"../data/{split_name}_cand_{version_name}{cuts_str}.csv", index=False)
     print(f"Wrote triplets and candidate data for {cuts_str} subset of {split_name}")
 
 
@@ -261,8 +261,8 @@ def subsample_data(split, version, perc_to_keep=10, random_seed=2):
     np.random.seed(random_seed)
 
     fraction_to_keep = perc_to_keep / 100
-    triplets = np.load(f"data/{split}_triplets_{version}_N100.npy")
-    cand = pd.read_csv(f"data/{split}_cand_{version}_N100.csv")
+    triplets = np.load(f"../data/{split}_triplets_{version}_N100.npy")
+    cand = pd.read_csv(f"../data/{split}_cand_{version}_N100.csv")
 
     objs = pd.unique(cand['objectId'])
     subsampled_objs = np.random.choice(objs, size=int(len(objs) * fraction_to_keep), replace=False)
@@ -270,8 +270,8 @@ def subsample_data(split, version, perc_to_keep=10, random_seed=2):
     subsampled_cand = cand[cand['objectId'].isin(subsampled_objs)]
     subsampled_triplets = triplets[subsampled_cand.index]
 
-    np.save(f"data/{split}_triplets_{version}s{perc_to_keep}_N100.npy", subsampled_triplets)
-    subsampled_cand.to_csv(f"data/{split}_cand_{version}s{perc_to_keep}_N100.csv", index=False)
+    np.save(f"../data/{split}_triplets_{version}s{perc_to_keep}_N100.npy", subsampled_triplets)
+    subsampled_cand.to_csv(f"../data/{split}_cand_{version}s{perc_to_keep}_N100.csv", index=False)
 
 
 if __name__ == "__main__":

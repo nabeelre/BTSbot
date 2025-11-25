@@ -9,16 +9,46 @@ import sys
 import os
 
 btsse_query_urls = {
-    "trues": "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=trans&classstring=&classexclude=&refok=y&purity=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=18.5&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
-    "vars":  "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=var&classstring=&classexclude=&refok=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
-    "dims":  "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s&coverage=any&samprcf=y&sampdeep=y&subsample=all&classstring=&classexclude=&covok=y&refok=y&purity=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag=18.5&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade=&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol=&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv",
+    "trues": (
+        "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s"
+        "&coverage=any&samprcf=y&sampdeep=y&subsample=trans&classstring=&classexclude="
+        "&refok=y&purity=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate="
+        "&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag="
+        "&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis="
+        "&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01"
+        "&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade="
+        "&endpeakmag=18.5&endlastmag=&endabsmag=&endhostabs=&endhostcol="
+        "&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv"
+    ),
+    "vars": (
+        "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s"
+        "&coverage=any&samprcf=y&sampdeep=y&subsample=var&classstring=&classexclude="
+        "&refok=y&ztflink=fritz&startsavedate=&startpeakdate=&startlastdate="
+        "&startra=&startdec=&startz=&startdur=&startrise=&startfade=&startpeakmag="
+        "&startlastmag=&startabsmag=&starthostabs=&starthostcol=&startsavevis="
+        "&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01"
+        "&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade="
+        "&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol="
+        "&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv"
+    ),
+    "dims": (
+        "http://sites.astro.caltech.edu/ztf/rcf/explorer.php?f=s"
+        "&coverage=any&samprcf=y&sampdeep=y&subsample=all&classstring=&classexclude="
+        "&covok=y&refok=y&purity=y&ztflink=fritz&startsavedate=&startpeakdate="
+        "&startlastdate=&startra=&startdec=&startz=&startdur=&startrise=&startfade="
+        "&startpeakmag=18.5&startlastmag=&startabsmag=&starthostabs=&starthostcol="
+        "&startsavevis=&startlatevis=&startcurrvis=&startb=&startav=&endsavedate=2025-01-01"
+        "&endpeakdate=&endlastdate=&endra=&enddec=&endz=&enddur=&endrise=&endfade="
+        "&endpeakmag=&endlastmag=&endabsmag=&endhostabs=&endhostcol="
+        "&endsavevis=&endlatevis=&endcurrvis=&endb=&endav=&sort=peakmag&format=csv"
+    ),
 }
 
 if sys.platform == "darwin":
     with open('/Users/nabeelr/credentials.json', 'r') as f:
         creds = json.load(f)
 else:
-    with open('misc/credentials.json', 'r') as f:
+    with open('../misc/credentials.json', 'r') as f:
         creds = json.load(f)
 
 api_token = creds['fritz_api_key']
@@ -48,7 +78,7 @@ def query_rejects():
     RCF_groupid = "41"
     RCFJunk_groupid = "255"
 
-    endpoint = host+"/api/candidates"
+    endpoint = host + "/api/candidates"
 
     objids = []
     page_num = 1
@@ -97,7 +127,7 @@ def query_rejects():
 
     print("  Done querying for BTS rejects")
     rejects = pd.DataFrame(objids, columns=['ZTFID'])
-    rejects.to_csv("data/base_data/rejects.csv", index=None)
+    rejects.to_csv("../data/base_data/rejects.csv", index=None)
 
 
 def query_BTS_save_times():
@@ -113,7 +143,7 @@ def query_BTS_save_times():
     Nothing
     """
     print("  Querying for trues save times")
-    trues = pd.read_csv("data/base_data/trues.csv", index_col=None)
+    trues = pd.read_csv("../data/base_data/trues.csv", index_col=None)
 
     if "RCF_save_time" not in list(trues):
         trues["RCF_save_time"] = -1
@@ -125,7 +155,7 @@ def query_BTS_save_times():
             continue
 
         endpoint = f"/api/sources/{objid}"
-        r = requests.get(host+endpoint, headers=headers, params={})
+        r = requests.get(host + endpoint, headers=headers, params={})
         data = r.json()['data']
 
         if not r.ok:
@@ -136,7 +166,7 @@ def query_BTS_save_times():
                 trues.loc[i, "RCF_save_time"] = astrotime.Time(group['saved_at']).jd
         time.sleep(0.2)
 
-    trues.to_csv("data/base_data/trues.csv", index=None)
+    trues.to_csv("../data/base_data/trues.csv", index=None)
     print("  Finished querying for BTS save times")
 
 
@@ -160,8 +190,8 @@ def query_BTSSE(query_name, overwrite: bool = False):
     -------
     Nothing
     """
-    if not (os.path.exists(f"data/base_data/{query_name}.csv") and not overwrite):
-        with open(f"data/base_data/{query_name}.csv", "w") as f:
+    if not (os.path.exists(f"../data/base_data/{query_name}.csv") and not overwrite):
+        with open(f"../data/base_data/{query_name}.csv", "w") as f:
             f.write(requests.get(btsse_query_urls[query_name],
                                  auth=(creds["btsse_username"],
                                        creds["btsse_password"])).text)
@@ -198,7 +228,7 @@ def compile_from_BTSSE(query_name, all_ZTFIDs, overwrite: bool = False):
     """
     query_BTSSE(query_name, overwrite)
 
-    query_df = pd.read_csv(f"data/base_data/{query_name}.csv", index_col=None)
+    query_df = pd.read_csv(f"../data/base_data/{query_name}.csv", index_col=None)
 
     query_df = query_df[~query_df["type"].isin(["duplicate", "duplicate?"])]
     query_df = query_df[~query_df['ZTFID'].isin(all_ZTFIDs)]
@@ -227,7 +257,7 @@ def compile_extIas(all_ZTFIDs):
         updated list of ZTFIDs present in data
     """
 
-    extIas = pd.read_csv('data/base_data/external_Ias_full.csv')
+    extIas = pd.read_csv('../data/base_data/external_Ias_full.csv')
     extIas.rename(columns={"ztfname": "ZTFID"}, inplace=True)
 
     # Some objects in this list are non-ZTF objects, remove them
@@ -263,12 +293,12 @@ def compile_rejects(all_ZTFIDs, overwrite: bool = False):
     all_ZTFIDs : array
         updated list of ZTFIDs present in data
     """
-    if not (os.path.exists("data/base_data/rejects.csv") and not overwrite):
+    if not (os.path.exists("../data/base_data/rejects.csv") and not overwrite):
         query_rejects()
     else:
         print("  rejects list already present")
 
-    rejects = pd.read_csv("data/base_data/rejects.csv", index_col=None)
+    rejects = pd.read_csv("../data/base_data/rejects.csv", index_col=None)
 
     rejects = rejects[~rejects['ZTFID'].isin(all_ZTFIDs)]
 
@@ -314,7 +344,7 @@ def compile_ZTFIDs(overwrite: bool = False):
     for query, query_name in zip([trues, vars, dims, rejects],
                                  ["trues", "vars", "dims", "rejects"]):
         query = query[~query["ZTFID"].isin(objs_to_remove)]
-        query.to_csv(f"data/base_data/{query_name}.csv", index=None)
+        query.to_csv(f"../data/base_data/{query_name}.csv", index=None)
 
     print("Final number of objects:", len(all_ZTFIDs))
     print("Done compiling ZTFIDs")

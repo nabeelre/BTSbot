@@ -193,3 +193,4 @@ zeroshot_classification.py
 zero_shot_classification.ipynb
 *latent_space*
 train_configs/LS*
+supporting_models/

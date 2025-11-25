@@ -76,7 +76,7 @@ def crop_norm_cutout(cutout, crop_to_size):
 
     margin = (63 - crop_to_size) // 2
 
-    cutout = cutout[margin:margin+crop_to_size, margin:margin+crop_to_size]
+    cutout = cutout[margin:margin + crop_to_size, margin:margin + crop_to_size]
     cutout /= np.linalg.norm(cutout)
 
     return cutout
@@ -251,7 +251,7 @@ def rerun_braai(triplets):
 
     # Load model
     tf.keras.backend.clear_session()
-    braai = tf.keras.models.load_model("supporting_models/braai_d6_m9.h5")
+    braai = tf.keras.models.load_model("misc/supporting_models/braai_d6_m9.h5")
 
     # Run braai
     new_drb = braai.predict(triplets)
@@ -302,7 +302,7 @@ def query_nondet(objid, first_alert_jd):
     r = k.query(query)
 
     nondet_lc = r['kowalski']['data']
-    
+
     # Empty if the source has never had non-detections
     if len(nondet_lc) == 0:
         return np.nan, np.nan
@@ -312,7 +312,7 @@ def query_nondet(objid, first_alert_jd):
     # if only non-detections found
     if 'magpsf' not in prv.columns:
         prv['magpsf'] = np.nan
-    
+
     if 'jd' not in prv.columns:
         return np.nan, np.nan
 
@@ -398,7 +398,7 @@ def prep_alerts(alerts, label, new_drb):
 
         for i in range(len(obj_alerts)):
             idx_cur = obj_alerts.index[i]
-            idx_so_far = obj_alerts.index[0:i+1]
+            idx_so_far = obj_alerts.index[0:i + 1]
 
             jd_first_alert = np.min((alert_df.loc[idx_cur, "jdstarthist"],
                                      np.min(obj_alerts['jd'])))
