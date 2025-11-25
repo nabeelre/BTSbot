@@ -8,8 +8,8 @@ from sklearn.metrics import roc_curve, auc, ConfusionMatrixDisplay
 import torch
 from torch.utils.data import DataLoader
 from torch.nn.parallel import DataParallel
-from torch_utils import FlexibleDataset
-import architectures_torch as architectures
+from utils import FlexibleDataset
+import architectures
 
 import matplotlib
 matplotlib.use('Agg')  # Configure matplotlib to use non-GUI backend

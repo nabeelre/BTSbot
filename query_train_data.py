@@ -79,7 +79,7 @@ def query_kowalski(ZTFID, kowalski, programid, include_cutouts: bool = True,
         return None
 
     alerts = []
-    
+
     if include_cutouts:
         cutout_query_dict = {
             "cutoutScience": 1,
@@ -340,7 +340,7 @@ def download_training_data(query_df, query_name, label,
         include_cutouts=include_cutouts, normalize=normalize_cutouts,
         verbose=verbose, save_raw=save_raw, load_raw=load_raw
     )
-    
+
     if include_cutouts:
         alerts, triplets = extract_triplets(query_response)
     else:

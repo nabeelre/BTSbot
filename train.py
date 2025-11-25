@@ -16,10 +16,10 @@ from torch.utils.data import DataLoader
 from torch.nn.parallel import DataParallel
 import torchvision.transforms.v2 as transforms
 
-from torch_utils import RandomRightAngleRotation, make_report, FlexibleDataset
+from utils import RandomRightAngleRotation, make_report, FlexibleDataset
 from generate_embeddings import get_torch_embedding
-import architectures_torch as architectures
-import val_torch as val
+import architectures
+import val
 
 # Print styling
 BOLD = '\033[1m'
