@@ -2,7 +2,7 @@ from bson.json_util import loads, dumps
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 from astropy.io import fits
-import tensorflow as tf
+# import tensorflow as tf
 import pandas as pd
 import numpy as np
 import tqdm
@@ -230,33 +230,33 @@ def extract_triplets(alerts):
     return alerts, triplets
 
 
-def rerun_braai(triplets):
-    """
-    Reruns latest version of braai, ZTF deep real bogus (Duev+2019), on all alerts
+# def rerun_braai(triplets):
+#     """
+#     Reruns latest version of braai, ZTF deep real bogus (Duev+2019), on all alerts
 
-    Parameters
-    ----------
-    triplets: array, Nx63x63x3 (N=number of alerts)
-        triplets of all alerts to be rerun
+#     Parameters
+#     ----------
+#     triplets: array, Nx63x63x3 (N=number of alerts)
+#         triplets of all alerts to be rerun
 
-    Returns
-    -------
-    new_drb: array of floats
-        new real/bogus scores for each alert
-    """
-    if sys.platform == "darwin":
-        # Disable GPUs if running on macOS
-        print("disabling GPUs")
-        tf.config.set_visible_devices([], 'GPU')
+#     Returns
+#     -------
+#     new_drb: array of floats
+#         new real/bogus scores for each alert
+#     """
+#     if sys.platform == "darwin":
+#         # Disable GPUs if running on macOS
+#         print("disabling GPUs")
+#         tf.config.set_visible_devices([], 'GPU')
 
-    # Load model
-    tf.keras.backend.clear_session()
-    braai = tf.keras.models.load_model("misc/supporting_models/braai_d6_m9.h5")
+#     # Load model
+#     tf.keras.backend.clear_session()
+#     braai = tf.keras.models.load_model("misc/supporting_models/braai_d6_m9.h5")
 
-    # Run braai
-    new_drb = braai.predict(triplets)
+#     # Run braai
+#     new_drb = braai.predict(triplets)
 
-    return np.transpose(new_drb)[0]
+#     return np.transpose(new_drb)[0]
 
 
 def query_nondet(objid, first_alert_jd):
