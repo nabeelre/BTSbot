@@ -6,25 +6,19 @@
   />
 </p>
 
-[![arXiv](https://img.shields.io/badge/Publication-2401.15167-b31b1b.svg)](https://iopscience.iop.org/article/10.3847/1538-4357/ad5666)
-[![arXiv](https://img.shields.io/badge/ICML-2307.07618-b31b1b.svg)](https://arxiv.org/abs/2307.07618)
-<a href="https://ascl.net/2403.004"><img src="https://img.shields.io/badge/ascl-2403.004-blue.svg?colorB=262255" alt="ascl:2403.004" /></a>
+[![arXiv](https://img.shields.io/badge/Original%20Publication-2401.15167-b31b1b.svg)](https://iopscience.iop.org/article/10.3847/1538-4357/ad5666)
+[![arXiv](https://img.shields.io/badge/Architecture%20Benchmarking-2512.XXXXX-b31b1b.svg)]()
+[![arXiv](https://img.shields.io/badge/ICML%20Paper-2307.07618-b31b1b.svg)](https://arxiv.org/abs/2307.07618)
 
 `BTSbot` is a multi-modal convolutional neural network for automating supernova identification and follow-up in the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). 
 
-`BTSbot` contributed to the first supernova to be fully automatically discovered, confirmed, classified, and shared. ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2023-265), [press release](https://news.northwestern.edu/stories/2023/10/first-supernova-detected-confirmed-classified-and-shared-by-ai/))
+`BTSbot` contributed to the first supernova to be fully automatically discovered, confirmed, classified, and shared ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2023-265), [press release](https://news.northwestern.edu/stories/2023/10/first-supernova-detected-confirmed-classified-and-shared-by-ai/)) as well automated space-based supernova follow-up ([AstroNote](https://www.wis-tns.org/astronotes/astronote/2025-209)).
 
 Presented at the [ML for Astrophysics workshop](https://ml4astro.github.io/icml2023/) at [ICML 2023](https://icml.cc/Conferences/2023) ([Extended abstract](https://arxiv.org/abs/2307.07618))
 
-The training set for the production model is available on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10839690).
+The training set for the original production model is available on [Zenodo](https://zenodo.org/doi/10.5281/zenodo.10839690).
 
 Also see this [animated walkthrough](https://www.youtube.com/watch?v=qUwlQflDdEo) of the fully-automated BTS workflow
-
-## A multi-modal convolutional neural network
-
-![model](https://github.com/nabeelre/BTSbot/assets/33795390/c33431eb-2a0d-4ed1-8b30-11a5810699c4)
-
-Fig. 5 from [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167)
 
 ## Usage
 
@@ -83,14 +77,6 @@ print(np.median(np.abs(cand['expected_scores'] - raw_preds)))
 
 Now `BTSbot` is up and running! If you have access to `Kowalski` you can query for new sources to run `BTSbot` on using `download_training_data()`; if not, see `alert_utils()` for functions to process raw triplets and compute metadata features as `BTSbot` expects them.
 
-## Performance
-
-`BTSbot` finds nearly all SNe of interest from the input data stream (~100% completeness) with little contamination from uninteresting phenomena (93% purity) and does so as quickly as humans typically do.
-
-![test_performance.pdf](https://github.com/nabeelre/BTSbot/files/15135081/test_performance.pdf)
-
-Fig. 7 from [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167)
-
 ## Citing `BTSbot`
 
 If you use or reference `BTSbot` please cite [Rehemtulla et al. 2024](https://iopscience.iop.org/article/10.3847/1538-4357/ad5666) ([ADS](https://ui.adsabs.harvard.edu/abs/2024ApJ...972....7R/abstract)).
@@ -117,3 +103,9 @@ archivePrefix = {arXiv},
 }
 ```
 
+If you use or reference the updated ConvNeXt-based based `BTSbot` model, please also cite [Rehemtulla et al. 2025]() ([ADS]()).
+
+BibTeX entry for the follow-up `BTSbot` study:
+```
+
+```

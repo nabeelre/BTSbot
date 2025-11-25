@@ -1,4 +1,4 @@
-If you use or reference `BTSbot` in a work, please cite our [publication](https://ui.adsabs.harvard.edu/abs/2024arXiv240115167R/abstract).
+If you use or reference `BTSbot` in a work, please cite our [original publication](https://ui.adsabs.harvard.edu/abs/2024ApJ...972....7R/abstract).
 
 ```
 @ARTICLE{2024ApJ...972....7R,
@@ -19,4 +19,10 @@ archivePrefix = {arXiv},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2024ApJ...972....7R},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
+```
+
+If you use or reference a pre-trained `BTSbot` model like the updated ConvNeXt-based `BTSbot` model in your work, please also cite [our follow-up publication]()
+
+```
+
 ```
