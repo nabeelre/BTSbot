@@ -1,51 +1,26 @@
-# Core scientific computing
-numpy==1.24.3
-pandas==2.2.2
+numpy>=1.24.3,<3.0.0
+pandas>=2.2.2
 scipy>=1.10.0
-
-# Machine learning and deep learning
 torch>=2.0.0
 torchvision>=0.15.0
-scikit-learn==1.5.0
-
-# Computer vision and image processing
+scikit-learn>=1.5.0
 Pillow>=9.0.0
 opencv-python>=4.8.0
-
-# Visualization
-matplotlib==3.7.1
-
-# Data processing and utilities
-tqdm==4.66.4
-requests==2.32.3
-gzip
-
-# Astronomy and astrophysics
-astropy==6.0.1
-
-# Database and data storage
-pymongo==4.7.0
+matplotlib>=3.7.1
+tqdm>=4.66.4
+requests>=2.32.3
+astropy>=6.0.1
+pymongo>=4.7.0
 bson>=0.5.10
-
-# API and web services
-penquins==2.4.0
-
-# Model architectures and utilities
+penquins>=2.4.0
 timm>=0.9.0
 umap-learn>=0.5.0
-
-# Experiment tracking and logging
 wandb>=0.15.0
-
-# Data handling
 datasets>=2.14.0
-
-# Utilities
-prettytable==3.10.0
-argparse
-
-# Optional: GPU profiling (for NVIDIA GPUs)
-nvtx>=0.2.0
-
-# Optional: Additional ML utilities
+pyarrow>=10.0.0
+fsspec>=2024.0.0
+safetensors>=0.5.0
+prettytable>=3.10.0
+PyYAML>=6.0.0
+protobuf>=4.0.0
 huggingface-hub>=0.16.0
