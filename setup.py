@@ -34,8 +34,8 @@ setup(
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/nabeelre/BTSbot",
-    packages=find_packages(where="btsbot"),
-    package_dir={"": "btsbot"},
+    packages=find_packages(),
+    package_dir={"": "."},
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
