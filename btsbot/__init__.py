@@ -9,23 +9,21 @@ __version__ = "2.0.0"
 from . import architectures
 from . import utils
 from . import alert_utils
+from . import from_HF
 
 # Main classes and functions
 from .utils import FlexibleDataset, RandomRightAngleRotation, make_report
 from .architectures import (
-    SwinV2,
     MaxViT,
     ConvNeXt,
-    mm_SwinV2,
     mm_MaxViT,
     mm_ConvNeXt,
-    mm_ResNet,
     mm_cnn,
     um_cnn,
     um_nn,
     frozen_fusion,
-    get_model_image_size,
 )
+from .from_HF import download_HF_model, load_HF_model
 
 __all__ = [
     "__version__",
@@ -47,4 +45,6 @@ __all__ = [
     "um_nn",
     "frozen_fusion",
     "get_model_image_size",
+    "download_HF_model",
+    "load_HF_model",
 ]

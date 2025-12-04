@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-import os
-import json
 import torch
 import argparse
 import numpy as np
 import pandas as pd
 import btsbot
 from torch.utils.data import DataLoader
-from huggingface_hub import snapshot_download
 
 device = (
     "cuda"
@@ -30,76 +27,21 @@ def parse_args():
         help="Name of the model architecture to use (e.g., 'convnext', 'maxvit')"
     )
     parser.add_argument(
+        "--pretrain",
+        type=str,
+        default="galaxyzoo",
+        choices=["imagenet", "galaxyzoo", "randinit"],
+        help="Name of the pre-training regimen used (e.g., 'imagenet', 'galaxyzoo', 'randinit')"
+    )
+    parser.add_argument(
         "--multi_modal",
         action="store_true",
         help="Set this flag if the model is multi-modal"
     )
-    parser.add_argument(
-        "--pretrain",
-        type=str,
-        default=None,
-        help="Name of the pre-training regimen used (e.g., 'imagenet', 'galaxyzoo', 'none')"
-    )
 
     args = parser.parse_args()
 
-    if args.architecture == "convnext":
-        arch = "convnext-pico"
-    elif args.architecture == "maxvit":
-        arch = "maxvit-tiny"
-    else:
-        raise ValueError("Invalid architecture")
-
-    if args.pretrain == "imagenet":
-        pretrain = "in1k"
-    elif args.pretrain == "galaxyzoo":
-        pretrain = "galaxyzoo"
-    elif args.pretrain == "none":
-        pretrain = "randinit"
-    else:
-        raise ValueError("Invalid pre-training regimen")
-
-    if args.multi_modal:
-        multi_modal = True
-    else:
-        multi_modal = False
-
-    link = "nabeelr/BTSbot-" + arch + "-" + pretrain + ("-metadata" if multi_modal else "")
-    print(f"Fetching model from HuggingFace Hub: {link}")
-    return link, multi_modal
-
-
-def download_model(link):
-    model_name = link.split("/")[-1]
-    model_dir = "models" + os.sep + model_name
-    os.makedirs(model_dir, exist_ok=True)
-
-    snapshot_download(
-        repo_id=link,
-        local_dir=model_dir
-    )
-    print(f"Model downloaded to {model_dir}")
-
-    return model_dir
-
-
-def load_model(model_path):
-    config_path = model_path + os.sep + "train_config.json"
-    with open(config_path, "r") as f:
-        config = json.load(f)
-
-    model_name = config["model_name"]
-    model_type = getattr(btsbot.architectures, model_name)
-    model = model_type(config).to(device)
-    model.load_state_dict(
-        torch.load(
-            model_path + os.sep + "pytorch_model.bin",
-            map_location=torch.device('cpu')
-        )
-    )
-    model = model.to(device).eval()
-
-    return model
+    return args.architecture, args.multi_modal, args.pretrain
 
 
 def run_inference(model, multi_modal):
@@ -130,6 +72,8 @@ def run_inference(model, multi_modal):
         batch_size=64, shuffle=False, num_workers=4, pin_memory=(device != 'mps')
     )
 
+    model = model.to(device).eval()
+
     with torch.no_grad():
         batch = next(iter(dataloader))
         if multi_modal:
@@ -152,10 +96,7 @@ def run_inference(model, multi_modal):
 
 
 if __name__ == "__main__":
-    link, multi_modal = parse_args()
+    architecture, multi_modal, pretrain = parse_args()
 
-    model_dir = download_model(link)
-
-    model = load_model(model_dir)
-
+    model = btsbot.load_HF_model(architecture, multi_modal, pretrain)
     run_inference(model, multi_modal)

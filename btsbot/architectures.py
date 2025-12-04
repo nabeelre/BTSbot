@@ -22,72 +22,6 @@ def get_model_image_size(model_kind: str) -> int:
     return 224
 
 
-class SwinV2(nn.Module):
-    def __init__(self, config):
-        super(SwinV2, self).__init__()
-        model_kind = config.get("model_kind", "swin_v2_t")
-        model_weights = config.get("model_weights", "IMAGENET1K_V1")
-
-        self.swin = torch.hub.load(
-            "pytorch/vision", model_kind, weights=model_weights, progress=False
-        )
-        self.swin.head = nn.Sequential(
-            nn.Linear(self.swin.head.in_features, config['fc1_neurons']),
-            nn.GELU(),
-            nn.Linear(config['fc1_neurons'], config['fc2_neurons']),
-            nn.GELU(),
-            nn.Dropout(config['dropout']),
-            nn.Linear(config['fc2_neurons'], 1),
-        )
-
-    def forward(self, input_data: torch.Tensor) -> torch.Tensor:
-        return self.swin(input_data)
-
-
-class mm_SwinV2(nn.Module):
-    def __init__(self, config):
-        super(mm_SwinV2, self).__init__()
-        swin_kind = config.get("swin_kind", "swin_v2_t")
-        swin_weights = config.get("swin_weights", "IMAGENET1K_V1")
-        num_metadata_features = len(config.get("metadata_cols", []))
-
-        # Image branch (SwinV2)
-        self.swin_backbone = torch.hub.load(
-            "pytorch/vision", swin_kind, weights=swin_weights, progress=False
-        )
-        self.swin_feature_dim = self.swin_backbone.head.in_features
-        self.swin_backbone.head = nn.Identity()
-
-        # Metadata branch
-        self.metadata_branch = nn.Sequential(
-            nn.BatchNorm1d(num_metadata_features),
-            nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
-            nn.GELU(),
-            nn.Dropout(config['meta_dropout']),
-            nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),
-            nn.GELU()
-        )
-
-        # Combined branch
-        combined_input_features = self.swin_feature_dim + config['meta_fc2_neurons']
-        self.combined_head = nn.Sequential(
-            nn.Linear(combined_input_features, config['comb_fc1_neurons']),
-            nn.GELU(),
-            nn.Linear(config['comb_fc1_neurons'], config['comb_fc2_neurons']),
-            nn.GELU(),
-            nn.Dropout(config['comb_dropout']),
-            nn.Linear(config['comb_fc2_neurons'], 1)
-        )
-
-    def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
-        image_features = self.swin_backbone(image_input)
-        meta_features = self.metadata_branch(metadata_input)
-        combined_features = torch.cat((image_features, meta_features), dim=1)
-        logits = self.combined_head(combined_features)
-
-        return logits
-
-
 class MaxViT(nn.Module):
     def __init__(self, config):
         super(MaxViT, self).__init__()
@@ -231,54 +165,6 @@ class mm_ConvNeXt(nn.Module):
 
     def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
         image_features = self.convnext_backbone(image_input)
-        meta_features = self.metadata_branch(metadata_input)
-        combined_features = torch.cat((image_features, meta_features), dim=1)
-        logits = self.combined_head(combined_features)
-        return logits
-
-
-class mm_ResNet(nn.Module):
-    def __init__(self, config):
-        super(mm_ResNet, self).__init__()
-        model_kind = config.get("model_kind", "resnet18.a1_in1k")
-        num_metadata_features = len(config.get("metadata_cols", []))
-
-        # Image branch (ResNet)
-        self.resnet_backbone = timm.create_model(
-            model_kind, pretrained=config.get('pretrained', True)
-        )
-        try:
-            self.resnet_feature_dim = self.resnet_backbone.fc.in_features
-        except AttributeError:
-            if model_kind == "hf_hub:mwalmsley/zoobot-encoder-resnet18":
-                self.resnet_feature_dim = 512
-            else:
-                raise NotImplementedError("Model kind not yet supported", model_kind)
-        self.resnet_backbone.fc = nn.Identity()
-
-        # Metadata branch
-        self.metadata_branch = nn.Sequential(
-            nn.BatchNorm1d(num_metadata_features),
-            nn.Linear(num_metadata_features, config['meta_fc1_neurons']),
-            nn.ReLU(),
-            nn.Dropout(config['meta_dropout']),
-            nn.Linear(config['meta_fc1_neurons'], config['meta_fc2_neurons']),
-            nn.ReLU()
-        )
-
-        # Combined branch
-        combined_input_features = self.resnet_feature_dim + config['meta_fc2_neurons']
-        self.combined_head = nn.Sequential(
-            nn.Linear(combined_input_features, config['comb_fc1_neurons']),
-            nn.ReLU(),
-            nn.Linear(config['comb_fc1_neurons'], config['comb_fc2_neurons']),
-            nn.ReLU(),
-            nn.Dropout(config['comb_dropout']),
-            nn.Linear(config['comb_fc2_neurons'], 1)
-        )
-
-    def forward(self, image_input: torch.Tensor, metadata_input: torch.Tensor) -> torch.Tensor:
-        image_features = self.resnet_backbone(image_input)
         meta_features = self.metadata_branch(metadata_input)
         combined_features = torch.cat((image_features, meta_features), dim=1)
         logits = self.combined_head(combined_features)
@@ -434,9 +320,10 @@ class frozen_fusion(nn.Module):
         return model, emb_dim
 
     @staticmethod
-    def load_BTSbot_model(model_dir):
-        with open(path.join(model_dir, "report.json"), 'r') as f:
-            train_config = json.load(f)['train_config']
+    def load_BTSbot_model(model_dir, train_config=None, skip_load_state=False):
+        if train_config is None:
+            with open(path.join(model_dir, "report.json"), 'r') as f:
+                train_config = json.load(f)['train_config']
 
         try:
             model_type = globals()[train_config['model_name']]
@@ -444,7 +331,8 @@ class frozen_fusion(nn.Module):
             print(f"Could not find model of name {train_config['model_name']}")
             exit(0)
         model = model_type(train_config)
-        model.load_state_dict(torch.load(path.join(model_dir, "best_model.pth")))
+        if not skip_load_state:
+            model.load_state_dict(torch.load(path.join(model_dir, "best_model.pth")))
         model, emb_dim = frozen_fusion.remove_branch_head(model, train_config['model_name'])
 
         return model, emb_dim
@@ -452,10 +340,18 @@ class frozen_fusion(nn.Module):
     def __init__(self, config):
         super(frozen_fusion, self).__init__()
         # Image branch
-        self.image_branch, img_emb_dim = frozen_fusion.load_BTSbot_model(config['image_model_dir'])
+        image_model_config = config.get('image_model_config', None)
+        self.image_branch, img_emb_dim = frozen_fusion.load_BTSbot_model(
+            config['image_model_dir'], train_config=image_model_config,
+            skip_load_state=config.get('skip_load_state', False)
+        )
 
         # Metadata branch
-        self.meta_branch, meta_emb_dim = frozen_fusion.load_BTSbot_model(config['meta_model_dir'])
+        meta_model_config = config.get('meta_model_config', None)
+        self.meta_branch, meta_emb_dim = frozen_fusion.load_BTSbot_model(
+            config['meta_model_dir'], train_config=meta_model_config,
+            skip_load_state=config.get('skip_load_state', False)
+        )
 
         # Combined branch
         combined_dim = img_emb_dim + meta_emb_dim
