@@ -21,7 +21,8 @@ archivePrefix = {arXiv},
 }
 ```
 
-If you use or reference a pre-trained `BTSbot` model like the updated ConvNeXt-based `BTSbot` model in your work, please also cite [our follow-up publication]()
+If you use or reference a pre-trained `BTSbot` model like the updated ConvNeXt-based `BTSbot`
+or `BTSbot` output from 2026 or beyond, please also cite [our follow-up publication]()
 
 ```
 
