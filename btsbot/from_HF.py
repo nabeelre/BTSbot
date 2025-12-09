@@ -19,12 +19,12 @@ def validate_model_params(architecture: str, multi_modal: bool, pretrain: str):
     elif architecture == "maxvit":
         architecture = "maxvit-tiny"
     else:
-        raise ValueError("Invalid architecture")
+        raise ValueError(f"Invalid architecture: {architecture}")
 
     if pretrain == "imagenet":
         pretrain = "in1k"
     elif pretrain not in ["galaxyzoo", "randinit"]:
-        raise ValueError("Invalid pre-training regimen")
+        raise ValueError(f"Invalid pre-training regimen: {pretrain}")
 
     return architecture, multi_modal, pretrain
 
