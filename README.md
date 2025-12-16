@@ -7,7 +7,7 @@
 </p>
 
 [![arXiv](https://img.shields.io/badge/Original%20Publication-2401.15167-b31b1b.svg)](https://iopscience.iop.org/article/10.3847/1538-4357/ad5666)
-[![arXiv](https://img.shields.io/badge/Architecture%20Benchmarking-2512.XXXXX-b31b1b.svg)]()
+[![arXiv](https://img.shields.io/badge/Architecture%20Benchmarking-2512.11957-b31b1b.svg)](https://arxiv.org/abs/2512.11957)
 [![arXiv](https://img.shields.io/badge/ICML%20Paper-2307.07618-b31b1b.svg)](https://arxiv.org/abs/2307.07618)
 
 `BTSbot` is a multi-modal deep vision model for automating supernova identification and follow-up in the [Zwicky Transient Facility (ZTF)](https://www.ztf.caltech.edu) [Bright Transient Survey (BTS)](https://sites.astro.caltech.edu/ztf/bts/bts.php). 
@@ -74,7 +74,15 @@ archivePrefix = {arXiv},
 ```
 
 If you use or reference a pre-trained `BTSbot` model like the updated ConvNeXt-based `BTSbot`
-or any `BTSbot` output from 2026 or beyond, please also cite [our follow-up publication]() ([ADS]()).
+or any `BTSbot` output from 2026 or beyond, please also cite [our follow-up publication](https://arxiv.org/abs/2512.11957).
 ```
-
+@misc{Rehemtulla+2025,
+      title={Pre-training vision models for the classification of alerts from wide-field time-domain surveys}, 
+      author={Nabeel Rehemtulla and Adam A. Miller and Mike Walmsley and Ved G. Shah and Theophile Jegou du Laz and Michael W. Coughlin and Argyro Sasli and Joshua Bloom and Christoffer Fremling and Matthew J. Graham and Steven L. Groom and David Hale and Ashish A. Mahabal and Daniel A. Perley and Josiah Purdum and Ben Rusholme and Jesper Sollerman and Mansi M. Kasliwal},
+      year={2025},
+      eprint={2512.11957},
+      archivePrefix={arXiv},
+      primaryClass={astro-ph.IM},
+      url={https://arxiv.org/abs/2512.11957}, 
+}
 ```
