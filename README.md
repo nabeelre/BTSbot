@@ -76,7 +76,7 @@ archivePrefix = {arXiv},
 If you use or reference a pre-trained `BTSbot` model like the updated ConvNeXt-based `BTSbot`
 or any `BTSbot` output from 2026 or beyond, please also cite [our follow-up publication](https://arxiv.org/abs/2512.11957).
 ```
-@misc{Rehemtulla+2025,
+@ARTICLE{Rehemtulla+2025,
       title={Pre-training vision models for the classification of alerts from wide-field time-domain surveys}, 
       author={Nabeel Rehemtulla and Adam A. Miller and Mike Walmsley and Ved G. Shah and Theophile Jegou du Laz and Michael W. Coughlin and Argyro Sasli and Joshua Bloom and Christoffer Fremling and Matthew J. Graham and Steven L. Groom and David Hale and Ashish A. Mahabal and Daniel A. Perley and Josiah Purdum and Ben Rusholme and Jesper Sollerman and Mansi M. Kasliwal},
       year={2025},
