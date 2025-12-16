@@ -2,9 +2,10 @@ from bson.json_util import loads, dumps
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 from astropy.io import fits
-import tensorflow as tf
+# import tensorflow as tf
 import pandas as pd
 import numpy as np
+import tqdm
 import gzip
 import json
 import sys
@@ -75,7 +76,7 @@ def crop_norm_cutout(cutout, crop_to_size):
 
     margin = (63 - crop_to_size) // 2
 
-    cutout = cutout[margin:margin+crop_to_size, margin:margin+crop_to_size]
+    cutout = cutout[margin:margin + crop_to_size, margin:margin + crop_to_size]
     cutout /= np.linalg.norm(cutout)
 
     return cutout
@@ -229,33 +230,33 @@ def extract_triplets(alerts):
     return alerts, triplets
 
 
-def rerun_braai(triplets):
-    """
-    Reruns latest version of braai, ZTF deep real bogus (Duev+2019), on all alerts
+# def rerun_braai(triplets):
+#     """
+#     Reruns latest version of braai, ZTF deep real bogus (Duev+2019), on all alerts
 
-    Parameters
-    ----------
-    triplets: array, Nx63x63x3 (N=number of alerts)
-        triplets of all alerts to be rerun
+#     Parameters
+#     ----------
+#     triplets: array, Nx63x63x3 (N=number of alerts)
+#         triplets of all alerts to be rerun
 
-    Returns
-    -------
-    new_drb: array of floats
-        new real/bogus scores for each alert
-    """
-    if sys.platform == "darwin":
-        # Disable GPUs if running on macOS
-        print("disabling GPUs")
-        tf.config.set_visible_devices([], 'GPU')
+#     Returns
+#     -------
+#     new_drb: array of floats
+#         new real/bogus scores for each alert
+#     """
+#     if sys.platform == "darwin":
+#         # Disable GPUs if running on macOS
+#         print("disabling GPUs")
+#         tf.config.set_visible_devices([], 'GPU')
 
-    # Load model
-    tf.keras.backend.clear_session()
-    braai = tf.keras.models.load_model("supporting_models/braai_d6_m9.h5")
+#     # Load model
+#     tf.keras.backend.clear_session()
+#     braai = tf.keras.models.load_model("misc/supporting_models/braai_d6_m9.h5")
 
-    # Run braai
-    new_drb = braai.predict(triplets)
+#     # Run braai
+#     new_drb = braai.predict(triplets)
 
-    return np.transpose(new_drb)[0]
+#     return np.transpose(new_drb)[0]
 
 
 def query_nondet(objid, first_alert_jd):
@@ -300,12 +301,25 @@ def query_nondet(objid, first_alert_jd):
 
     r = k.query(query)
 
-    # elements of prv_candidates
-    prv = pd.DataFrame(r['data'][0]['prv_candidates'])
+    nondet_lc = r['kowalski']['data']
+
+    # Empty if the source has never had non-detections
+    if len(nondet_lc) == 0:
+        return np.nan, np.nan
+
+    prv = pd.DataFrame(nondet_lc[0]['prv_candidates'])
+
+    # if only non-detections found
+    if 'magpsf' not in prv.columns:
+        prv['magpsf'] = np.nan
+
+    if 'jd' not in prv.columns:
+        return np.nan, np.nan
 
     # non-detections before first detection
     leading_nondets = prv[np.isnan(prv['magpsf']) & (prv['jd'] < first_alert_jd)]
 
+    # if no leading non-detections found
     if len(leading_nondets) == 0:
         return np.nan, np.nan
 
@@ -373,7 +387,7 @@ def prep_alerts(alerts, label, new_drb):
 
     alert_df["nnotdet"] = alert_df["ncovhist"] - alert_df["ndethist"]
 
-    for objid in pd.unique(alert_df['objectId']):
+    for objid in tqdm.tqdm(pd.unique(alert_df['objectId'])):
         obj_alerts = alert_df.loc[alert_df["objectId"] == objid].sort_values(by="jd")
 
         peakmag = np.min(obj_alerts["magpsf"])
@@ -384,7 +398,7 @@ def prep_alerts(alerts, label, new_drb):
 
         for i in range(len(obj_alerts)):
             idx_cur = obj_alerts.index[i]
-            idx_so_far = obj_alerts.index[0:i+1]
+            idx_so_far = obj_alerts.index[0:i + 1]
 
             jd_first_alert = np.min((alert_df.loc[idx_cur, "jdstarthist"],
                                      np.min(obj_alerts['jd'])))
@@ -403,10 +417,10 @@ def prep_alerts(alerts, label, new_drb):
             alert_df.loc[idx_cur, "days_since_peak"] = alert_df.loc[idx_cur, "jd"] - jd_peak_so_far
             alert_df.loc[idx_cur, "days_to_peak"] = jd_peak_so_far - jd_first_alert
 
-        # nondet_jd, nondet_diffmaglim = query_nondet(objid, np.min(obj_alerts['jd']))
+        nondet_jd, nondet_diffmaglim = query_nondet(objid, np.min(obj_alerts['jd']))
 
-        # alert_df.loc[alert_df['objectId'] == objid, "last_nondet_jd"] = nondet_jd
-        # alert_df.loc[alert_df['objectId'] == objid, "last_nondet_diffmaglim"] = nondet_diffmaglim
+        alert_df.loc[alert_df['objectId'] == objid, "last_nondet_jd"] = nondet_jd
+        alert_df.loc[alert_df['objectId'] == objid, "last_nondet_diffmaglim"] = nondet_diffmaglim
 
         # first_det_mag = obj_alerts.sort_values("jd", ascending=True).iloc[0]['magpsf']
 

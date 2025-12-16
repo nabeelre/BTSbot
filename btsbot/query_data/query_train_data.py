@@ -11,7 +11,7 @@ from alert_utils import (make_triplet, extract_triplets, rerun_braai,
 from compile_ZTFIDs import compile_ZTFIDs
 
 external_HDD = "/Volumes/NRExternal3/trainv8 data/"
-quest_raw_path = "v11raw/"
+quest_raw_path = "v12raw/"
 to_desktop = "/Users/nabeelr/Desktop/"
 
 if sys.platform == "darwin":
@@ -22,8 +22,8 @@ else:
         creds = json.load(f)
 
 
-def query_kowalski(ZTFID, kowalski, programid, normalize: bool = True,
-                   verbose: bool = False, save_raw=None, load_raw=None):
+def query_kowalski(ZTFID, kowalski, programid, include_cutouts: bool = True,
+                   normalize: bool = True, verbose: bool = False, save_raw=None, load_raw=None):
     """
     Query kowalski for alerts with cutouts for a (list of) ZTFID(s)
 
@@ -34,6 +34,9 @@ def query_kowalski(ZTFID, kowalski, programid, normalize: bool = True,
 
     kowalski:
         a kowalski api object created with the kowalski library
+
+    include_cutouts (optional): bool
+        Easy flag for including/excluding cutouts from query
 
     normalize (optional): bool
         normalize cutouts by the Frobenius norm (L2)
@@ -76,6 +79,15 @@ def query_kowalski(ZTFID, kowalski, programid, normalize: bool = True,
         return None
 
     alerts = []
+
+    if include_cutouts:
+        cutout_query_dict = {
+            "cutoutScience": 1,
+            "cutoutTemplate": 1,
+            "cutoutDifference": 1
+        }
+    else:
+        cutout_query_dict = {}
 
     # For each object requested ...
     for ZTFID in list_ZTFID:
@@ -177,11 +189,8 @@ def query_kowalski(ZTFID, kowalski, programid, normalize: bool = True,
                     "classifications.acai_o": 1,
                     "classifications.acai_n": 1,
                     "classifications.acai_b": 1,
-
-                    "cutoutScience": 1,
-                    "cutoutTemplate": 1,
-                    "cutoutDifference": 1,
-                }
+                    "classifications.bts": 1,
+                } | cutout_query_dict
             }
         }
 
@@ -225,28 +234,29 @@ def query_kowalski(ZTFID, kowalski, programid, normalize: bool = True,
                 print("No queries will be saved")
                 save_raw = None
 
-        # initialize empty array to contain triplets
-        triplets = np.empty((len(object_alerts), 63, 63, 3))
-        # some images corrupted, initialize array to log which to exclude
-        to_drop = np.array((), dtype=int)
+        if include_cutouts:
+            # initialize empty array to contain triplets
+            triplets = np.empty((len(object_alerts), 63, 63, 3))
+            # some images corrupted, initialize array to log which to exclude
+            to_drop = np.array((), dtype=int)
 
-        # For each alert ...
-        for i, alert in enumerate(object_alerts):
-            # Unzip fits files of cutouts
-            triplets[i], drop = make_triplet(alert, normalize=normalize)
+            # For each alert ...
+            for i, alert in enumerate(object_alerts):
+                # Unzip fits files of cutouts
+                triplets[i], drop = make_triplet(alert, normalize=normalize)
 
-            # Note the index where a cutout was found to be corrupted
-            if drop:
-                to_drop = np.append(to_drop, int(i))
+                # Note the index where a cutout was found to be corrupted
+                if drop:
+                    to_drop = np.append(to_drop, int(i))
 
-        # Delete corresponding triplets and alerts that had corrupted cutouts
-        if len(to_drop) > 0:
-            triplets = np.delete(triplets, list(to_drop), axis=0)
-            object_alerts = np.delete(object_alerts, list(to_drop), axis=0)
+            # Delete corresponding triplets and alerts that had corrupted cutouts
+            if len(to_drop) > 0:
+                triplets = np.delete(triplets, list(to_drop), axis=0)
+                object_alerts = np.delete(object_alerts, list(to_drop), axis=0)
 
-        # Add triplet to the alert dict
-        for alert, triplet in zip(object_alerts, triplets):
-            alert['triplet'] = triplet
+            # Add triplet to the alert dict
+            for alert, triplet in zip(object_alerts, triplets):
+                alert['triplet'] = triplet
 
         alerts += list(object_alerts)
 
@@ -261,6 +271,7 @@ def query_kowalski(ZTFID, kowalski, programid, normalize: bool = True,
 
 
 def download_training_data(query_df, query_name, label,
+                           include_cutouts: bool = True,
                            normalize_cutouts: bool = True,
                            cutout_size=63,
                            verbose: bool = False,
@@ -320,14 +331,20 @@ def download_training_data(query_df, query_name, label,
 
     # Query programid=1 and 2 alerts from kowalski for all ZTFIDs and separate
     # their triplets from the rest of their alert packets
-    alerts, triplets = extract_triplets(
-        query_kowalski(query_df['ZTFID'].to_list(), k, 1,
-                       normalize=normalize_cutouts, verbose=verbose,
-                       save_raw=save_raw, load_raw=load_raw) +
-        query_kowalski(query_df['ZTFID'].to_list(), k, 2,
-                       normalize=normalize_cutouts, verbose=verbose,
-                       save_raw=save_raw, load_raw=load_raw)
+    query_response = query_kowalski(
+        query_df['ZTFID'].to_list(), k, programid=1,
+        include_cutouts=include_cutouts, normalize=normalize_cutouts,
+        verbose=verbose, save_raw=save_raw, load_raw=load_raw
+    ) + query_kowalski(
+        query_df['ZTFID'].to_list(), k, programid=2,
+        include_cutouts=include_cutouts, normalize=normalize_cutouts,
+        verbose=verbose, save_raw=save_raw, load_raw=load_raw
     )
+
+    if include_cutouts:
+        alerts, triplets = extract_triplets(query_response)
+    else:
+        alerts = query_response
 
     num_alerts = len(alerts)
 
@@ -353,23 +370,24 @@ def download_training_data(query_df, query_name, label,
             print(f"{query_name} {len(label)} total alerts:",
                   f"{num_trues} trues, {num_falses} falses")
 
-    # Rerun braai on all triplets and store their scores to be added to metadata
-    new_drb = rerun_braai(triplets)
+    if include_cutouts:
+        # Rerun braai on all triplets and store their scores to be added to metadata
+        new_drb = rerun_braai(triplets)
 
-    # Optionally, crop and renormalize all cutouts
-    if cutout_size != 63:
-        triplets = crop_triplets(triplets, cutout_size)
+        # Optionally, crop and renormalize all cutouts
+        if cutout_size != 63:
+            triplets = crop_triplets(triplets, cutout_size)
 
-    # Save triplets to disk and purge from memory
-    np.save(f"data/base_data/{query_name}_triplets" +
-            f"{cutout_size if cutout_size != 63 else ''}.npy", triplets)
-    del triplets
-    print("Saved and purged triplets\n")
+        # Save triplets to disk and purge from memory
+        np.save(f"data/base_data/{query_name}_triplets" +
+                f"{cutout_size if cutout_size != 63 else ''}.npy", triplets)
+        del triplets
+        print("Saved and purged triplets\n")
+    else:
+        new_drb = -1
 
     # augment alerts with custom features and add in labels
     cand_data = prep_alerts(alerts, label, new_drb)
-
-    # fetch_nondets()
 
     # Save metadata to disk and purge from memory
     cand_data.to_csv(f'data/base_data/{query_name}_candidates.csv', index=False)
@@ -388,7 +406,7 @@ if __name__ == "__main__":
 
     if query_name == "trues":
         label = 1
-    elif query_name in ["dims", "vars", "rejects", "junk"]:
+    elif query_name in ["dims", "vars", "rejects", "junk", "extra_agn", "extra_cvs"]:
         label = 0
     elif query_name == "extIas":
         label = "compute"
@@ -396,7 +414,9 @@ if __name__ == "__main__":
         print(query_name, "not known")
         exit()
 
-    download_training_data(query_df, query_name, label=label,
-                           normalize_cutouts=True, verbose=True,
-                           save_raw=quest_raw_path+query_name,
-                           load_raw=quest_raw_path+query_name)
+    download_training_data(
+        query_df, query_name, label=label,
+        normalize_cutouts=True, include_cutouts=False, verbose=True,
+        save_raw=quest_raw_path + query_name,
+        load_raw=quest_raw_path + query_name
+    )
