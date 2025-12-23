@@ -90,14 +90,15 @@ model = btsbot.load_HF_model(
 )
 ```
 
-Also see [`BTSbot/btsbot/inference_example.py`](https://github.com/nabeelre/BTSbot).
+Also see
+[`BTSbot/btsbot/inference_example.py`](https://github.com/nabeelre/BTSbot/blob/main/btsbot/inference_example.py).
 
 ## Citation
 
 If you use this model, please cite:
 """ + """
 ```bibtex
-@ARTICLE{2025arXiv251211957R,
+@ARTICLE{Rehemtulla+2025,
        author = {{Rehemtulla}, Nabeel and {Miller}, Adam A. and {Walmsley}, Mike
                  and {Shah}, Ved G. and {Jegou du Laz}, Theophile and
                  {Coughlin}, Michael W. and {Sasli}, Argyro and
@@ -151,10 +152,10 @@ def config_to_params(config: dict):
 
     if "mwalmsley" in image_config["model_kind"]:
         pretrain = "galaxyzoo"
-    elif "in1k" in image_config["model_kind"]:
-        pretrain = "imagenet"
     elif not image_config.get("pretrained", True):
         pretrain = "randinit"
+    elif "in1k" in image_config["model_kind"]:
+        pretrain = "imagenet"
     else:
         raise ValueError("Couldn't understand pre-training regimen")
 
