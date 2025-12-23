@@ -69,7 +69,7 @@ This is a {arch} fine-tuned for classifying images from the
 Zwicky Transient Facility (ZTF) observatory.
 [Rehemtulla et al. 2024](https://arxiv.org/abs/2401.15167) originally introduced
 `BTSbot` and its classification task, and
-[Rehemtulla et al. 2025](https://arxiv.org/abs/2512.XXXXX) performed
+[Rehemtulla et al. 2025](https://arxiv.org/abs/2512.11957) performed
 architecture and pre-training benchmarking on this `BTSbot` image classification task.
 
 **Base Model**:
@@ -95,10 +95,34 @@ Also see [`BTSbot/btsbot/inference_example.py`](https://github.com/nabeelre/BTSb
 ## Citation
 
 If you use this model, please cite:
-
+""" + """
 ```bibtex
-To be added
-```
+@ARTICLE{2025arXiv251211957R,
+       author = {{Rehemtulla}, Nabeel and {Miller}, Adam A. and {Walmsley}, Mike
+                 and {Shah}, Ved G. and {Jegou du Laz}, Theophile and
+                 {Coughlin}, Michael W. and {Sasli}, Argyro and
+                 {Bloom}, Joshua and {Fremling}, Christoffer and
+                 {Graham}, Matthew J. and {Groom}, Steven L. and {Hale}, David and
+                 {Mahabal}, Ashish A. and {Perley}, Daniel A. and
+                 {Purdum}, Josiah and {Rusholme}, Ben and {Sollerman}, Jesper and
+                 {Kasliwal}, Mansi M.},
+        title = "{Pre-training vision models for the classification of alerts from
+                  wide-field time-domain surveys}",
+      journal = {arXiv e-prints},
+     keywords = {Instrumentation and Methods for Astrophysics,
+                 Computer Vision and Pattern Recognition},
+         year = 2025,
+        month = dec,
+          eid = {arXiv:2512.11957},
+        pages = {arXiv:2512.11957},
+          doi = {10.48550/arXiv.2512.11957},
+archivePrefix = {arXiv},
+       eprint = {2512.11957},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2025arXiv251211957R},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+```""" + """
 
 ## License
 
