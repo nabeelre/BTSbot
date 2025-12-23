@@ -1,10 +1,7 @@
-import numpy as np
 import pandas as pd
-import json
+import numpy as np
 import sys
 import os
-
-from penquins import Kowalski
 
 from alert_utils import (make_triplet, extract_triplets, rerun_braai,
                          prep_alerts, crop_triplets)
@@ -14,12 +11,24 @@ external_HDD = "/Volumes/NRExternal3/trainv8 data/"
 quest_raw_path = "v12raw/"
 to_desktop = "/Users/nabeelr/Desktop/"
 
-if sys.platform == "darwin":
-    with open('/Users/nabeelr/credentials.json', 'r') as f:
-        creds = json.load(f)
+KOWALSKI_USER = os.environ.get('KOWALSKI_USER')
+KOWALSKI_PASS = os.environ.get('KOWALSKI_PASS')
+
+if KOWALSKI_USER is not None and KOWALSKI_PASS is not None:
+    from penquins import Kowalski
+
+    k = Kowalski(instances={
+        'kowalski': {
+            'protocol': 'https',
+            'port': 443,
+            'host': 'kowalski.caltech.edu',
+            'username': KOWALSKI_USER,
+            'password': KOWALSKI_PASS
+        }
+    })
 else:
-    with open('misc/credentials.json', 'r') as f:
-        creds = json.load(f)
+    print("No Kowalski credentials found. Querying Kowalski will not be possible.")
+    k = None
 
 
 def query_kowalski(ZTFID, kowalski, programid, include_cutouts: bool = True,
@@ -309,21 +318,7 @@ def download_training_data(query_df, query_name, label,
     if verbose:
         print(f"Querying kowalski for {len(query_df)} objects of {query_name}")
 
-    instances = {
-        'kowalski': {
-            'protocol': 'https',
-            'port': 443,
-            'host': 'kowalski.caltech.edu',
-            'username': creds['kowalski_username'],
-            'password': creds['kowalski_password']
-        }
-    }
-
-    k = Kowalski(instances=instances,
-                 username=creds['kowalski_username'],
-                 password=creds['kowalski_password'])
-
-    if k.ping('kowalski'):
+    if k is not None and k.ping('kowalski'):
         print("Connected to Kowalski")
     else:
         print("Unable to connect to Kowalski")

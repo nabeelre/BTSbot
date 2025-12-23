@@ -3,9 +3,7 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import requests
-import json
 import time
-import sys
 import os
 
 btsse_query_urls = {
@@ -44,16 +42,21 @@ btsse_query_urls = {
     ),
 }
 
-if sys.platform == "darwin":
-    with open('/Users/nabeelr/credentials.json', 'r') as f:
-        creds = json.load(f)
+FRITZ_API_KEY = os.environ.get('FRITZ_API_KEY')
+if FRITZ_API_KEY is None:
+    print("FRITZ_API_KEY environment variable not found. \
+          \nQuerying Fritz will not be possible.")
+    host = None
+    headers = None
 else:
-    with open('../misc/credentials.json', 'r') as f:
-        creds = json.load(f)
+    host = "https://fritz.science"
+    headers = {'Authorization': f'token {FRITZ_API_KEY}'}
 
-api_token = creds['fritz_api_key']
-host = "https://fritz.science"
-headers = {'Authorization': f'token {api_token}'}
+BTSSE_USER = os.environ.get('BTSSE_USER')
+BTSSE_PASS = os.environ.get('BTSSE_PASS')
+if BTSSE_USER is None or BTSSE_PASS is None:
+    print("BTSSE_USER and BTSSE_PASS environment variables not found. \
+          \nQuerying BTSSE will not be possible.")
 
 
 def query_rejects():
@@ -193,8 +196,7 @@ def query_BTSSE(query_name, overwrite: bool = False):
     if not (os.path.exists(f"../data/base_data/{query_name}.csv") and not overwrite):
         with open(f"../data/base_data/{query_name}.csv", "w") as f:
             f.write(requests.get(btsse_query_urls[query_name],
-                                 auth=(creds["btsse_username"],
-                                       creds["btsse_password"])).text)
+                                 auth=(BTSSE_USER, BTSSE_PASS)).text)
             print("Queried and wrote", query_name)
     else:
         print(f"  {query_name} list already present")
