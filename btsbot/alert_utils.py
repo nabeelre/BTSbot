@@ -7,30 +7,27 @@ import pandas as pd
 import numpy as np
 import tqdm
 import gzip
-import json
-import sys
 import io
+import os
 
-from penquins import Kowalski
+KOWALSKI_USER = os.environ.get('KOWALSKI_USER')
+KOWALSKI_PASS = os.environ.get('KOWALSKI_PASS')
 
-if sys.platform == "darwin":
-    with open('/Users/nabeelr/credentials.json', 'r') as f:
-        creds = json.load(f)
+if KOWALSKI_USER is not None and KOWALSKI_PASS is not None:
+    from penquins import Kowalski
+
+    k = Kowalski(instances={
+        'kowalski': {
+            'protocol': 'https',
+            'port': 443,
+            'host': 'kowalski.caltech.edu',
+            'username': KOWALSKI_USER,
+            'password': KOWALSKI_PASS
+        }
+    })
 else:
-    with open('misc/credentials.json', 'r') as f:
-        creds = json.load(f)
-
-instances = {
-    'kowalski': {
-        'protocol': 'https',
-        'port': 443,
-        'host': 'kowalski.caltech.edu',
-        'username': creds['kowalski_username'],
-        'password': creds['kowalski_password']
-    }
-}
-
-k = Kowalski(instances=instances)
+    print("No Kowalski credentials found. Querying Kowalski will not be possible.")
+    k = None
 
 
 def plot_triplet(trip):
@@ -281,6 +278,11 @@ def query_nondet(objid, first_alert_jd):
         limiting magnitude of last non-detection before first detection
         NaN if no leading non-detection found
     """
+    if k is None:
+        print("Kowalski credentials were not found. \
+               They must be set as environment variables KOWALSKI_USER and \
+               KOWALSKI_PASS. \nQuerying Kowalski will not be possible.")
+        return np.nan, np.nan
 
     query = {
         "query_type": "find",
