@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "btsbot"
+version = "2.0.1"
+description = "Automatic supernova discovery with deep learning"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Nabeel Rehemtulla", email = "nabeelr@u.northwestern.edu"}
+]
+keywords = ["astronomy", "machine-learning", "supernova", "ztf", "time-domain"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy>=1.24.3,<3.0.0",
+    "pandas>=2.2.2",
+    "scipy>=1.10.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "scikit-learn>=1.5.0",
+    "Pillow>=9.0.0",
+    "opencv-python>=4.8.0",
+    "matplotlib>=3.7.1",
+    "tqdm>=4.66.4",
+    "requests>=2.32.3",
+    "astropy>=6.0.1",
+    "pymongo>=4.7.0",
+    "bson>=0.5.10",
+    "penquins>=2.4.0",
+    "timm>=0.9.0",
+    "umap-learn>=0.5.0",
+    "wandb>=0.15.0",
+    "datasets>=2.14.0",
+    "pyarrow>=10.0.0",
+    "fsspec>=2024.0.0",
+    "safetensors>=0.5.0",
+    "prettytable>=3.0.0",
+    "PyYAML>=6.0.0",
+    "protobuf>=4.0.0",
+    "huggingface-hub>=0.16.0",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "nvtx>=0.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nabeelre/BTSbot"
+Repository = "https://github.com/nabeelre/BTSbot"
+Issues = "https://github.com/nabeelre/BTSbot/issues"
+
+[tool.setuptools]
+packages = ["btsbot"]
