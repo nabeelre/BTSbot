@@ -44,8 +44,6 @@ btsse_query_urls = {
 
 FRITZ_API_KEY = os.environ.get('FRITZ_API_KEY')
 if FRITZ_API_KEY is None:
-    print("FRITZ_API_KEY environment variable not found. \
-          \nQuerying Fritz will not be possible.")
     host = None
     headers = None
 else:
@@ -54,9 +52,9 @@ else:
 
 BTSSE_USER = os.environ.get('BTSSE_USER')
 BTSSE_PASS = os.environ.get('BTSSE_PASS')
-if BTSSE_USER is None or BTSSE_PASS is None:
-    print("BTSSE_USER and BTSSE_PASS environment variables not found. \
-          \nQuerying BTSSE will not be possible.")
+# if BTSSE_USER is None or BTSSE_PASS is None:
+#     print("BTSSE_USER and BTSSE_PASS environment variables not found. \
+#           \nQuerying BTSSE will not be possible.")
 
 
 def query_rejects():

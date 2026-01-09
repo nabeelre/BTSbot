@@ -27,7 +27,6 @@ if KOWALSKI_USER is not None and KOWALSKI_PASS is not None:
         }
     })
 else:
-    print("No Kowalski credentials found. Querying Kowalski will not be possible.")
     k = None
 
 
@@ -318,7 +317,12 @@ def download_training_data(query_df, query_name, label,
     if verbose:
         print(f"Querying kowalski for {len(query_df)} objects of {query_name}")
 
-    if k is not None and k.ping('kowalski'):
+    if k is None:
+        print("Kowalski credentials were not found. \
+               They must be set as environment variables KOWALSKI_USER and \
+               KOWALSKI_PASS. \nQuerying Kowalski will not be possible.")
+        exit()
+    elif k.ping('kowalski'):
         print("Connected to Kowalski")
     else:
         print("Unable to connect to Kowalski")

@@ -3,7 +3,7 @@ BTSbot: Multi-modal convolutional neural network for automating supernova identi
 and follow-up in the Zwicky Transient Facility (ZTF) Bright Transient Survey (BTS).
 """
 
-__version__ = "2.0.0"
+__version__ = "2.0.6"
 
 # Core modules
 from . import architectures

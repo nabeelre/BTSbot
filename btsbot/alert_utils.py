@@ -26,7 +26,6 @@ if KOWALSKI_USER is not None and KOWALSKI_PASS is not None:
         }
     })
 else:
-    print("No Kowalski credentials found. Querying Kowalski will not be possible.")
     k = None
 
 
