@@ -21,12 +21,10 @@ The training set for the original production model is available on [Zenodo](http
 
 ## Installation
 
-Clone the repository and install `BTSbot`:
+install the `BTSbot` with pip:
 
 ```bash
-git clone https://github.com/nabeelre/BTSbot.git
-cd BTSbot
-pip install -e .
+pip install btsbot
 ```
 
 ## Usage
