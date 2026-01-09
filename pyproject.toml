@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "btsbot"
-version = "2.0.2"
+version = "2.0.3"
 description = "Automatic supernova discovery with deep learning"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -14,7 +14,6 @@ authors = [
 ]
 keywords = ["astronomy", "machine-learning", "supernova", "ztf", "time-domain"]
 classifiers = [
-    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Astronomy",
     "Programming Language :: Python :: 3",

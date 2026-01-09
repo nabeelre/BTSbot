@@ -21,7 +21,7 @@ The training set for the original production model is available on [Zenodo](http
 
 ## Installation
 
-install the `BTSbot` with pip:
+Install with pip:
 
 ```bash
 pip install btsbot
