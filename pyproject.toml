@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "btsbot"
-version = "2.0.6"
+version = "2.0.7"
 description = "Automatic supernova discovery with deep learning"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -50,6 +50,8 @@ dependencies = [
     "prettytable>=3.0.0",
     "PyYAML>=6.0.0",
     "protobuf>=4.0.0",
+    "onnx>=1.14.0",
+    "onnxruntime>=1.15.0",
     "huggingface-hub>=0.16.0",
 ]
 
