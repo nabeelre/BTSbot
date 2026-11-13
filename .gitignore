@@ -195,3 +195,8 @@ zero_shot_classification.ipynb
 train_configs/LS*
 supporting_models/
 old/
+btsbot/pretraining/pretraining_figs.ipynb
+btsbot/pretraining/restart_sweeps.ipynb
+btsbot/example_data/onnx*
+btsbot/example_data/usage_*1000*
+btsbot/generate_embeddings.py

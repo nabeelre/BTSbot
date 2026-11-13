@@ -66,7 +66,12 @@ def run_val(config, model_dir, model_filename,
 
     # Initialize model and set to eval mode (don't compute gradients)
     model = model_type(config).to(device)
-    model.load_state_dict(torch.load(path.join(model_dir, model_filename)))
+    model.load_state_dict(
+        torch.load(
+            path.join(model_dir, model_filename),
+            map_location=device
+        )
+    )
     model.eval()
 
     # Wrap model in DataParallel if using multiple GPUs
