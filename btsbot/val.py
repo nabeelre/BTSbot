@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from torch.nn.parallel import DataParallel
 from utils import FlexibleDataset
 import architectures
+from policy_metrics import compute_policy_performance_fast
 
 import matplotlib
 matplotlib.use('Agg')  # Configure matplotlib to use non-GUI backend
@@ -386,14 +387,6 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
     # /===================================================================/
     # Per-object Precision and Recall
 
-    save_times = pd.read_csv(
-        "data/base_data/trues.csv"
-    ).set_index("ZTFID")['RCF_save_time'].to_dict()
-    trigger_times = pd.read_csv(
-        "data/base_data/trues.csv"
-    ).set_index("ZTFID")['RCF_trigger_time'].to_dict()
-    RCFJunk = pd.read_csv("data/base_data/RCFJunk_Feb21_2025.csv", index_col=None)
-
     ax7 = plt.Subplot(fig, main_grid[6])
     ax8 = plt.Subplot(fig, main_grid[7])
     ax9 = plt.Subplot(fig, main_grid[8])
@@ -402,259 +395,78 @@ def diagnostic_fig(run_data, cand_dir, run_descriptor):
     ax11 = plt.Subplot(fig, main_grid[10])
     ax12 = plt.Subplot(fig, main_grid[11])
 
-    def bts_p1(alerts):
-        valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
-        return len(valid) >= 2
+    policy_cand, policy_performance = compute_policy_performance_fast(cand)
 
-    def bts_p2(alerts):
-        if np.min(alerts['magpsf']) <= 18.5:
-            valid = alerts[(alerts['preds'] == 1) & (alerts['magpsf'] < 19)]
-            return len(valid) >= 2
-        return False
-
-    def prod_p1(alerts):
-        valid = alerts[(alerts['raw_preds'] > 0.85) & (alerts['magpsf'] < 19)]
-        return len(valid) >= 1
-
-    def prod_p2(alerts):
-        if np.min(alerts['magpsf']) <= 18.5:
-            valid = alerts[(alerts['raw_preds'] > 0.85) & (alerts['magpsf'] < 19)]
-            return len(valid) >= 1
-        return False
-
-    policy_names = ["bts_p1", "bts_p2", "prod_p1", "prod_p2"]
-    policies = [bts_p1, bts_p2, prod_p1, prod_p2]
     CP_axes = [ax7, ax8, ax9, None, None]
     ST_axes = [ax10, ax11, ax12, None, None]
 
-    policy_performance = dict.fromkeys(policy_names)
+    # Plot completeness/purity and time-to-save for each policy that has axes
+    for name, cp_ax, st_ax in zip(policy_performance, CP_axes, ST_axes):
+        if cp_ax is None:
+            continue
+        perf = policy_performance[name]
+        policy_precision = perf["policy_precision"]
+        policy_recall = perf["policy_recall"]
+        med_save_dt = perf["med_save_dt"]
+        bright_narrow_bins = np.array(perf["peakmag_bins"])
 
-    # Get label and peakmag for each source (by taking all unique objectIds)
-    policy_cand = pd.DataFrame(columns=["objectId", "label", "peakmag",
-                                        "remaining_alert_peakmag"])
-    # Iterate over all alerts in validation/test set
-    for objid in pd.unique(cand['objectId']):
-        obj_alerts = cand[cand['objectId'] == objid]
+        if policy_precision != -999.0:  # policy has both TPs and TNs
+            binned_precision = np.array(perf["binned_precision"])
+            binned_recall = np.array(perf["binned_recall"])
 
-        already_seen = objid in policy_cand['objectId'].to_numpy()
-        in_RCFJunk = objid in RCFJunk['id'].to_numpy()
-        good_coverage = len(obj_alerts) >= 2  # improve, change to quality cut?
-        is_bts = obj_alerts["label"].iloc[0] == 1
-        min_magpsf = np.min(obj_alerts["magpsf"])
-        BTS_peak_thinned = is_bts and min_magpsf > 18.5
+            cp_ax.step(bright_narrow_bins,
+                       100 * np.append(binned_recall[0], binned_recall),
+                       color='#263D65', label='Completeness', linewidth=3)
+            cp_ax.step(bright_narrow_bins,
+                       100 * np.append(binned_precision[0], binned_precision),
+                       color='#FE7F2D', label='Purity', linewidth=3)
 
-        if (
-            (not already_seen) and
-            (not in_RCFJunk) and
-            (good_coverage) and
-            (not BTS_peak_thinned)
-        ):
-            policy_cand.loc[len(policy_cand)] = (
-                objid,
-                cand.loc[cand['objectId'] == objid, "label"].iloc[0],
-                cand.loc[cand['objectId'] == objid, "peakmag"].iloc[0],
-                np.min(cand.loc[cand['objectId'] == objid, "magpsf"])
+            cp_ax.axhline(
+                100 * policy_precision, color='#FE7F2D',
+                linewidth=2, linestyle='dashed'
+            )
+            cp_ax.axhline(
+                100 * policy_recall, color='#263D65',
+                linewidth=2, linestyle='dashed'
             )
 
-    # For each policy
-    for name, func, cp_ax, st_ax in zip(policy_names, policies, CP_axes, ST_axes):
-        plot_policy = cp_ax is not None
-        # Initialize new columns
-        policy_cand[name + "_pred"] = 0
-        policy_cand[name + "_jd"] = np.float64(-1)
-        policy_cand[name + "_mag"] = np.float64(-1)
-        policy_cand[name + "_save_dt"] = np.nan
-        policy_cand[name + "_trigger_dt"] = np.nan
+            st_ax.hist(policy_cand[name + "_save_dt"], bins=50, histtype='step',
+                       edgecolor='#654690', linewidth=3, label=name + "_save")
 
-        # For each source
-        for obj_id in policy_cand["objectId"]:
-            # Pick out alerts for that source and sort them by time
-            obj_alerts = cand.loc[cand["objectId"] == obj_id].sort_values(by="jd")
+        cp_ax.text(x=17.75, y=76.25,
+                   s=f"{name}\n({100*policy_recall:.0f}%,{100*policy_precision:.0f}%)",
+                   fontsize=20, fontweight='bold', c='#654690')
+        cp_ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
+        cp_ax.grid(True, linewidth=.3)
 
-            # For each alert
-            for i in range(len(obj_alerts)):
-                # the obj_alerts index of the current row of iteration
-                idx_cur = obj_alerts.index[i]
+        cp_ax.set_xlim([17.0, 18.5])
+        cp_ax.set_ylim([75, 100.5])
 
-                # the obj_alerts index of the current and previous rows of iteration
-                idx_sofar = obj_alerts.index[0:i + 1]
+        cp_ax.xaxis.set_major_locator(mtick.MultipleLocator(0.5))
+        cp_ax.xaxis.set_minor_locator(mtick.MultipleLocator(0.25))
+        cp_ax.yaxis.set_major_locator(mtick.MultipleLocator(10))
+        cp_ax.yaxis.set_minor_locator(mtick.MultipleLocator(5))
 
-                # Don't save before 19 mag
-                # if np.min(obj_alerts.loc[obj_alerts.index[0:i+1], 'magpsf']) > 19:
-                #     continue
+        cp_ax.yaxis.set_major_formatter(mtick.PercentFormatter(decimals=0))
 
-                # Compute the prediction for this current policy
-                policy_pred = func(obj_alerts.loc[idx_sofar])
+        cp_ax.tick_params(direction='in', axis='both', length=3, width=1.5,
+                          bottom=True, left=True, right=True, pad=10)
+        cp_ax.tick_params(which='minor', direction='in', axis='y',
+                          length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
 
-                # If this is the first positive pred
-                current_policy_pred_val = policy_cand.loc[
-                    policy_cand['objectId'] == obj_id, name + "_pred"
-                ].values[0]
-                if int(policy_pred) and not current_policy_pred_val:
-                    policy_cand.loc[
-                        policy_cand['objectId'] == obj_id, name + "_jd"
-                    ] = obj_alerts.loc[idx_cur, "jd"]
+        cp_ax.set_xlabel("Peak Magnitude", size=22)
+        cp_ax.set_ylabel("% of objects", size=18)
 
-                    policy_cand.loc[
-                        policy_cand['objectId'] == obj_id, name + "_mag"
-                    ] = obj_alerts.loc[idx_cur, "magpsf"]
+        st_ax.axvline(med_save_dt, linestyle='solid', c='k', linewidth=1.5,
+                      label=f"med:\n{med_save_dt:.2f} d")
+        st_ax.axvline(0, linestyle='dashed', c='gray', linewidth=1)
 
-                # Store policy prediction
-                policy_cand.loc[
-                    policy_cand['objectId'] == obj_id, name + "_pred"
-                ] = int(policy_pred)
+        st_ax.set_xlim([-15, 15])
+        st_ax.set_ylim([0, 55])
 
-        policy_labels = policy_cand["label"].to_numpy()
-        policy_preds = policy_cand[name + "_pred"].to_numpy()
-        bright_narrow_bins = np.arange(17.00, 18.50 + 0.25, 0.25)
-
-        TP_mask_policy = np.bitwise_and(policy_labels, policy_preds)
-        TN_mask_policy = 1 - (np.bitwise_or(policy_labels, policy_preds))
-        FP_mask_policy = np.bitwise_and(1 - policy_labels, policy_preds)
-        FN_mask_policy = np.bitwise_and(policy_labels, 1 - policy_preds)
-
-        TP_idxs_policy = [ii for ii, mi in enumerate(TP_mask_policy) if mi == 1]
-        TN_idxs_policy = [ii for ii, mi in enumerate(TN_mask_policy) if mi == 1]
-        FP_idxs_policy = [ii for ii, mi in enumerate(FP_mask_policy) if mi == 1]
-        FN_idxs_policy = [ii for ii, mi in enumerate(FN_mask_policy) if mi == 1]
-
-        TP_count_policy_binned, _ = np.histogram(
-            policy_cand.loc[TP_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
-        )
-        FP_count_policy_binned, _ = np.histogram(
-            policy_cand.loc[FP_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
-        )
-        # TN_count_policy_binned, _ = np.histogram(
-        #     policy_cand.loc[TN_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
-        # )
-        FN_count_policy_binned, _ = np.histogram(
-            policy_cand.loc[FN_idxs_policy, "remaining_alert_peakmag"], bins=bright_narrow_bins
-        )
-
-        if all((len(TP_idxs_policy) > 0, len(TN_idxs_policy) > 0)):
-            policy_precision = len(TP_idxs_policy) / (len(FP_idxs_policy) + len(TP_idxs_policy))
-            policy_recall = len(TP_idxs_policy) / (len(FN_idxs_policy) + len(TP_idxs_policy))
-
-            binned_precision = TP_count_policy_binned / (
-                TP_count_policy_binned + FP_count_policy_binned
-            )
-            binned_recall = TP_count_policy_binned / (
-                TP_count_policy_binned + FN_count_policy_binned
-            )
-
-            if plot_policy:
-                cp_ax.step(bright_narrow_bins,
-                           100 * np.append(binned_recall[0], binned_recall),
-                           color='#263D65', label='Completeness', linewidth=3)
-                cp_ax.step(bright_narrow_bins,
-                           100 * np.append(binned_precision[0], binned_precision),
-                           color='#FE7F2D', label='Purity', linewidth=3)
-
-                cp_ax.axhline(
-                    100 * policy_precision, color='#FE7F2D',
-                    linewidth=2, linestyle='dashed'
-                )
-                cp_ax.axhline(
-                    100 * policy_recall, color='#263D65',
-                    linewidth=2, linestyle='dashed'
-                )
-
-            # policy cand has only val for all sets
-            # save_times has train+val+test but only BTSSE trues
-            # MS trues have unreliable/unrealistic save times, so exclude.
-            # Pre ~2021 sources have unreliable Fritz save times (scanned on GROWTH), exclude.
-            jan1_2021_jd = 2459215.5
-            for objid_tp in policy_cand.loc[TP_idxs_policy, "objectId"].to_list():
-                policy_obj_jd_series = policy_cand.loc[
-                    policy_cand["objectId"] == objid_tp, name + "_jd"
-                ]
-                policy_obj_jd = policy_obj_jd_series.values[0]
-
-                if objid_tp in list(save_times):
-                    # Some BTS trues don't have save times...
-                    if (save_times[objid_tp] >= jan1_2021_jd) and (policy_obj_jd > 0):
-                        current_jd = policy_cand.loc[
-                            policy_cand["objectId"] == objid_tp, name + "_jd"
-                        ].values[0]
-                        policy_cand.loc[
-                            policy_cand["objectId"] == objid_tp, name + "_save_dt"
-                        ] = current_jd - save_times[objid_tp]
-
-                if objid_tp in list(trigger_times):
-                    trigger_time_val = trigger_times[objid_tp]
-                    if (
-                        trigger_time_val >= jan1_2021_jd and
-                        trigger_time_val < 1e10 and
-                        policy_obj_jd > 0
-                    ):
-                        current_jd = policy_cand.loc[
-                            policy_cand["objectId"] == objid_tp, name + "_jd"
-                        ].values[0]
-                        policy_cand.loc[
-                            policy_cand["objectId"] == objid_tp, name + "_trigger_dt"
-                        ] = current_jd - trigger_time_val
-
-            med_save_dt = np.nanmedian(policy_cand[name + "_save_dt"])
-            med_trigger_dt = np.nanmedian(policy_cand[name + "_trigger_dt"])
-
-            if plot_policy:
-                st_ax.hist(policy_cand[name + "_save_dt"], bins=50, histtype='step',
-                           edgecolor='#654690', linewidth=3, label=name + "_save")
-        else:
-            policy_precision = -999.0
-            policy_recall = -999.0
-            binned_precision = [-999.0]
-            binned_recall = [-999.0]
-            med_save_dt = -999.0
-            med_trigger_dt = -999.0
-
-        policy_performance[name] = {
-            "policy_precision": policy_precision,
-            "policy_recall": policy_recall,
-            "binned_precision": list(binned_precision),
-            "binned_recall": list(binned_recall),
-            "peakmag_bins": list(bright_narrow_bins),
-            "med_save_dt": med_save_dt,
-            "med_trigger_dt": med_trigger_dt
-        }
-
-        if plot_policy:
-            cp_ax.text(x=17.75, y=76.25,
-                       s=f"{name}\n({100*policy_recall:.0f}%,{100*policy_precision:.0f}%)",
-                       fontsize=20, fontweight='bold', c='#654690')
-            cp_ax.axvline(18.5, c='k', linewidth=1, linestyle='dashed', alpha=0.5, zorder=10)
-            cp_ax.grid(True, linewidth=.3)
-
-            cp_ax.set_xlim([17.0, 18.5])
-            cp_ax.set_ylim([75, 100.5])
-
-            cp_ax.xaxis.set_major_locator(mtick.MultipleLocator(0.5))
-            cp_ax.xaxis.set_minor_locator(mtick.MultipleLocator(0.25))
-            cp_ax.yaxis.set_major_locator(mtick.MultipleLocator(10))
-            cp_ax.yaxis.set_minor_locator(mtick.MultipleLocator(5))
-
-            cp_ax.yaxis.set_major_formatter(mtick.PercentFormatter(decimals=0))
-
-            cp_ax.tick_params(direction='in', axis='both', length=3, width=1.5,
-                              bottom=True, left=True, right=True, pad=10)
-            cp_ax.tick_params(which='minor', direction='in', axis='y',
-                              length=1.5, width=1.5, bottom=True, left=True, right=True, pad=10)
-
-            cp_ax.set_xlabel("Peak Magnitude", size=22)
-            cp_ax.set_ylabel("% of objects", size=18)
-
-            st_ax.axvline(med_save_dt, linestyle='solid', c='k', linewidth=1.5,
-                          label=f"med:\n{med_save_dt:.2f} d")
-            st_ax.axvline(0, linestyle='dashed', c='gray', linewidth=1)
-
-            st_ax.set_xlim([-15, 15])
-            st_ax.set_ylim([0, 55])
-
-            st_ax.legend(prop={'size': 20}, frameon=False)
-            st_ax.set_ylabel("# of sources", size=18)
-            st_ax.set_xlabel("Days after save by scanner", size=22)
-
-        print(f"Finished policy {name} analysis")
+        st_ax.legend(prop={'size': 20}, frameon=False)
+        st_ax.set_ylabel("# of sources", size=18)
+        st_ax.set_xlabel("Days after save by scanner", size=22)
 
     ax7.axhline(0, color='gray', linewidth=2, linestyle='dashed', label='Overall')
     ax7.legend(prop={'size': 14}, frameon=False, loc="lower left")
