@@ -43,8 +43,7 @@ Config keys:
     device              "auto" (cuda > mps > cpu), "cuda", "mps" or "cpu"
     use_test_split      also score the test split
     run_name            optional; default is built from the settings, e.g. "bag800x8_s2"
-    data_base_dir       optional; default as train.py ("" on macOS, the /scratch dir on the cluster if present)
-"""
+    data_base_dir       optional; default as train.py ("" on macOS, the /scratch dir on the cluster if present)"""
 import fnmatch
 import gc
 import json
@@ -221,18 +220,24 @@ def run(config):
 
     X_ctx, y_ctx = context[feature_cols], context.label.astype(float)
     scores = {s: np.zeros(len(d)) for s, d in evals.items()}
-    fit_seconds, start = [], time.time()
+    fit_seconds, fit_peak_gib, start = [], [], time.time()
     for i, rows in enumerate(fits):
         t = time.time()
+        if device == "cuda":
+            torch.cuda.reset_peak_memory_stats()
         model = lazy.LazyModel(config["model_name"], version=config["model_version"], device=device,
                                random_state=config["random_seed"] + i, n_estimators=config["n_estimators"])
         model.fit(X_ctx.loc[rows], y_ctx.loc[rows])
         for s, d in evals.items():
             scores[s] += model.predict(d[feature_cols], method="mean") / len(fits)
+        # peak GPU memory for this fit (on MPS, what the allocator holds, which is close to the peak)
+        fit_peak_gib.append(torch.cuda.max_memory_allocated() / 2**30 if device == "cuda"
+                            else torch.mps.driver_allocated_memory() / 2**30 if device == "mps" else float("nan"))
         del model
         free_device_memory(device)
         fit_seconds.append(time.time() - t)
-        print(f"  fit {i + 1}/{len(fits)}: {len(rows):,} alerts, {fit_seconds[-1]:.1f}s", flush=True)
+        print(f"  fit {i + 1}/{len(fits)}: {len(rows):,} alerts, {fit_seconds[-1]:.1f}s, "
+              f"peak {fit_peak_gib[-1]:.1f} GiB", flush=True)
 
     summaries = {}
     for s, d in evals.items():
@@ -246,7 +251,7 @@ def run(config):
         summaries[s].pop("fig", None)
 
     run_data = {"run_name": run_name, "fit_alerts": [len(f) for f in fits], "fit_seconds": fit_seconds,
-                "feature_cols": feature_cols}
+                "fit_peak_gib": fit_peak_gib, "feature_cols": feature_cols}
     make_report(config, f"{model_dir}/report.json", run_data, summaries["val"])
     if "test" in summaries:
         with open(f"{model_dir}/report.json") as f:
