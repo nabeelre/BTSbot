@@ -12,7 +12,7 @@ Usage (from btsbot/, like train.py):
 Trailing key=value pairs override config entries; values are parsed as JSON where possible (numbers, true/false,
 null, lists) and otherwise kept as strings.
 
-Writes to models/tfm_<model_version>_<train_data_version>_N<N_max>_<device>/<run_name>/:
+Writes to models/tfm_<model_version>_<train_data_version>_N<N_max>_<device>[_<tag>]/<run_name>/:
     report.json                 config, per-bag history and metrics (utils.make_report, as train.py)
     <run_name>.pdf              diagnostic figure for val (and <run_name>_test.pdf with use_test_split)
     val_scores.csv              per-alert scores (and test_scores.csv)
@@ -43,6 +43,8 @@ Config keys:
     device              "auto" (cuda > mps > cpu), "cuda", "mps" or "cpu"
     use_test_split      also score the test split
     run_name            optional; default is built from the settings, e.g. "bag800x8_s2"
+    tag                 optional; appended to the output dir name (e.g. "imgpred") so sweeps with different
+                        features don't overwrite each other. sweep_analysis/ globs the untagged dirs only.
     data_base_dir       optional; default as train.py ("" on macOS, the /scratch dir on the cluster if present)"""
 import fnmatch
 import gc
@@ -182,7 +184,8 @@ def run(config):
     metadata_cols = config["metadata_cols"]
 
     run_name = config.get("run_name") or default_run_name(config)
-    model_dir = f"models/tfm_{config['model_version']}_{dataset_version}{N_str}_{device}/{run_name}/"
+    tag = f"_{config['tag']}" if config.get("tag") else ""
+    model_dir = f"models/tfm_{config['model_version']}_{dataset_version}{N_str}_{device}{tag}/{run_name}/"
     os.makedirs(model_dir, exist_ok=True)
 
     train = pd.read_csv(split_path["train"])
