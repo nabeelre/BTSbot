@@ -3,6 +3,7 @@
     "model_version": "v3.5-fast",
     "train_data_version": "v11",
     "N_max": 100,
+    "data_base_dir": "",
     "context_sources": null,
     "bag_sources": 800,
     "n_bags": 8,

@@ -1,0 +1,49 @@
+{
+    "model_name": "tabpfn",
+    "model_version": "v3.5-fast",
+    "train_data_version": "v11",
+    "N_max": 100,
+    "data_base_dir": "",
+    "context_sources": null,
+    "bag_sources": 800,
+    "n_bags": 8,
+    "n_estimators": 1,
+    "random_seed": 2,
+    "device": "auto",
+    "use_test_split": false,
+    "feature_sources": [
+        {
+            "path": "preds/divine-sweep-47_emb_{split}.csv",
+            "columns": "emb_*",
+            "prefix": "img_"
+        }
+    ],
+    "metadata_cols": [
+        "sgscore1",
+        "distpsnr1",
+        "sgscore2",
+        "distpsnr2",
+        "fwhm",
+        "magpsf",
+        "sigmapsf",
+        "chipsf",
+        "ra",
+        "dec",
+        "diffmaglim",
+        "ndethist",
+        "nmtchps",
+        "age",
+        "days_since_peak",
+        "days_to_peak",
+        "peakmag_so_far",
+        "new_drb",
+        "ncovhist",
+        "nnotdet",
+        "chinr",
+        "sharpnr",
+        "scorr",
+        "sky",
+        "maxmag_so_far"
+    ],
+    "tag": "imgemb"
+}
